@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api, getAuthToken } from './api';
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 const getCategoryEmoji = (name) => {
   const term = name.toLowerCase();
@@ -129,7 +130,7 @@ export default function App() {
           )}
 
           <img
-            src={coverImage ? `http://localhost:5000${coverImage}` : "https://placehold.co/400x300?text=No+Photo"}
+            src={coverImage ? `${import.meta.env.VITE_IMAGE_SERVER}${coverImage}` : "https://placehold.co/400x300?text=No+Photo"}
             alt={item.title}
             className="card-img"
             onError={(e) => { e.target.src = "https://placehold.co/400x300?text=Listing+Item"; }}
@@ -925,7 +926,7 @@ export default function App() {
           client_id: "613674321182-t4m0rv59tfkdhev3m4pke7hht7hbe0pl.apps.googleusercontent.com",
           callback: handleGoogleLoginResponse
         });
-        
+
         // On registration page, the container is conditionally rendered, so we wait briefly for DOM flush
         if (page === 'login' || (page === 'register' && selectedSignupRole !== 'select')) {
           setTimeout(() => {
@@ -1128,7 +1129,7 @@ export default function App() {
           setActiveInquiryId(inquiries[0].id);
           const lastMsg = inquiries[0].messages?.[inquiries[0].messages.length - 1];
           if (lastMsg && lastMsg.senderId !== user.id && inquiries[0].status !== 'READ') {
-            await fetch(`http://localhost:5000/api/inquiries/${inquiries[0].id}/read`, {
+            await fetch(`${import.meta.env.VITE_API_BASE}/inquiries/${inquiries[0].id}/read`, {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${localStorage.getItem('lowpriceplaces_token')}` }
             });
@@ -1145,7 +1146,7 @@ export default function App() {
           setActiveInquiryId(inquiries[0].id);
           const lastMsg = inquiries[0].messages?.[inquiries[0].messages.length - 1];
           if (lastMsg && lastMsg.senderId !== user.id && inquiries[0].status !== 'READ') {
-            await fetch(`http://localhost:5000/api/inquiries/${inquiries[0].id}/read`, {
+            await fetch(`${import.meta.env.VITE_API_BASE}/inquiries/${inquiries[0].id}/read`, {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${localStorage.getItem('lowpriceplaces_token')}` }
             });
@@ -1169,7 +1170,7 @@ export default function App() {
   useEffect(() => {
     if (page !== 'dashboard' || !user) return;
 
-    const shouldPoll = 
+    const shouldPoll =
       (user.role === 'SELLER' && dashboardTab === 'leads') ||
       (user.role === 'BUYER' && dashboardTab === 'inquiries');
 
@@ -1183,7 +1184,7 @@ export default function App() {
           const inquiries = await api.getSellerInquiries();
           const totalMsgsBefore = sellerInquiries.reduce((acc, inq) => acc + (inq.messages?.length || 0), 0);
           const totalMsgsAfter = inquiries.reduce((acc, inq) => acc + (inq.messages?.length || 0), 0);
-          
+
           if (totalMsgsAfter > totalMsgsBefore) {
             let hasNewIncoming = false;
             inquiries.forEach(inq => {
@@ -1209,7 +1210,7 @@ export default function App() {
           const inquiries = await api.getBuyerInquiries();
           const totalMsgsBefore = buyerInquiries.reduce((acc, inq) => acc + (inq.messages?.length || 0), 0);
           const totalMsgsAfter = inquiries.reduce((acc, inq) => acc + (inq.messages?.length || 0), 0);
-          
+
           if (totalMsgsAfter > totalMsgsBefore) {
             let hasNewIncoming = false;
             inquiries.forEach(inq => {
@@ -1265,7 +1266,7 @@ export default function App() {
   const playNotificationSound = () => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      
+
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = 'sine';
@@ -1297,13 +1298,13 @@ export default function App() {
   // Mark an inquiry thread as READ on the server
   const markAsRead = async (inquiryId) => {
     try {
-      await fetch(`http://localhost:5000/api/inquiries/${inquiryId}/read`, {
+      await fetch(`${import.meta.env.VITE_API_BASE}/inquiries/${inquiryId}/read`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('lowpriceplaces_token')}`
         }
       });
-      
+
       // Update local state
       if (user.role === 'SELLER') {
         setSellerInquiries(prev => prev.map(inq => inq.id === inquiryId ? { ...inq, status: 'READ' } : inq));
@@ -1321,7 +1322,7 @@ export default function App() {
     if (!text || !text.trim()) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/inquiries/${inquiryId}/messages`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE}/inquiries/${inquiryId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1411,14 +1412,14 @@ export default function App() {
     }
   };
 
-  const isAnyFilterApplied = 
-    searchQuery.trim() !== '' || 
-    minPrice !== '' || 
-    maxPrice !== '' || 
-    discountOnly === true || 
-    selectedCatFilter !== null || 
-    selectedSubCatFilter !== null || 
-    (locationFilter !== '' && locationFilter.toLowerCase() !== 'india') || 
+  const isAnyFilterApplied =
+    searchQuery.trim() !== '' ||
+    minPrice !== '' ||
+    maxPrice !== '' ||
+    discountOnly === true ||
+    selectedCatFilter !== null ||
+    selectedSubCatFilter !== null ||
+    (locationFilter !== '' && locationFilter.toLowerCase() !== 'india') ||
     selectedDateFilter !== '';
 
   return (
@@ -1628,15 +1629,15 @@ export default function App() {
             <div className="glass-panel form-card" style={{ width: '450px' }}>
               <h2 className="form-title">Join lowpriceplaces</h2>
               {authError && <div className="alert-banner alert-error">{authError}</div>}
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div className="form-group">
                   <label className="form-label">Select Account Type</label>
-                  <select 
-                    name="role" 
-                    className="form-select" 
-                    value={selectedSignupRole} 
-                    onChange={(e) => setSelectedSignupRole(e.target.value)} 
+                  <select
+                    name="role"
+                    className="form-select"
+                    value={selectedSignupRole}
+                    onChange={(e) => setSelectedSignupRole(e.target.value)}
                     required
                   >
                     <option value="select">-- Select Account Type --</option>
@@ -2098,7 +2099,7 @@ export default function App() {
               <div className="detail-gallery">
                 <div className="gallery-main" style={{ position: 'relative', width: '100%', height: '400px', background: '#141420', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--border-glass)' }}>
                   <img
-                    src={activeDetailImage ? `http://localhost:5000${activeDetailImage}` : "https://placehold.co/600x400?text=No+Photo"}
+                    src={activeDetailImage ? `${import.meta.env.VITE_IMAGE_SERVER}${activeDetailImage}` : "https://placehold.co/600x400?text=No+Photo"}
                     alt={listingDetails.title}
                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                     onError={(e) => { e.target.src = "https://placehold.co/600x400?text=No+Image+Provided"; }}
@@ -2127,7 +2128,7 @@ export default function App() {
                           }}
                         >
                           <img
-                            src={`http://localhost:5000${img}`}
+                            src={`${import.meta.env.VITE_IMAGE_SERVER}0${img}`}
                             alt={`Thumbnail ${index + 1}`}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             onError={(e) => { e.target.style.display = 'none'; }}
@@ -2361,17 +2362,17 @@ export default function App() {
                           {rev.images?.map((img, i) => (
                             <img
                               key={i}
-                              src={`http://localhost:5000${img}`}
+                              src={`${import.meta.env.VITE_IMAGE_SERVER}${img}`}
                               alt="Review image"
                               className="review-img"
-                              onClick={() => window.open(`http://localhost:5000${img}`)}
+                              onClick={() => window.open(`${import.meta.env.VITE_IMAGE_SERVER}${img}`)}
                               onError={(e) => { e.target.style.display = 'none'; }}
                             />
                           ))}
                           {rev.videos?.map((vid, i) => (
                             <video
                               key={i}
-                              src={`http://localhost:5000${vid}`}
+                              src={`${import.meta.env.VITE_IMAGE_SERVER}${vid}`}
                               controls
                               className="review-video"
                               onError={(e) => { e.target.style.display = 'none'; }}
@@ -2454,7 +2455,7 @@ export default function App() {
                       <div key={item.id} className="glass-panel product-card" style={{ minHeight: '360px', height: 'auto' }}>
                         <div className="card-image-wrapper" style={{ height: '160px' }}>
                           <img
-                            src={item.imagePath ? `http://localhost:5000${item.imagePath}` : "https://placehold.co/400x300?text=No+Photo"}
+                            src={item.imagePath ? `${import.meta.env.VITE_IMAGE_SERVER}${item.imagePath}` : "https://placehold.co/400x300?text=No+Photo"}
                             alt={item.title}
                             className="card-img"
                             onError={(e) => { e.target.src = "https://placehold.co/400x300?text=Product"; }}
@@ -2637,15 +2638,15 @@ export default function App() {
                             const lastMsg = inq.messages?.[inq.messages.length - 1];
                             const isUnread = lastMsg && lastMsg.senderId !== user.id && inq.status !== 'READ';
                             return (
-                              <div 
-                                key={inq.id} 
+                              <div
+                                key={inq.id}
                                 onClick={() => {
                                   setActiveInquiryId(inq.id);
                                   markAsRead(inq.id);
                                 }}
-                                style={{ 
-                                  padding: '14px 16px', 
-                                  borderBottom: '1px solid rgba(255,255,255,0.03)', 
+                                style={{
+                                  padding: '14px 16px',
+                                  borderBottom: '1px solid rgba(255,255,255,0.03)',
                                   cursor: 'pointer',
                                   background: isActive ? 'rgba(99, 102, 241, 0.08)' : 'transparent',
                                   transition: 'var(--transition)',
@@ -2654,10 +2655,10 @@ export default function App() {
                                   gap: '12px'
                                 }}
                               >
-                                <div style={{ 
-                                  width: '38px', 
-                                  height: '38px', 
-                                  borderRadius: '50%', 
+                                <div style={{
+                                  width: '38px',
+                                  height: '38px',
+                                  borderRadius: '50%',
                                   background: isActive ? 'linear-gradient(135deg, #6366f1, #ec4899)' : 'linear-gradient(135deg, #374151, #4b5563)',
                                   color: '#ffffff',
                                   display: 'flex',
@@ -2694,21 +2695,21 @@ export default function App() {
                                         }
                                         return count;
                                       })();
-                                      
+
                                       if (unreadCount > 0) {
                                         return (
-                                          <span style={{ 
-                                            background: '#ef4444', 
-                                            color: '#ffffff', 
-                                            borderRadius: '10px', 
-                                            padding: '2px 6px', 
-                                            fontSize: '10px', 
-                                            fontWeight: '700', 
-                                            minWidth: '18px', 
+                                          <span style={{
+                                            background: '#ef4444',
+                                            color: '#ffffff',
+                                            borderRadius: '10px',
+                                            padding: '2px 6px',
+                                            fontSize: '10px',
+                                            fontWeight: '700',
+                                            minWidth: '18px',
                                             textAlign: 'center',
                                             display: 'inline-block',
                                             lineHeight: '1.2',
-                                            flexShrink: 0 
+                                            flexShrink: 0
                                           }}>
                                             {unreadCount}
                                           </span>
@@ -2762,14 +2763,14 @@ export default function App() {
                                 </div>
                               </div>
 
-                              <div 
+                              <div
                                 id={`chat-messages-${activeInq.id}`}
-                                style={{ 
+                                style={{
                                   flex: 1,
-                                  display: 'flex', 
-                                  flexDirection: 'column', 
-                                  gap: '12px', 
-                                  padding: '20px', 
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '12px',
+                                  padding: '20px',
                                   overflowY: 'auto',
                                   background: 'rgba(0,0,0,0.1)'
                                 }}
@@ -2778,13 +2779,13 @@ export default function App() {
                                   const isMe = msg.senderId === user.id;
                                   const hasDoubleTicks = activeInq.status === 'READ' || activeInq.status === 'REPLIED';
                                   return (
-                                    <div key={msg.id} style={{ 
-                                      display: 'flex', 
+                                    <div key={msg.id} style={{
+                                      display: 'flex',
                                       flexDirection: 'column',
                                       alignSelf: isMe ? 'flex-end' : 'flex-start',
                                       maxWidth: '75%'
                                     }}>
-                                      <div style={{ 
+                                      <div style={{
                                         background: isMe ? 'linear-gradient(135deg, #6366f1, #a855f7)' : 'rgba(120, 120, 120, 0.12)',
                                         color: isMe ? '#ffffff' : 'var(--text-main)',
                                         border: isMe ? 'none' : '1px solid var(--border-glass)',
@@ -2796,9 +2797,9 @@ export default function App() {
                                       }}>
                                         {msg.text}
                                       </div>
-                                      <span style={{ 
-                                        fontSize: '10px', 
-                                        color: 'var(--text-dim)', 
+                                      <span style={{
+                                        fontSize: '10px',
+                                        color: 'var(--text-dim)',
                                         marginTop: '4px',
                                         alignSelf: isMe ? 'flex-end' : 'flex-start',
                                         display: 'flex',
@@ -2832,9 +2833,9 @@ export default function App() {
                                       }
                                     }}
                                   />
-                                  <button 
-                                    className="btn btn-primary" 
-                                    style={{ padding: '0 20px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+                                  <button
+                                    className="btn btn-primary"
+                                    style={{ padding: '0 20px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                     onClick={() => handleSendMessage(activeInq.id)}
                                   >
                                     Send
@@ -2869,15 +2870,15 @@ export default function App() {
                             const lastMsg = inq.messages?.[inq.messages.length - 1];
                             const isUnread = lastMsg && lastMsg.senderId !== user.id && inq.status !== 'READ';
                             return (
-                              <div 
-                                key={inq.id} 
+                              <div
+                                key={inq.id}
                                 onClick={() => {
                                   setActiveInquiryId(inq.id);
                                   markAsRead(inq.id);
                                 }}
-                                style={{ 
-                                  padding: '14px 16px', 
-                                  borderBottom: '1px solid rgba(255,255,255,0.03)', 
+                                style={{
+                                  padding: '14px 16px',
+                                  borderBottom: '1px solid rgba(255,255,255,0.03)',
                                   cursor: 'pointer',
                                   background: isActive ? 'rgba(99, 102, 241, 0.08)' : 'transparent',
                                   transition: 'var(--transition)',
@@ -2886,10 +2887,10 @@ export default function App() {
                                   gap: '12px'
                                 }}
                               >
-                                <div style={{ 
-                                  width: '38px', 
-                                  height: '38px', 
-                                  borderRadius: '50%', 
+                                <div style={{
+                                  width: '38px',
+                                  height: '38px',
+                                  borderRadius: '50%',
                                   background: isActive ? 'linear-gradient(135deg, #6366f1, #ec4899)' : 'linear-gradient(135deg, #374151, #4b5563)',
                                   color: '#ffffff',
                                   display: 'flex',
@@ -2926,21 +2927,21 @@ export default function App() {
                                         }
                                         return count;
                                       })();
-                                      
+
                                       if (unreadCount > 0) {
                                         return (
-                                          <span style={{ 
-                                            background: '#ef4444', 
-                                            color: '#ffffff', 
-                                            borderRadius: '10px', 
-                                            padding: '2px 6px', 
-                                            fontSize: '10px', 
-                                            fontWeight: '700', 
-                                            minWidth: '18px', 
+                                          <span style={{
+                                            background: '#ef4444',
+                                            color: '#ffffff',
+                                            borderRadius: '10px',
+                                            padding: '2px 6px',
+                                            fontSize: '10px',
+                                            fontWeight: '700',
+                                            minWidth: '18px',
                                             textAlign: 'center',
                                             display: 'inline-block',
                                             lineHeight: '1.2',
-                                            flexShrink: 0 
+                                            flexShrink: 0
                                           }}>
                                             {unreadCount}
                                           </span>
@@ -2994,14 +2995,14 @@ export default function App() {
                                 </div>
                               </div>
 
-                              <div 
+                              <div
                                 id={`chat-messages-${activeInq.id}`}
-                                style={{ 
+                                style={{
                                   flex: 1,
-                                  display: 'flex', 
-                                  flexDirection: 'column', 
-                                  gap: '12px', 
-                                  padding: '20px', 
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '12px',
+                                  padding: '20px',
                                   overflowY: 'auto',
                                   background: 'rgba(0,0,0,0.1)'
                                 }}
@@ -3010,13 +3011,13 @@ export default function App() {
                                   const isMe = msg.senderId === user.id;
                                   const hasDoubleTicks = activeInq.status === 'READ' || activeInq.status === 'REPLIED';
                                   return (
-                                    <div key={msg.id} style={{ 
-                                      display: 'flex', 
+                                    <div key={msg.id} style={{
+                                      display: 'flex',
                                       flexDirection: 'column',
                                       alignSelf: isMe ? 'flex-end' : 'flex-start',
                                       maxWidth: '75%'
                                     }}>
-                                      <div style={{ 
+                                      <div style={{
                                         background: isMe ? 'linear-gradient(135deg, #6366f1, #a855f7)' : 'rgba(120, 120, 120, 0.12)',
                                         color: isMe ? '#ffffff' : 'var(--text-main)',
                                         border: isMe ? 'none' : '1px solid var(--border-glass)',
@@ -3028,9 +3029,9 @@ export default function App() {
                                       }}>
                                         {msg.text}
                                       </div>
-                                      <span style={{ 
-                                        fontSize: '10px', 
-                                        color: 'var(--text-dim)', 
+                                      <span style={{
+                                        fontSize: '10px',
+                                        color: 'var(--text-dim)',
                                         marginTop: '4px',
                                         alignSelf: isMe ? 'flex-end' : 'flex-start',
                                         display: 'flex',
@@ -3064,9 +3065,9 @@ export default function App() {
                                       }
                                     }}
                                   />
-                                  <button 
-                                    className="btn btn-primary" 
-                                    style={{ padding: '0 20px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+                                  <button
+                                    className="btn btn-primary"
+                                    style={{ padding: '0 20px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                     onClick={() => handleSendMessage(activeInq.id)}
                                   >
                                     Send
@@ -3096,7 +3097,7 @@ export default function App() {
                         <div key={item.id} className="glass-panel product-card" onClick={() => loadListingDetails(item.id)}>
                           <div className="card-image-wrapper">
                             <img
-                              src={item.imagePath ? `http://localhost:5000${item.imagePath}` : "https://placehold.co/400x300?text=No+Photo"}
+                              src={item.imagePath ? `${import.meta.env.VITE_IMAGE_SERVER}${item.imagePath}` : "https://placehold.co/400x300?text=No+Photo"}
                               alt={item.title}
                               className="card-img"
                               onError={(e) => { e.target.src = "https://placehold.co/400x300?text=Product"; }}
@@ -3122,13 +3123,13 @@ export default function App() {
               {user.role === 'ADMIN' && dashboardTab === 'cities' && (
                 <div>
                   <h2 style={{ marginBottom: '16px' }}>Manage Cities & Icons</h2>
-                  
+
                   {adminCitySuccess && <div className="alert-banner alert-success" style={{ marginBottom: '16px' }}>{adminCitySuccess}</div>}
                   {adminCityError && <div className="alert-banner alert-error" style={{ marginBottom: '16px' }}>{adminCityError}</div>}
 
                   <div className="glass-panel form-card" style={{ padding: '24px', marginBottom: '24px' }}>
                     <h3 style={{ marginBottom: '16px', fontSize: '18px', fontWeight: '600' }}>Add New City</h3>
-                    
+
                     <form onSubmit={handleAddCity} style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                       <div className="form-group" style={{ flex: 2, minWidth: '200px', marginBottom: 0 }}>
                         <label className="form-label" style={{ fontSize: '12px' }}>City Name</label>
@@ -3142,7 +3143,7 @@ export default function App() {
                           style={{ width: '100%' }}
                         />
                       </div>
-                      
+
                       <div className="form-group" style={{ flex: 1, minWidth: '100px', marginBottom: 0 }}>
                         <label className="form-label" style={{ fontSize: '12px' }}>Choose Icon / Emoji</label>
                         <input
