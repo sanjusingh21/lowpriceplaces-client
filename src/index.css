@@ -913,9 +913,12 @@ h6 {
   gap: 16px;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 991px) {
   .form-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
+  }
+  .form-grid > * {
+    grid-column: span 1 !important;
   }
 }
 
