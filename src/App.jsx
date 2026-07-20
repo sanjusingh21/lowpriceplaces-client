@@ -188,6 +188,7 @@ export default function App() {
   const [selectedListingId, setSelectedListingId] = useState(null);
   const [user, setUser] = useState(null);
   const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Cache & Database data
   const [categories, setCategories] = useState([]);
@@ -381,6 +382,8 @@ export default function App() {
   const [createSuccess, setCreateSuccess] = useState('');
   const [createError, setCreateError] = useState('');
   const [selectedSignupRole, setSelectedSignupRole] = useState('select');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [selectedDateFilter, setSelectedDateFilter] = useState(''); // 'today', 'yesterday', or 'YYYY-MM-DD'
   const [customDateInput, setCustomDateInput] = useState('');
   const [selectedSortBy, setSelectedSortBy] = useState('date_desc'); // 'date_desc', 'price_asc', 'price_desc'
@@ -533,6 +536,10 @@ export default function App() {
         }
       } catch (e) {
         console.error("Initialization error:", e);
+        api.logout();
+        setUser(null);
+      } finally {
+        setAuthLoading(false);
       }
     };
     init();
@@ -573,6 +580,10 @@ export default function App() {
           }).finally(() => setLoading(false));
         }
       } else if (hash.startsWith('#/dashboard')) {
+        if (!getAuthToken()) {
+          window.location.hash = '#/login';
+          return;
+        }
         setPage('dashboard');
         const parts = hash.split('/');
         if (parts[2]) {
@@ -1422,11 +1433,281 @@ export default function App() {
     (locationFilter !== '' && locationFilter.toLowerCase() !== 'india') ||
     selectedDateFilter !== '';
 
+  const renderFilterContent = (isMobile = false) => {
+    return (
+      <>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '10px' }}>
+          <span style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-main)' }}>Filters</span>
+          <span
+            onClick={() => {
+              handleClearAllFilters();
+              if (isMobile) setMobileFiltersOpen(false);
+            }}
+            style={{ fontSize: '12px', color: 'var(--primary)', cursor: 'pointer', fontWeight: '600' }}
+          >
+            Clear All
+          </span>
+        </div>
+
+        <div className="filter-group">
+          <div className="filter-title">Sort By</div>
+          <select
+            className="form-select"
+            style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border-glass)', borderRadius: '8px', padding: '8px', fontSize: '13px' }}
+            value={selectedSortBy}
+            onChange={(e) => setSelectedSortBy(e.target.value)}
+          >
+            <option value="date_desc">Newest First</option>
+            <option value="date_asc">Oldest First</option>
+            <option value="price_asc">Price: Low to High</option>
+            <option value="price_desc">Price: High to Low</option>
+          </select>
+        </div>
+
+        <div className="filter-group">
+          <div className="filter-title">Posted Date</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name={isMobile ? "mobileDateFilter" : "dateFilter"}
+                checked={selectedDateFilter === ''}
+                onChange={() => setSelectedDateFilter('')}
+              />
+              All Time
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name={isMobile ? "mobileDateFilter" : "dateFilter"}
+                checked={selectedDateFilter === 'today'}
+                onChange={() => setSelectedDateFilter('today')}
+              />
+              Today
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name={isMobile ? "mobileDateFilter" : "dateFilter"}
+                checked={selectedDateFilter === 'yesterday'}
+                onChange={() => setSelectedDateFilter('yesterday')}
+              />
+              Yesterday
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name={isMobile ? "mobileDateFilter" : "dateFilter"}
+                checked={selectedDateFilter !== '' && selectedDateFilter !== 'today' && selectedDateFilter !== 'yesterday'}
+                onChange={() => {
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  setSelectedDateFilter(todayStr);
+                  setCustomDateInput(todayStr);
+                }}
+              />
+              Specific Date
+            </label>
+
+            {selectedDateFilter !== '' && selectedDateFilter !== 'today' && selectedDateFilter !== 'yesterday' && (
+              <input
+                type="date"
+                style={{
+                  width: '100%',
+                  background: 'rgba(255,255,255,0.05)',
+                  color: 'var(--text-main)',
+                  border: '1px solid var(--border-glass)',
+                  borderRadius: '8px',
+                  padding: '6px 8px',
+                  fontSize: '12px',
+                  marginTop: '4px'
+                }}
+                value={customDateInput}
+                onChange={(e) => {
+                  const dateVal = e.target.value;
+                  setCustomDateInput(dateVal);
+                  setSelectedDateFilter(dateVal);
+                }}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="filter-group">
+          <div className="filter-title">Price Range (₹)</div>
+          <div className="price-range-inputs">
+            <input
+              type="number"
+              placeholder="Min"
+              className="price-input"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+            />
+            <span style={{ color: 'var(--text-dim)' }}>-</span>
+            <input
+              type="number"
+              placeholder="Max"
+              className="price-input"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="filter-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="checkbox"
+            id={isMobile ? "mobile-discount-check" : "discount-check"}
+            checked={discountOnly}
+            onChange={(e) => setDiscountOnly(e.target.checked)}
+            style={{ cursor: 'pointer' }}
+          />
+          <label htmlFor={isMobile ? "mobile-discount-check" : "discount-check"} style={{ fontSize: '14px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+            Discounted Deals Only
+          </label>
+        </div>
+
+        <button className="btn btn-primary" style={{ width: '100%', marginTop: '8px' }} onClick={() => {
+          fetchListings();
+          if (isMobile) setMobileFiltersOpen(false);
+        }}>
+          Apply Filters
+        </button>
+      </>
+    );
+  };
+
+  const renderSearchForm = () => {
+    return (
+      <form className="dual-search-container" onSubmit={handleSearchSubmit}>
+        {/* Location Search Box */}
+        <div className="location-search-box">
+          <span className="location-icon">📍</span>
+          <input
+            type="text"
+            placeholder="Search location..."
+            className="location-input"
+            value={locationSearchInput}
+            onChange={(e) => {
+              const val = e.target.value;
+              setLocationSearchInput(val);
+              setLocationFilter(val);
+              setShowLocationDropdown(true);
+            }}
+            onFocus={() => setShowLocationDropdown(true)}
+          />
+
+          {showLocationDropdown && (
+            <div className="location-dropdown">
+              <div className="detect-location-item" onClick={detectUserLocation}>
+                <span className="location-icon">🎯</span>
+                Detect Location
+              </div>
+              {displayedLocations.length > 0 ? (
+                displayedLocations.map((loc, i) => (
+                  <div
+                    key={i}
+                    className="location-dropdown-item"
+                    onClick={() => {
+                      setLocationSearchInput(loc);
+                      setLocationFilter(loc);
+                      setShowLocationDropdown(false);
+                      fetchListings({ location: loc });
+                    }}
+                  >
+                    {loc}
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-dim)' }}>
+                  No matches found
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Keyword Search Box */}
+        <div className="keyword-search-box" style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+          <span style={{ fontSize: '14px', marginLeft: '12px', color: 'var(--text-dim)', userSelect: 'none' }}>🔍</span>
+          <input
+            type="text"
+            className="keyword-input"
+            style={{ paddingLeft: '8px' }}
+            placeholder="Search products..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+
+          {searchQuery && (
+            <button
+              type="button"
+              className="search-clear-btn"
+              onClick={() => {
+                setSearchQuery('');
+                fetchListings({ q: '' });
+              }}
+              title="Clear Search"
+            >
+              ✖
+            </button>
+          )}
+
+          <button type="submit" className="search-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
+
+          {/* Suggestions Overlay */}
+          {suggestions.length > 0 && (
+            <div className="autocomplete-dropdown">
+              {suggestions.map((sug, i) => (
+                <div key={i} className="autocomplete-item" onClick={() => handleSuggestionClick(sug)}>
+                  <span className="item-type">{sug.type}</span>
+                  <span>{sug.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </form>
+    );
+  };
+
+  if (getAuthToken() && authLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--bg-main)', color: 'var(--text-muted)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+          <div className="loading-spinner" style={{ width: '32px', height: '32px', border: '3px solid rgba(99, 102, 241, 0.1)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+          <span style={{ fontSize: '14px', fontWeight: '500' }}>Loading your session...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
       {/* 1. Header (Amazon Style) */}
       <header className={`header-glass ${isScrolled ? 'scrolled' : ''}`}>
         <div className="nav-container">
+          <button 
+            type="button" 
+            className="mobile-menu-toggle" 
+            onClick={() => setMobileMenuOpen(true)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-main)',
+              fontSize: '24px',
+              cursor: 'pointer',
+              display: 'none', // Managed by responsive CSS
+              padding: '0 8px',
+              marginRight: '8px'
+            }}
+          >
+            ☰
+          </button>
           <div className="brand-logo" onClick={() => { window.location.hash = '#/'; setSelectedCatFilter(null); setSelectedSubCatFilter(null); fetchListings({ categoryId: null, subCategoryId: null }); }}>
             <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
               <defs>
@@ -1455,100 +1736,18 @@ export default function App() {
 
           {/* Dual Justdial-style Search Bar Wrapper (prevents layout jumping when search bar becomes sticky) */}
           <div className="search-wrapper" style={{ flex: 1, maxWidth: '600px', height: '46px', display: 'flex', alignItems: 'center' }}>
-            <form className="dual-search-container" onSubmit={handleSearchSubmit}>
-              {/* Location Search Box */}
-              <div className="location-search-box">
-                <span className="location-icon">📍</span>
-                <input
-                  type="text"
-                  placeholder="Search location..."
-                  className="location-input"
-                  value={locationSearchInput}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setLocationSearchInput(val);
-                    setLocationFilter(val); // Keep filter state synchronized
-                    setShowLocationDropdown(true);
-                  }}
-                  onFocus={() => setShowLocationDropdown(true)}
-                />
+            {renderSearchForm()}
+          </div>
 
-                {showLocationDropdown && (
-                  <div className="location-dropdown">
-                    <div className="detect-location-item" onClick={detectUserLocation}>
-                      <span className="location-icon">🎯</span>
-                      Detect Location
-                    </div>
-                    {displayedLocations.length > 0 ? (
-                      displayedLocations.map((loc, i) => (
-                        <div
-                          key={i}
-                          className="location-dropdown-item"
-                          onClick={() => {
-                            setLocationSearchInput(loc);
-                            setLocationFilter(loc);
-                            setShowLocationDropdown(false);
-                            fetchListings({ location: loc });
-                          }}
-                        >
-                          {loc}
-                        </div>
-                      ))
-                    ) : (
-                      <div style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-dim)' }}>
-                        No matches found
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Keyword Search Box */}
-              <div className="keyword-search-box" style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                <span style={{ fontSize: '14px', marginLeft: '12px', color: 'var(--text-dim)', userSelect: 'none' }}>🔍</span>
-                <input
-                  type="text"
-                  className="keyword-input"
-                  style={{ paddingLeft: '8px' }}
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-
-                {searchQuery && (
-                  <button
-                    type="button"
-                    className="search-clear-btn"
-                    onClick={() => {
-                      setSearchQuery('');
-                      fetchListings({ q: '' });
-                    }}
-                    title="Clear Search"
-                  >
-                    ✖
-                  </button>
-                )}
-
-                <button type="submit" className="search-btn">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                  </svg>
-                </button>
-
-                {/* Suggestions Overlay */}
-                {suggestions.length > 0 && (
-                  <div className="autocomplete-dropdown">
-                    {suggestions.map((sug, i) => (
-                      <div key={i} className="autocomplete-item" onClick={() => handleSuggestionClick(sug)}>
-                        <span className="item-type">{sug.type}</span>
-                        <span>{sug.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </form>
+          <div className="mobile-header-actions" style={{ display: 'none', marginLeft: 'auto', gap: '10px', alignItems: 'center' }}>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '6px 10px', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+            >
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
           </div>
 
           {/* User Account / Navigation Controls */}
@@ -1712,8 +1911,16 @@ export default function App() {
         {page === 'home' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
 
+            {/* Mobile Hero Search (Hidden on Desktop via CSS) */}
+            <div className="mobile-search-hero">
+              {renderSearchForm()}
+            </div>
+
             {/* Top Categories Grid Bar */}
-            <div className="glass-panel" style={{ padding: '24px' }}>
+            <div className="glass-panel mobile-flat-panel" style={{ padding: '24px' }}>
+              <div className="mobile-section-title" style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                📁 Browse Categories
+              </div>
               <div className="category-bar-grid">
                 <div
                   className="category-bar-item"
@@ -1785,8 +1992,8 @@ export default function App() {
             </div>
 
             {/* Explore by City Grid Bar */}
-            <div className="glass-panel" style={{ padding: '20px 24px' }}>
-              <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div className="glass-panel mobile-flat-panel" style={{ padding: '20px 24px' }}>
+              <div className="mobile-city-title" style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 📍 Explore by City
               </div>
               <div className="category-bar-grid">
@@ -1826,136 +2033,7 @@ export default function App() {
 
               {/* Sidebar Filters */}
               <aside className="sidebar-filter">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '10px' }}>
-                  <span style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-main)' }}>Filters</span>
-                  <span
-                    onClick={handleClearAllFilters}
-                    style={{ fontSize: '12px', color: 'var(--primary)', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Clear All
-                  </span>
-                </div>
-
-                <div className="filter-group">
-                  <div className="filter-title">Sort By</div>
-                  <select
-                    className="form-select"
-                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border-glass)', borderRadius: '8px', padding: '8px', fontSize: '13px' }}
-                    value={selectedSortBy}
-                    onChange={(e) => setSelectedSortBy(e.target.value)}
-                  >
-                    <option value="date_desc">Newest First</option>
-                    <option value="date_asc">Oldest First</option>
-                    <option value="price_asc">Price: Low to High</option>
-                    <option value="price_desc">Price: High to Low</option>
-                  </select>
-                </div>
-
-                <div className="filter-group">
-                  <div className="filter-title">Posted Date</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="dateFilter"
-                        checked={selectedDateFilter === ''}
-                        onChange={() => setSelectedDateFilter('')}
-                      />
-                      All Time
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="dateFilter"
-                        checked={selectedDateFilter === 'today'}
-                        onChange={() => setSelectedDateFilter('today')}
-                      />
-                      Today
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="dateFilter"
-                        checked={selectedDateFilter === 'yesterday'}
-                        onChange={() => setSelectedDateFilter('yesterday')}
-                      />
-                      Yesterday
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="dateFilter"
-                        checked={selectedDateFilter !== '' && selectedDateFilter !== 'today' && selectedDateFilter !== 'yesterday'}
-                        onChange={() => {
-                          const todayStr = new Date().toISOString().split('T')[0];
-                          setSelectedDateFilter(todayStr);
-                          setCustomDateInput(todayStr);
-                        }}
-                      />
-                      Specific Date
-                    </label>
-
-                    {selectedDateFilter !== '' && selectedDateFilter !== 'today' && selectedDateFilter !== 'yesterday' && (
-                      <input
-                        type="date"
-                        style={{
-                          width: '100%',
-                          background: 'rgba(255,255,255,0.05)',
-                          color: 'var(--text-main)',
-                          border: '1px solid var(--border-glass)',
-                          borderRadius: '8px',
-                          padding: '6px 8px',
-                          fontSize: '12px',
-                          marginTop: '4px'
-                        }}
-                        value={customDateInput}
-                        onChange={(e) => {
-                          const dateVal = e.target.value;
-                          setCustomDateInput(dateVal);
-                          setSelectedDateFilter(dateVal);
-                        }}
-                      />
-                    )}
-                  </div>
-                </div>
-
-                <div className="filter-group">
-                  <div className="filter-title">Price Range (₹)</div>
-                  <div className="price-range-inputs">
-                    <input
-                      type="number"
-                      placeholder="Min"
-                      className="price-input"
-                      value={minPrice}
-                      onChange={(e) => setMinPrice(e.target.value)}
-                    />
-                    <span style={{ color: 'var(--text-dim)' }}>-</span>
-                    <input
-                      type="number"
-                      placeholder="Max"
-                      className="price-input"
-                      value={maxPrice}
-                      onChange={(e) => setMaxPrice(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="filter-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="checkbox"
-                    id="discount-check"
-                    checked={discountOnly}
-                    onChange={(e) => setDiscountOnly(e.target.checked)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <label htmlFor="discount-check" style={{ fontSize: '14px', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                    Discounted Deals Only
-                  </label>
-                </div>
-
-                <button className="btn btn-primary" onClick={() => fetchListings()}>
-                  Apply Filters
-                </button>
+                {renderFilterContent(false)}
               </aside>
 
               {/* Product Feed Grid */}
@@ -3368,6 +3446,119 @@ export default function App() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+      {/* Mobile Navigation Drawer */}
+      <div className={`mobile-drawer-overlay ${mobileMenuOpen ? 'open' : ''}`} onClick={() => setMobileMenuOpen(false)}>
+        <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
+          <div className="drawer-header">
+            <span style={{ fontSize: '18px', fontWeight: '800', color: 'var(--primary)' }}>lowpriceplaces</span>
+            <button className="drawer-close-btn" onClick={() => setMobileMenuOpen(false)}>✖</button>
+          </div>
+          <div className="drawer-body">
+            {user ? (
+              <div className="drawer-profile-section">
+                <div className="drawer-avatar">👤</div>
+                <div className="drawer-user-meta">
+                  <div className="drawer-username">{user.username ? user.username.split('@')[0] : 'User'}</div>
+                  <div className="drawer-role-badge">{user.role}</div>
+                </div>
+              </div>
+            ) : (
+              <div className="drawer-profile-section">
+                <div className="drawer-avatar">👤</div>
+                <div className="drawer-user-meta">
+                  <div className="drawer-username">Welcome Guest</div>
+                  <div className="drawer-role-badge">GUEST</div>
+                </div>
+              </div>
+            )}
+
+            <div className="drawer-nav-list">
+              <a href="#/" className="drawer-nav-item" onClick={() => { setMobileMenuOpen(false); setSelectedCatFilter(null); setSelectedSubCatFilter(null); fetchListings(); }}>
+                🏠 Home Feed
+              </a>
+              {user ? (
+                <>
+                  {(user.role === 'SELLER' || user.role === 'BUYER' || user.role === 'ADMIN') && (
+                    <a href={`#/dashboard/${user.role === 'ADMIN' ? 'cities' : (user.role === 'SELLER' ? 'my-listings' : 'inquiries')}`} className="drawer-nav-item" onClick={() => setMobileMenuOpen(false)}>
+                      📈 {user.role === 'ADMIN' ? 'Admin Dashboard' : 'My Account Dashboard'}
+                    </a>
+                  )}
+                  <button className="btn btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={() => { api.logout(); setUser(null); setMobileMenuOpen(false); window.location.hash = '#/'; }}>
+                    Log Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <a href="#/login" className="drawer-nav-item" onClick={() => setMobileMenuOpen(false)}>
+                    🔑 Sign In
+                  </a>
+                  <a href="#/register" className="drawer-nav-item" onClick={() => setMobileMenuOpen(false)}>
+                    ➕ Register
+                  </a>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Bottom Filter Drawer */}
+      <div className={`mobile-filter-drawer-overlay ${mobileFiltersOpen ? 'open' : ''}`} onClick={() => setMobileFiltersOpen(false)}>
+        <div className="mobile-filter-drawer" onClick={(e) => e.stopPropagation()}>
+          <div className="drawer-header">
+            <span style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-main)' }}>Filter Listings</span>
+            <button className="drawer-close-btn" onClick={() => setMobileFiltersOpen(false)}>✖</button>
+          </div>
+          <div className="drawer-body" style={{ maxHeight: '70vh', overflowY: 'auto', padding: '16px' }}>
+            {renderFilterContent(true)}
+          </div>
+        </div>
+      </div>
+
+      {/* Sticky Bottom Mobile Filter Button */}
+      {page === 'home' && (
+        <div className="mobile-filter-floating-bar">
+          <button className="mobile-floating-btn" onClick={() => setMobileFiltersOpen(true)}>
+            ⚡ Filters & Sort {isAnyFilterApplied && <span className="filter-active-dot"></span>}
+          </button>
+        </div>
+      )}
+
+      {/* Sticky Bottom Details Contact Bar (Mobile Only) */}
+      {page === 'detail' && listingDetails && (
+        <div className="mobile-detail-sticky-bar">
+          {user ? (
+            <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+              <a
+                href={`https://wa.me/${listingDetails.whatsappNumber.replace(/[^0-9]/g, '')}?text=Hi, I am interested in your listing: "${encodeURIComponent(listingDetails.title)}"`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-whatsapp"
+                style={{ flex: 1, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', gap: '6px', height: '44px', padding: 0 }}
+              >
+                💬 WhatsApp
+              </a>
+              <a 
+                href={`tel:${listingDetails.contactNumber}`} 
+                className="btn btn-secondary" 
+                style={{ flex: 1, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', gap: '6px', height: '44px', padding: 0 }}
+              >
+                📞 Call Owner
+              </a>
+            </div>
+          ) : (
+            <div style={{ width: '100%' }}>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => { window.location.hash = '#/login'; }} 
+                style={{ width: '100%', height: '44px', fontSize: '14px', padding: 0 }}
+              >
+                🔑 Log In to Contact Seller
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
