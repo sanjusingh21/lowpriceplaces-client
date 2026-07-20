@@ -92,7 +92,7 @@ export default function App() {
     const hasMultiplePhotos = photos.length > 1;
 
     return (
-      <div key={item.id} className="glass-panel product-card" onClick={() => window.location.hash = `#/details/${item.id}`}>
+      <div key={item.id} className="glass-panel product-card feed-card" onClick={() => window.location.hash = `#/details/${item.id}`}>
         <div className="card-image-wrapper">
           {hasDiscount && (
             <div className="card-badge">-{item.discountPercent}% OFF</div>
@@ -1691,9 +1691,9 @@ export default function App() {
       {/* 1. Header (Amazon Style) */}
       <header className={`header-glass ${isScrolled ? 'scrolled' : ''}`}>
         <div className="nav-container">
-          <button 
-            type="button" 
-            className="mobile-menu-toggle" 
+          <button
+            type="button"
+            className="mobile-menu-toggle"
             onClick={() => setMobileMenuOpen(true)}
             style={{
               background: 'none',
@@ -1701,9 +1701,7 @@ export default function App() {
               color: 'var(--text-main)',
               fontSize: '24px',
               cursor: 'pointer',
-              display: 'none', // Managed by responsive CSS
               padding: '0 8px',
-              marginRight: '8px'
             }}
           >
             ☰
@@ -1734,12 +1732,32 @@ export default function App() {
             lowpriceplaces
           </div>
 
-          {/* Dual Justdial-style Search Bar Wrapper (prevents layout jumping when search bar becomes sticky) */}
-          <div className="search-wrapper" style={{ flex: 1, maxWidth: '600px', height: '46px', display: 'flex', alignItems: 'center' }}>
-            {renderSearchForm()}
-          </div>
+          {/* Dual Justdial-style Search Bar Wrapper (only displayed on home page) */}
+          {page === 'home' && (
+            <div className="search-wrapper" style={{ flex: 1, maxWidth: '600px', height: '46px', display: 'flex', alignItems: 'center', marginLeft: '20px' }}>
+              {renderSearchForm()}
+            </div>
+          )}
 
           <div className="mobile-header-actions" style={{ display: 'none', marginLeft: 'auto', gap: '10px', alignItems: 'center' }}>
+            {page !== 'home' && (
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '6px 10px', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => {
+                  window.location.hash = '#/';
+                  setTimeout(() => {
+                    const searchHero = document.querySelector('.mobile-search-hero');
+                    if (searchHero) {
+                      searchHero.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                  }, 100);
+                }}
+                title="Search Listings"
+              >
+                🔍
+              </button>
+            )}
             <button
               className="btn btn-secondary"
               style={{ padding: '6px 10px', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -1752,6 +1770,24 @@ export default function App() {
 
           {/* User Account / Navigation Controls */}
           <div className="nav-actions">
+            {page !== 'home' && (
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '6px 10px', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => {
+                  window.location.hash = '#/';
+                  setTimeout(() => {
+                    const searchHero = document.querySelector('.mobile-search-hero');
+                    if (searchHero) {
+                      searchHero.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                  }, 100);
+                }}
+                title="Search Listings"
+              >
+                🔍
+              </button>
+            )}
             <button
               className="btn btn-secondary"
               style={{ padding: '6px 10px', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -1769,7 +1805,7 @@ export default function App() {
                 {/* Dashboards routing dependent on client status */}
                 {(user.role === 'SELLER' || user.role === 'BUYER' || user.role === 'ADMIN') && (
                   <button className="btn btn-secondary" onClick={() => { window.location.hash = `#/dashboard/${user.role === 'ADMIN' ? 'cities' : (user.role === 'SELLER' ? 'my-listings' : 'inquiries')}`; }}>
-                    {user.role === 'ADMIN' ? 'Admin Dashboard' : 'My Account Dashboard'}
+                    {user.role === 'ADMIN' ? 'Admin Dashboard' : 'Profile'}
                   </button>
                 )}
 
@@ -1909,7 +1945,7 @@ export default function App() {
 
         {/* HOME FEED VIEW */}
         {page === 'home' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+          <div className="home-content-container">
 
             {/* Mobile Hero Search (Hidden on Desktop via CSS) */}
             <div className="mobile-search-hero">
@@ -2206,10 +2242,10 @@ export default function App() {
                           }}
                         >
                           <img
-                            src={`${import.meta.env.VITE_IMAGE_SERVER}0${img}`}
+                            src={img ? (img.startsWith('http') ? img : `${import.meta.env.VITE_IMAGE_SERVER}${img}`) : "https://placehold.co/100x100?text=No+Image"}
                             alt={`Thumbnail ${index + 1}`}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={(e) => { e.target.style.display = 'none'; }}
+                            onError={(e) => { e.target.src = "https://placehold.co/100x100?text=No+Image"; }}
                           />
                         </div>
                       );
@@ -2469,6 +2505,57 @@ export default function App() {
         {/* CUSTOMER DASHBOARDS VIEW */}
         {page === 'dashboard' && user && (
           <div className="dashboard-layout">
+            {/* Mobile Direct Navigation Tabs (replacing select dropdown and swipe tabs) */}
+            <div className="mobile-dashboard-tabs" style={{ display: 'none', marginBottom: '16px', gap: '8px', width: '100%' }}>
+              {user.role === 'SELLER' && (
+                <>
+                  <button
+                    className={`mobile-tab-btn ${dashboardTab === 'my-listings' ? 'active' : ''}`}
+                    onClick={() => { setDashboardTab('my-listings'); window.location.hash = '#/dashboard/my-listings'; }}
+                  >
+                    📦 Listings
+                  </button>
+                  <button
+                    className={`mobile-tab-btn ${dashboardTab === 'add-listing' ? 'active' : ''}`}
+                    onClick={() => { setDashboardTab('add-listing'); window.location.hash = '#/dashboard/add-listing'; }}
+                  >
+                    ➕ Post
+                  </button>
+                  <button
+                    className={`mobile-tab-btn ${dashboardTab === 'leads' ? 'active' : ''}`}
+                    onClick={() => { setDashboardTab('leads'); window.location.hash = '#/dashboard/leads'; }}
+                  >
+                    💬 Messages ({sellerInquiries.length})
+                  </button>
+                </>
+              )}
+              {user.role === 'BUYER' && (
+                <>
+                  <button
+                    className={`mobile-tab-btn ${dashboardTab === 'inquiries' ? 'active' : ''}`}
+                    onClick={() => { setDashboardTab('inquiries'); window.location.hash = '#/dashboard/inquiries'; }}
+                  >
+                    ✉️ Inquiries ({buyerInquiries.length})
+                  </button>
+                  <button
+                    className={`mobile-tab-btn ${dashboardTab === 'saved' ? 'active' : ''}`}
+                    onClick={() => { setDashboardTab('saved'); window.location.hash = '#/dashboard/saved'; }}
+                  >
+                    ⭐ Saved
+                  </button>
+                </>
+              )}
+              {user.role === 'ADMIN' && (
+                <>
+                  <button
+                    className={`mobile-tab-btn ${dashboardTab === 'cities' ? 'active' : ''}`}
+                    onClick={() => { setDashboardTab('cities'); window.location.hash = '#/dashboard/cities'; }}
+                  >
+                    🌆 Cities
+                  </button>
+                </>
+              )}
+            </div>
             <aside className="dashboard-sidebar">
               {user.role === 'SELLER' && (
                 <>
@@ -2529,48 +2616,94 @@ export default function App() {
                 <div>
                   <h2 style={{ marginBottom: '16px' }}>Manage Listings</h2>
                   <div className="products-grid">
-                    {sellerListings.map(item => (
-                      <div key={item.id} className="glass-panel product-card" style={{ minHeight: '360px', height: 'auto' }}>
-                        <div className="card-image-wrapper" style={{ height: '160px' }}>
-                          <img
-                            src={item.imagePath ? `${import.meta.env.VITE_IMAGE_SERVER}${item.imagePath}` : "https://placehold.co/400x300?text=No+Photo"}
-                            alt={item.title}
-                            className="card-img"
-                            onError={(e) => { e.target.src = "https://placehold.co/400x300?text=Product"; }}
-                          />
-                        </div>
-                        <div className="card-content" style={{ padding: '12px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                          <h3 style={{ fontSize: '15px' }}>{item.title}</h3>
-                          <p style={{ fontSize: '14px', color: 'var(--emerald)', fontWeight: '600' }}>
-                            ₹{item.price} {item.discountPercent > 0 && `(-${item.discountPercent}% OFF)`}
-                          </p>
-                          {item.status === 'REJECTED' && item.rejectReason && (
-                            <div style={{ fontSize: '11px', color: '#f43f5e', background: 'rgba(244, 63, 94, 0.05)', padding: '6px', borderRadius: '4px', borderLeft: '2px solid #f43f5e', marginTop: '6px', marginBottom: '8px' }}>
-                              ❌ <strong>Reason:</strong> {item.rejectReason}
+                    {sellerListings.map(item => {
+                      const photos = item.imagePath ? item.imagePath.split(',') : [];
+                      const coverImage = photos[0] || "";
+                      const hasDiscount = item.discountPercent > 0;
+                      const finalPrice = hasDiscount ? (item.price * (1 - item.discountPercent / 100)).toFixed(0) : item.price;
+                      return (
+                        <div
+                          key={item.id}
+                          className="glass-panel product-card dashboard-card"
+                          onClick={(e) => {
+                            if (!e.target.closest('button')) {
+                              window.location.hash = `#/details/${item.id}`;
+                            }
+                          }}
+                          style={{ minHeight: '380px', height: 'auto', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
+                        >
+                          {/* Main Row: splits image on left and text on right on mobile */}
+                          <div className="dashboard-card-main-row" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                            <div className="card-image-wrapper" style={{ height: '160px', position: 'relative' }}>
+                              {hasDiscount && (
+                                <div className="card-badge" style={{ zIndex: 3 }}>-{item.discountPercent}% OFF</div>
+                              )}
+                              <img
+                                src={coverImage ? (coverImage.startsWith('http') ? coverImage : `${import.meta.env.VITE_IMAGE_SERVER}${coverImage}`) : "https://placehold.co/400x300?text=No+Photo"}
+                                alt={item.title}
+                                className="card-img"
+                                onError={(e) => { e.target.src = "https://placehold.co/400x300?text=Listing+Item"; }}
+                              />
                             </div>
-                          )}
-                          <div style={{ marginTop: 'auto', display: 'flex', gap: '6px', flexWrap: 'wrap', paddingTop: '8px' }}>
-                            <span className="badge-id" style={{ padding: '4px 8px', fontSize: '11px', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: '700' }}>
-                              LPP-{String(item.id).padStart(5, '0')}
-                            </span>
-                            <span className="alert-banner" style={{ padding: '4px 8px', fontSize: '11px', margin: 0, background: item.status === 'ACTIVE' ? 'var(--emerald-glow)' : (item.status === 'REJECTED' ? 'rgba(244, 63, 94, 0.15)' : (item.status === 'INACTIVE' ? 'rgba(156, 163, 175, 0.1)' : 'rgba(245, 158, 11, 0.1)')), color: item.status === 'ACTIVE' ? 'var(--emerald)' : (item.status === 'REJECTED' ? '#f43f5e' : (item.status === 'INACTIVE' ? '#9ca3af' : '#fbbf24')), border: '1px solid rgba(255,255,255,0.05)' }}>
-                              {item.status}
-                            </span>
-                            {item.status === 'ACTIVE' && (
-                              <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => updateListingStatus(item.id, "SOLD")}>
-                                Mark Sold
-                              </button>
+                            <div className="card-content" style={{ padding: '12px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                              <h3 style={{ fontSize: '15px', marginBottom: '4px' }}>{item.title}</h3>
+                              
+                              <p className="card-desc" style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                {item.description}
+                              </p>
+
+                              <div className="card-prices" style={{ marginBottom: '8px' }}>
+                                {hasDiscount ? (
+                                  <>
+                                    <span className="price-discounted" style={{ fontSize: '15px', fontWeight: '700' }}>₹{finalPrice}</span>
+                                    <span className="price-original" style={{ fontSize: '11px', textDecoration: 'line-through', color: 'var(--text-dim)', marginLeft: '6px' }}>₹{item.price}</span>
+                                  </>
+                                ) : (
+                                  <span className="price-discounted" style={{ fontSize: '15px', fontWeight: '700' }}>₹{item.price}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Footer Section: contains buttons, badges, status, location, date */}
+                          <div className="dashboard-card-footer" style={{ padding: '0 12px 12px 12px', display: 'flex', flexDirection: 'column', marginTop: 'auto' }}>
+                            {item.status === 'REJECTED' && item.rejectReason && (
+                              <div style={{ fontSize: '11px', color: '#f43f5e', background: 'rgba(244, 63, 94, 0.05)', padding: '6px', borderRadius: '4px', borderLeft: '2px solid #f43f5e', marginBottom: '8px' }}>
+                                ❌ <strong>Reason:</strong> {item.rejectReason}
+                              </div>
                             )}
-                            <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setEditingListing(item)}>
-                              Edit
-                            </button>
-                            <button className="btn btn-accent" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={async () => { if (confirm(`Delete listing LPP-${String(item.id).padStart(5, '0')}?`)) { await api.deleteListing(item.id); fetchListings(); } }}>
-                              Delete
-                            </button>
+
+                            <div className="dashboard-card-badges" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                              <span className="badge-id" style={{ padding: '4px 8px', fontSize: '11px', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: '700' }}>
+                                LPP-{String(item.id).padStart(5, '0')}
+                              </span>
+                              <span className="alert-banner" style={{ padding: '4px 8px', fontSize: '11px', margin: 0, background: item.status === 'ACTIVE' ? 'var(--emerald-glow)' : (item.status === 'REJECTED' ? 'rgba(244, 63, 94, 0.15)' : (item.status === 'INACTIVE' ? 'rgba(156, 163, 175, 0.1)' : 'rgba(245, 158, 11, 0.1)')), color: item.status === 'ACTIVE' ? 'var(--emerald)' : (item.status === 'REJECTED' ? '#f43f5e' : (item.status === 'INACTIVE' ? '#9ca3af' : '#fbbf24')), border: '1px solid rgba(255,255,255,0.05)' }}>
+                                {item.status}
+                              </span>
+                            </div>
+
+                            <div className="dashboard-card-actions" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', paddingBottom: '8px' }}>
+                              {item.status === 'ACTIVE' && (
+                                <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => updateListingStatus(item.id, "SOLD")}>
+                                  Mark Sold
+                                </button>
+                              )}
+                              <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setEditingListing(item)}>
+                                Edit
+                              </button>
+                              <button className="btn btn-accent" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={async () => { if (confirm(`Delete listing LPP-${String(item.id).padStart(5, '0')}?`)) { await api.deleteListing(item.id); fetchListings(); } }}>
+                                Delete
+                              </button>
+                            </div>
+
+                            <div className="dashboard-card-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-dim)', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px', gap: '8px' }}>
+                              <span>📍 {item.location}</span>
+                              <span>📅 {new Date(item.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -2706,7 +2839,7 @@ export default function App() {
                       No inquiries sent by buyers yet. Keep advertising!
                     </div>
                   ) : (
-                    <div className="chat-split-container" style={{ display: 'flex', gap: '20px', height: '550px', background: 'var(--bg-card)', border: '1px solid var(--border-glass)', borderRadius: '16px', overflow: 'hidden' }}>
+                    <div className={`chat-split-container ${activeInquiryId ? 'has-active-chat' : ''}`} style={{ display: 'flex', gap: '20px', height: '550px', background: 'var(--bg-card)', border: '1px solid var(--border-glass)', borderRadius: '16px', overflow: 'hidden' }}>
                       {/* Left Sidebar: Threads List */}
                       <div className="chat-sidebar" style={{ width: '320px', borderRight: '1px solid var(--border-glass)', display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.1)' }}>
                         <div style={{ padding: '16px', borderBottom: '1px solid var(--border-glass)', fontWeight: '600', color: 'var(--text-main)' }}>Conversations</div>
@@ -2828,9 +2961,27 @@ export default function App() {
                           }
                           return (
                             <>
-                              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-glass)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.05)' }}>
-                                <div>
-                                  <div style={{ fontWeight: '700', color: 'var(--text-main)', fontSize: '15px' }}>{activeInq.buyer?.username}</div>
+                              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-glass)', display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(0,0,0,0.05)' }}>
+                                <button
+                                  className="chat-back-btn"
+                                  onClick={() => setActiveInquiryId(null)}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--primary)',
+                                    fontSize: '14px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    padding: '4px 8px 4px 0',
+                                    display: 'none',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  ⬅ Back
+                                </button>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: '700', color: 'var(--text-main)', fontSize: '15px' }}>{activeInq.buyer?.username?.split('@')[0]}</div>
                                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                     <span>Listing:</span>
                                     <span className="badge-id" style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', padding: '2px 5px', borderRadius: '4px', fontSize: '10.5px', fontWeight: '700' }}>
@@ -3287,7 +3438,7 @@ export default function App() {
 
       </main>
 
-      <footer style={{ marginTop: 'auto', borderTop: '1px solid var(--border-glass)', padding: '24px 0', background: 'var(--bg-card)', backdropFilter: 'var(--glass-blur)' }}>
+      <footer className="app-footer" style={{ marginTop: 'auto', borderTop: '1px solid var(--border-glass)', padding: '24px 0', background: 'var(--bg-card)', backdropFilter: 'var(--glass-blur)' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <span style={{ fontSize: '13px', color: 'var(--text-dim)' }}>
             © 2026 lowpriceplaces Classifieds. Local advertisements and connections for budget deals.
@@ -3451,8 +3602,11 @@ export default function App() {
       {/* Mobile Navigation Drawer */}
       <div className={`mobile-drawer-overlay ${mobileMenuOpen ? 'open' : ''}`} onClick={() => setMobileMenuOpen(false)}>
         <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
-          <div className="drawer-header">
-            <span style={{ fontSize: '18px', fontWeight: '800', color: 'var(--primary)' }}>lowpriceplaces</span>
+          <div className="drawer-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <div className="brand-logo" style={{ fontSize: '20px' }} onClick={() => { setPage('home'); setMobileMenuOpen(false); }}>
+              <span style={{ fontSize: '18px' }}>🛍️</span>
+              <span>lowpriceplaces</span>
+            </div>
             <button className="drawer-close-btn" onClick={() => setMobileMenuOpen(false)}>✖</button>
           </div>
           <div className="drawer-body">
@@ -3527,7 +3681,7 @@ export default function App() {
       )}
 
       {/* Sticky Bottom Details Contact Bar (Mobile Only) */}
-      {page === 'detail' && listingDetails && (
+      {page === 'details' && listingDetails && (
         <div className="mobile-detail-sticky-bar">
           {user ? (
             <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
@@ -3540,9 +3694,9 @@ export default function App() {
               >
                 💬 WhatsApp
               </a>
-              <a 
-                href={`tel:${listingDetails.contactNumber}`} 
-                className="btn btn-secondary" 
+              <a
+                href={`tel:${listingDetails.contactNumber}`}
+                className="btn btn-secondary"
                 style={{ flex: 1, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', gap: '6px', height: '44px', padding: 0 }}
               >
                 📞 Call Owner
@@ -3550,9 +3704,9 @@ export default function App() {
             </div>
           ) : (
             <div style={{ width: '100%' }}>
-              <button 
-                className="btn btn-primary" 
-                onClick={() => { window.location.hash = '#/login'; }} 
+              <button
+                className="btn btn-primary"
+                onClick={() => { window.location.hash = '#/login'; }}
                 style={{ width: '100%', height: '44px', fontSize: '14px', padding: 0 }}
               >
                 🔑 Log In to Contact Seller
@@ -3561,6 +3715,76 @@ export default function App() {
           )}
         </div>
       )}
+
+      {/* Mobile Bottom Navigation Bar */}
+      <div className="mobile-bottom-nav">
+        <div
+          className={`mobile-bottom-nav-item ${page === 'home' ? 'active' : ''}`}
+          onClick={() => { window.location.hash = '#/'; }}
+        >
+          <span className="mobile-bottom-nav-icon">🏠</span>
+          <span>Home</span>
+        </div>
+        <div
+          className="mobile-bottom-nav-item"
+          onClick={() => {
+            window.location.hash = '#/';
+            setTimeout(() => {
+              const searchHero = document.querySelector('.mobile-search-hero');
+              if (searchHero) {
+                searchHero.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }, 100);
+          }}
+        >
+          <span className="mobile-bottom-nav-icon">🔍</span>
+          <span>Search</span>
+        </div>
+        <div
+          className={`mobile-bottom-nav-item ${page === 'dashboard' && dashboardTab === 'add-listing' ? 'active' : ''}`}
+          onClick={() => {
+            if (!user) {
+              window.location.hash = '#/login';
+            } else if (user.role === 'SELLER') {
+              window.location.hash = '#/dashboard/add-listing';
+            } else {
+              alert("Only registered sellers can post listings. Check your profile settings.");
+              window.location.hash = `#/dashboard/${user.role === 'ADMIN' ? 'cities' : 'inquiries'}`;
+            }
+          }}
+        >
+          <span className="mobile-bottom-nav-icon">➕</span>
+          <span>Post Ad</span>
+        </div>
+        <div
+          className={`mobile-bottom-nav-item ${page === 'dashboard' && (dashboardTab === 'bookmarks' || dashboardTab === 'saved') ? 'active' : ''}`}
+          onClick={() => {
+            if (!user) {
+              window.location.hash = '#/login';
+            } else if (user.role === 'BUYER') {
+              window.location.hash = '#/dashboard/bookmarks';
+            } else {
+              window.location.hash = `#/dashboard/${user.role === 'ADMIN' ? 'cities' : 'my-listings'}`;
+            }
+          }}
+        >
+          <span className="mobile-bottom-nav-icon">❤️</span>
+          <span>Shortlist</span>
+        </div>
+        <div
+          className={`mobile-bottom-nav-item ${page === 'dashboard' && (dashboardTab !== 'add-listing' && dashboardTab !== 'bookmarks' && dashboardTab !== 'saved') ? 'active' : ''}`}
+          onClick={() => {
+            if (!user) {
+              window.location.hash = '#/login';
+            } else {
+              window.location.hash = `#/dashboard/${user.role === 'ADMIN' ? 'cities' : (user.role === 'SELLER' ? 'my-listings' : 'inquiries')}`;
+            }
+          }}
+        >
+          <span className="mobile-bottom-nav-icon">👤</span>
+          <span>Profile</span>
+        </div>
+      </div>
     </div>
   );
 }
