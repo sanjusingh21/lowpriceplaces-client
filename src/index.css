@@ -4,6 +4,7 @@
   --bg-main: #f1f5f9;
   /* Slate-100 */
   --bg-card: rgba(255, 255, 255, 0.75);
+  --bg-card-solid: #ffffff;
   /* Soft white glass */
   --bg-input: rgba(255, 255, 255, 0.95);
   --border-glass: rgba(0, 0, 0, 0.08);
@@ -36,6 +37,7 @@
 body.dark-theme {
   --bg-main: #060609;
   --bg-card: rgba(18, 18, 29, 0.65);
+  --bg-card-solid: #12121d;
   --bg-input: rgba(10, 10, 15, 0.8);
   --border-glass: rgba(255, 255, 255, 0.08);
   --border-glass-glow: rgba(99, 102, 241, 0.3);
@@ -144,7 +146,7 @@ h6 {
 
 /* Navigation Styles (Amazon Style Header) */
 .header-glass {
-  background: var(--bg-card);
+  background: var(--bg-card-solid) !important;
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border-bottom: 1px solid var(--border-glass);
@@ -242,7 +244,7 @@ h6 {
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: var(--bg-card);
+  background: var(--bg-card-solid);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-glass);
@@ -1028,6 +1030,7 @@ h6 {
   width: 90%;
   max-width: 500px;
   padding: 24px;
+  background: var(--bg-card-solid) !important;
 }
 
 /* Alert/Notifications */
@@ -1259,7 +1262,7 @@ h6 {
   top: calc(100% + 6px);
   left: 0;
   width: 280px;
-  background: var(--bg-card);
+  background: var(--bg-card-solid);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-glass);
@@ -2061,7 +2064,7 @@ h6 {
   left: 0;
   right: 0;
   height: 60px;
-  background: var(--bg-card);
+  background: var(--bg-card-solid) !important;
   border-top: 1px solid var(--border-glass);
   box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.08);
   backdrop-filter: var(--glass-blur);
