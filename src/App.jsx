@@ -1804,7 +1804,16 @@ export default function App() {
 
                 {/* Dashboards routing dependent on client status */}
                 {(user.role === 'SELLER' || user.role === 'BUYER' || user.role === 'ADMIN') && (
-                  <button className="btn btn-secondary" onClick={() => { window.location.hash = `#/dashboard/${user.role === 'ADMIN' ? 'cities' : (user.role === 'SELLER' ? 'my-listings' : 'inquiries')}`; }}>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      if (user.role === 'ADMIN') {
+                        window.location.href = 'https://admin2.lowpriceplaces.com';
+                      } else {
+                        window.location.hash = `#/dashboard/${user.role === 'SELLER' ? 'my-listings' : 'inquiries'}`;
+                      }
+                    }}
+                  >
                     {user.role === 'ADMIN' ? 'Admin Dashboard' : 'Profile'}
                   </button>
                 )}
@@ -2647,7 +2656,7 @@ export default function App() {
                             </div>
                             <div className="card-content" style={{ padding: '12px', display: 'flex', flexDirection: 'column', flex: 1 }}>
                               <h3 style={{ fontSize: '15px', marginBottom: '4px' }}>{item.title}</h3>
-                              
+
                               <p className="card-desc" style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                 {item.description}
                               </p>
@@ -3634,10 +3643,16 @@ export default function App() {
               </a>
               {user ? (
                 <>
-                  {(user.role === 'SELLER' || user.role === 'BUYER' || user.role === 'ADMIN') && (
-                    <a href={`#/dashboard/${user.role === 'ADMIN' ? 'cities' : (user.role === 'SELLER' ? 'my-listings' : 'inquiries')}`} className="drawer-nav-item" onClick={() => setMobileMenuOpen(false)}>
-                      📈 {user.role === 'ADMIN' ? 'Admin Dashboard' : 'My Account Dashboard'}
+                  {user.role === 'ADMIN' ? (
+                    <a href="https://admin2.lowpriceplaces.com" className="drawer-nav-item" onClick={() => setMobileMenuOpen(false)}>
+                      📈 Admin Dashboard
                     </a>
+                  ) : (
+                    (user.role === 'SELLER' || user.role === 'BUYER') && (
+                      <a href={`#/dashboard/${user.role === 'SELLER' ? 'my-listings' : 'inquiries'}`} className="drawer-nav-item" onClick={() => setMobileMenuOpen(false)}>
+                        📈 Profile
+                      </a>
+                    )
                   )}
                   <button className="btn btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={() => { api.logout(); setUser(null); setMobileMenuOpen(false); window.location.hash = '#/'; }}>
                     Log Out
