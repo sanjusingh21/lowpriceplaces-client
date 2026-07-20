@@ -919,7 +919,8 @@ h6 {
   .form-grid {
     grid-template-columns: 1fr !important;
   }
-  .form-grid > * {
+
+  .form-grid>* {
     grid-column: span 1 !important;
   }
 }
@@ -1374,6 +1375,11 @@ h6 {
   }
 }
 
+.nav-actions {
+  margin-left: auto;
+}
+
+
 /* ==========================================
    MOBILE RESPONSIVE REDESIGN (MagicBricks Style)
    ========================================== */
@@ -1386,9 +1392,6 @@ h6 {
     display: none !important;
   }
 
-  .nav-actions {
-    margin-left: auto;
-  }
 
   .mobile-search-hero {
     display: block !important;
@@ -2069,7 +2072,8 @@ h6 {
   box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.08);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  z-index: 1050; /* Underneath active full-page overlays/drawers but above standard content */
+  z-index: 1050;
+  /* Underneath active full-page overlays/drawers but above standard content */
   justify-content: space-around;
   align-items: center;
 }
@@ -2105,17 +2109,20 @@ h6 {
   .mobile-bottom-nav {
     display: flex;
   }
-  
+
   .app-footer {
-    padding-bottom: 140px !important; /* Pushes the footer above bottom nav bar */
+    padding-bottom: 140px !important;
+    /* Pushes the footer above bottom nav bar */
   }
-  
+
   .mobile-detail-sticky-bar {
-    bottom: 60px !important; /* Positions details page CTA directly above bottom nav bar */
+    bottom: 60px !important;
+    /* Positions details page CTA directly above bottom nav bar */
   }
-  
+
   .mobile-filter-floating-bar {
-    bottom: 80px !important; /* Positions floating search page filter button directly above bottom nav bar */
+    bottom: 80px !important;
+    /* Positions floating search page filter button directly above bottom nav bar */
   }
 }
 
@@ -2168,7 +2175,7 @@ h6 {
   justify-content: center;
   gap: 6px;
   transition: var(--transition);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
 .mobile-tab-btn.active {
@@ -2185,15 +2192,16 @@ h6 {
 
 /* Mobile Responsive Dashboard Layout Upgrades */
 @media (max-width: 768px) {
+
   /* Hide the horizontal scroll tabs and show the direct tab buttons */
   .dashboard-sidebar {
     display: none !important;
   }
-  
+
   .mobile-dashboard-tabs {
     display: flex !important;
   }
-  
+
   /* Compact Horizontal Layout for Dashboard Listing Cards */
   .dashboard-card {
     min-height: auto !important;
@@ -2202,13 +2210,13 @@ h6 {
     flex-direction: column !important;
     gap: 8px !important;
   }
-  
+
   .dashboard-card .dashboard-card-main-row {
     flex-direction: row !important;
     display: flex !important;
     width: 100% !important;
   }
-  
+
   .dashboard-card .card-image-wrapper {
     width: 100px !important;
     height: 100px !important;
@@ -2216,7 +2224,7 @@ h6 {
     margin-bottom: 0 !important;
     flex-shrink: 0 !important;
   }
-  
+
   .dashboard-card .card-content {
     padding: 0 0 0 12px !important;
     flex: 1 !important;
@@ -2225,7 +2233,7 @@ h6 {
     flex-direction: column !important;
     justify-content: space-between !important;
   }
-  
+
   .dashboard-card h3 {
     font-size: 14px !important;
     margin-bottom: 2px !important;
@@ -2235,7 +2243,7 @@ h6 {
     line-height: 1.2 !important;
     font-weight: 700 !important;
   }
-  
+
   .dashboard-card .card-desc {
     font-size: 11px !important;
     line-height: 1.3 !important;
@@ -2245,16 +2253,16 @@ h6 {
     -webkit-box-orient: vertical !important;
     overflow: hidden !important;
   }
-  
+
   .dashboard-card .card-prices {
     margin-bottom: 0 !important;
   }
-  
+
   .dashboard-card .price-discounted {
     font-size: 15px !important;
     font-weight: 700 !important;
   }
-  
+
   .dashboard-card .price-original {
     font-size: 11px !important;
   }
@@ -2263,17 +2271,17 @@ h6 {
     padding: 0 !important;
     border-top: none !important;
   }
-  
+
   .dashboard-card .dashboard-card-badges {
     margin-bottom: 6px !important;
   }
-  
+
   .dashboard-card .dashboard-card-actions {
     padding-top: 4px !important;
     padding-bottom: 4px !important;
     gap: 4px !important;
   }
-  
+
   .dashboard-card .dashboard-card-actions .btn {
     padding: 4px 8px !important;
     font-size: 10.5px !important;
