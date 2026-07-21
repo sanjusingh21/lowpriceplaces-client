@@ -319,22 +319,36 @@ export default function Home() {
             <span className="category-bar-label" style={{ fontSize: "12px" }}>All India</span>
           </div>
 
-          {citiesList.map((c) => c.name).map((city) => {
-            const isSelected = locationFilter?.toLowerCase() === city.toLowerCase();
+          {citiesList.map((c) => {
+            const isSelected = locationFilter?.toLowerCase() === c.name.toLowerCase();
             return (
               <div
-                key={city}
+                key={c.id || c.name}
                 className="category-bar-item"
                 onClick={() => {
-                  setLocationFilter(city);
-                  setLocationSearchInput(city);
-                  fetchListings({ location: city });
+                  setLocationFilter(c.name);
+                  setLocationSearchInput(c.name);
+                  fetchListings({ location: c.name });
                 }}
               >
                 <div className={`category-bar-icon-box ${isSelected ? "active" : ""}`} style={{ width: "48px", height: "48px", borderRadius: "12px" }}>
-                  <span className="category-bar-emoji" style={{ fontSize: "20px" }}>{getCityEmoji(city)}</span>
+                  {c.imagePath ? (
+                    <img
+                      src={`${imageServer}${c.imagePath}`}
+                      alt={c.name}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        const fallbackSpan = e.target.nextSibling;
+                        if (fallbackSpan) fallbackSpan.style.display = 'inline';
+                      }}
+                    />
+                  ) : null}
+                  <span className="category-bar-emoji" style={{ display: c.imagePath ? "none" : "inline", fontSize: "20px" }}>
+                    {c.emoji || "📍"}
+                  </span>
                 </div>
-                <span className="category-bar-label" style={{ fontSize: "12px" }}>{city}</span>
+                <span className="category-bar-label" style={{ fontSize: "12px" }}>{c.name}</span>
               </div>
             );
           })}
