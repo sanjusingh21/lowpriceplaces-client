@@ -1911,6 +1911,7 @@ h6 {
     min-width: 0 !important;
     height: 120px !important;
     justify-content: space-between !important;
+    width: 0;
   }
 
   .feed-card .card-title {
@@ -1964,7 +1965,8 @@ h6 {
 
   .feed-card .card-meta {
     display: flex !important;
-    flex-direction: row !important; /* Side-by-side layout for top category & badge */
+    flex-direction: row !important;
+    /* Side-by-side layout for top category & badge */
     align-items: center !important;
     justify-content: flex-start !important;
     gap: 6px !important;
@@ -2342,37 +2344,46 @@ h6 {
 /* Premium micro-adjustments for ultra-narrow responsive viewport widths */
 @media (max-width: 425px) {
   .feed-card .card-meta-right {
-    display: flex !important; /* Stack vertically is safe now */
+    display: flex !important;
+    /* Stack vertically is safe now */
   }
 }
 
 @media (max-width: 360px) {
   .feed-card .card-meta-right {
-    display: none !important; /* Hide category/badge on ultra-narrow screen */
+    display: none !important;
+    /* Hide category/badge on ultra-narrow screen */
   }
+
   .feed-card {
     height: 122px !important;
     padding: 8px !important;
     gap: 8px !important;
   }
+
   .feed-card .card-image-wrapper {
     width: 100px !important;
     min-width: 100px !important;
     height: 100px !important;
     max-height: 100px !important;
   }
+
   .feed-card .card-content {
     height: 100px !important;
   }
+
   .feed-card .price-discounted {
     font-size: 14px !important;
   }
+
   .feed-card .price-original {
     font-size: 10px !important;
   }
+
   .feed-card .card-title {
     font-size: 13px !important;
   }
+
   .feed-card .card-desc {
     font-size: 10.5px !important;
   }
