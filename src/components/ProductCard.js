@@ -41,6 +41,14 @@ export default function ProductCard({ item }) {
         </div>
 
         <div className="card-content">
+          {/* Top Metadata Row: Badge & Category */}
+          <div className="card-meta">
+            <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "2px 6px", borderRadius: "4px", fontSize: "10.5px", fontWeight: "700", marginRight: "6px" }}>
+              LPP-{String(item.id).padStart(5, "0")}
+            </span>
+            <span className="card-category-name" style={{ fontSize: "10.5px", color: "var(--text-dim)" }}>{item.category?.name}</span>
+          </div>
+
           <h3 className="card-title">{item.title}</h3>
           <p className="card-desc">{item.description}</p>
 
@@ -73,14 +81,9 @@ export default function ProductCard({ item }) {
             </div>
           </div>
 
-          <div className="card-meta">
-            <span className="card-location">📍 {item.location ? item.location.split(",")[0] : ""}</span>
-            <span className="card-meta-right" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "2px 6px", borderRadius: "4px", fontSize: "10.5px", fontWeight: "700" }}>
-                LPP-{String(item.id).padStart(5, "0")}
-              </span>
-              <span className="card-category-name">{item.category?.name}</span>
-            </span>
+          {/* Bottom Row: Location only */}
+          <div className="card-location-row">
+            <span className="card-location">📍 {item.location}</span>
           </div>
         </div>
       </div>

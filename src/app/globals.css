@@ -607,7 +607,6 @@ h6 {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  height: 36px;
 }
 
 .card-meta {
@@ -1940,9 +1939,10 @@ h6 {
     display: none !important;
   }
 
-  /* Force display only prices and location/category footer */
+  /* Force display only prices, category header, and location footer */
   .feed-card .card-content>div.card-prices,
-  .feed-card .card-content>div.card-meta {
+  .feed-card .card-content>div.card-meta,
+  .feed-card .card-content>div.card-location-row {
     display: flex !important;
   }
 
@@ -1963,21 +1963,46 @@ h6 {
   }
 
   .feed-card .card-meta {
-    justify-content: space-between !important;
+    display: flex !important;
+    flex-direction: row !important; /* Side-by-side layout for top category & badge */
     align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
     font-size: 10.5px !important;
     color: var(--text-dim) !important;
     border-top: none !important;
     padding-top: 0 !important;
     margin-top: 0 !important;
+    margin-bottom: 4px !important;
     width: 100% !important;
     overflow: hidden !important;
     min-width: 0 !important;
+    height: auto !important;
   }
 
-  .feed-card .card-meta .card-location,
-  .feed-card .card-meta .card-meta-right,
   .feed-card .card-meta span {
+    min-width: 0 !important;
+    flex-shrink: 1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .feed-card .card-location-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    font-size: 12.5px !important;
+    color: var(--text-dim) !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    min-width: 0 !important;
+    margin-top: auto !important;
+    margin-bottom: 0 !important;
+    padding-top: 4px !important;
+  }
+
+  .feed-card .card-location-row .card-location {
     min-width: 0 !important;
     flex-shrink: 1 !important;
     white-space: nowrap !important;
@@ -2311,5 +2336,44 @@ h6 {
     flex: 1 !important;
     justify-content: center !important;
     text-align: center !important;
+  }
+}
+
+/* Premium micro-adjustments for ultra-narrow responsive viewport widths */
+@media (max-width: 425px) {
+  .feed-card .card-meta-right {
+    display: flex !important; /* Stack vertically is safe now */
+  }
+}
+
+@media (max-width: 360px) {
+  .feed-card .card-meta-right {
+    display: none !important; /* Hide category/badge on ultra-narrow screen */
+  }
+  .feed-card {
+    height: 122px !important;
+    padding: 8px !important;
+    gap: 8px !important;
+  }
+  .feed-card .card-image-wrapper {
+    width: 100px !important;
+    min-width: 100px !important;
+    height: 100px !important;
+    max-height: 100px !important;
+  }
+  .feed-card .card-content {
+    height: 100px !important;
+  }
+  .feed-card .price-discounted {
+    font-size: 14px !important;
+  }
+  .feed-card .price-original {
+    font-size: 10px !important;
+  }
+  .feed-card .card-title {
+    font-size: 13px !important;
+  }
+  .feed-card .card-desc {
+    font-size: 10.5px !important;
   }
 }
