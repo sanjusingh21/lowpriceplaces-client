@@ -5,6 +5,7 @@ import { useApp } from "@/context/AppContext";
 import ProductCard from "@/components/ProductCard";
 
 export default function Home() {
+  const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
   const {
     listings,
     nearbyListings,
@@ -243,7 +244,22 @@ export default function Home() {
                 }}
               >
                 <div className={`category-bar-icon-box ${isSelected ? "active" : ""}`}>
-                  <span className="category-bar-emoji">{cat.emoji || "📁"}</span>
+                  {cat.imagePath ? (
+                    <img
+                      src={`${imageServer}${cat.imagePath}`}
+                      alt={cat.name}
+                      className="category-bar-image"
+                      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        const fallbackSpan = e.target.nextSibling;
+                        if (fallbackSpan) fallbackSpan.style.display = 'inline';
+                      }}
+                    />
+                  ) : null}
+                  <span className="category-bar-emoji" style={{ display: cat.imagePath ? "none" : "inline" }}>
+                    {cat.emoji || "📁"}
+                  </span>
                 </div>
                 <span className="category-bar-label">{cat.name}</span>
               </div>
