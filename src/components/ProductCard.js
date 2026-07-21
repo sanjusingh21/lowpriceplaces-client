@@ -74,12 +74,12 @@ export default function ProductCard({ item }) {
           </div>
 
           <div className="card-meta">
-            <span>📍 {item.location}</span>
-            <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span className="card-location">📍 {item.location ? item.location.split(",")[0] : ""}</span>
+            <span className="card-meta-right" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "2px 6px", borderRadius: "4px", fontSize: "10.5px", fontWeight: "700" }}>
                 LPP-{String(item.id).padStart(5, "0")}
               </span>
-              <span>{item.category?.name}</span>
+              <span className="card-category-name">{item.category?.name}</span>
             </span>
           </div>
         </div>
