@@ -1,29 +1,37 @@
-const API_BASE = import.meta.env.VITE_API_BASE || "/api";
-
-
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "/api";
 
 export function getAuthToken() {
-  return localStorage.getItem("lowpriceplaces_token");
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem("lowpriceplaces_token");
+  }
+  return null;
 }
 
 export function setAuthToken(token) {
-  if (token) {
-    localStorage.setItem("lowpriceplaces_token", token);
-  } else {
-    localStorage.removeItem("lowpriceplaces_token");
+  if (typeof window !== 'undefined') {
+    if (token) {
+      localStorage.setItem("lowpriceplaces_token", token);
+    } else {
+      localStorage.removeItem("lowpriceplaces_token");
+    }
   }
 }
 
 export function getCurrentUser() {
-  const user = localStorage.getItem("lowpriceplaces_user");
-  return user ? JSON.parse(user) : null;
+  if (typeof window !== 'undefined') {
+    const user = localStorage.getItem("lowpriceplaces_user");
+    return user ? JSON.parse(user) : null;
+  }
+  return null;
 }
 
 export function setCurrentUser(user) {
-  if (user) {
-    localStorage.setItem("lowpriceplaces_user", JSON.stringify(user));
-  } else {
-    localStorage.removeItem("lowpriceplaces_user");
+  if (typeof window !== 'undefined') {
+    if (user) {
+      localStorage.setItem("lowpriceplaces_user", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("lowpriceplaces_user");
+    }
   }
 }
 
