@@ -119,8 +119,7 @@ export default function Dashboard() {
   const [newCategory, setNewCategory] = useState("");
   const [newSubCategory, setNewSubCategory] = useState("");
   const [newImageFiles, setNewImageFiles] = useState([]);
-  const [createSuccess, setCreateSuccess] = useState("");
-  const [createError, setCreateError] = useState("");
+  const [toast, setToast] = useState(null);
   const [showAddLocDropdown, setShowAddLocDropdown] = useState(false);
   const [addLocSuggestions, setAddLocSuggestions] = useState([]);
 
@@ -176,13 +175,18 @@ export default function Dashboard() {
     return () => clearTimeout(delayDebounce);
   }, [newLocation]);
 
+  const triggerToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 6000);
+  };
+
   const handleCreateListing = async (e) => {
     e.preventDefault();
-    setCreateError("");
-    setCreateSuccess("");
 
     if (!newCategory) {
-      setCreateError("Please select a Category.");
+      triggerToast("Please select a Category.", "error");
       return;
     }
 
@@ -200,12 +204,12 @@ export default function Dashboard() {
     }
 
     for (let i = 0; i < newImageFiles.length; i++) {
-      formData.append("images", newImageFiles[i]);
+      formData.append("image", newImageFiles[i]);
     }
 
     try {
       await api.createListing(formData);
-      setCreateSuccess("Listing published successfully! It will be reviewed by administrators shortly.");
+      triggerToast("Pending and It will be reviewed by lowpriceplaces team shortly.", "success");
       setNewTitle("");
       setNewDesc("");
       setNewPrice("");
@@ -218,7 +222,7 @@ export default function Dashboard() {
       setNewImageFiles([]);
       loadDashboardData();
     } catch (err) {
-      setCreateError(err.message);
+      triggerToast(err.message, "error");
     }
   };
 
@@ -492,8 +496,6 @@ export default function Dashboard() {
         {user.role === "SELLER" && dashboardTab === "add-listing" && (
           <div className="glass-panel form-card">
             <h2 className="form-title">Advertise New Product Listing</h2>
-            {createSuccess && <div className="alert-banner alert-success">{createSuccess}</div>}
-            {createError && <div className="alert-banner alert-error">{createError}</div>}
 
             <form onSubmit={handleCreateListing} className="form-grid">
               <div className="form-group full-width" style={{ gridColumn: "span 2" }}>
@@ -1208,6 +1210,48 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '24px',
+            right: '24px',
+            backgroundColor: toast.type === 'success' ? 'rgba(16, 185, 129, 0.95)' : 'rgba(239, 68, 68, 0.95)',
+            color: '#fff',
+            padding: '12px 20px',
+            borderRadius: '8px',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            backdropFilter: 'blur(8px)',
+            fontWeight: '600',
+            fontSize: '14px',
+            maxWidth: '350px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            transition: 'all 0.3s ease'
+          }}
+        >
+          <span>{toast.type === 'success' ? '✅' : '❌'}</span>
+          <span>{toast.message}</span>
+          <button
+            onClick={() => setToast(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#fff',
+              cursor: 'pointer',
+              opacity: 0.7,
+              marginLeft: '10px',
+              fontSize: '12px'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }
