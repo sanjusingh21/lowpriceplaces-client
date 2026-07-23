@@ -102,6 +102,11 @@ h6 {
   letter-spacing: -0.02em;
 }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 /* Glassmorphism Classes */
 .glass-panel {
   background: var(--bg-card);

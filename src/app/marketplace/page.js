@@ -38,7 +38,8 @@ export default function MarketplacePage() {
           lat: userCoords?.lat,
           lng: userCoords?.lng,
           page: page,
-          limit: 12
+          limit: 12,
+          listingType: "SECONDHAND"
         };
 
         const data = await api.getListings(params);

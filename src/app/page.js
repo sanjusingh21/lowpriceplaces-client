@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useApp } from "@/context/AppContext";
 import ProductCard from "@/components/ProductCard";
 import { api } from "@/api";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { getImageSrcSet } from "@/utils/image";
 import { Splide, SplideSlide } from "@splidejs/react-splide";
 import "@splidejs/react-splide/css";
 
-export default function Home() {
+function HomeContent() {
   const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
 
   const {
@@ -58,7 +59,12 @@ export default function Home() {
   const [nearbyStores, setNearbyStores] = useState([]);
   const [nearbyServices, setNearbyServices] = useState([]);
   const [activeSegmentTab, setActiveSegmentTab] = useState("SALES");
+  const [subCategoryView, setSubCategoryView] = useState(null); // { category, subcategory, listings }
+  const [subCategoryViewLoading, setSubCategoryViewLoading] = useState(false);
+  const [subViewVisible, setSubViewVisible] = useState(false); // for fade animation
+  const savedScrollY = useRef(0);
 
+  const searchParams = useSearchParams();
   const categoryScrollRef = useRef(null);
   const subcategoryScrollRef = useRef(null);
   const cityScrollRef = useRef(null);
@@ -123,6 +129,24 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [categories, citiesList, nearbyStores, listings, selectedCatFilter]);
 
+  // Auto-apply category filter from URL params (e.g. coming from /categories page)
+  useEffect(() => {
+    const catId = searchParams.get("categoryId");
+    const subId = searchParams.get("subCategoryId");
+    if (catId && categories.length > 0) {
+      const cat = categories.find((c) => c.id === parseInt(catId));
+      if (cat) {
+        setSelectedCatFilter(cat);
+        if (subId) {
+          const sub = (cat.subCategories || []).find((s) => s.id === parseInt(subId));
+          if (sub) setSelectedSubCatFilter(sub);
+        }
+        fetchListings({ categoryId: parseInt(catId), subCategoryId: subId ? parseInt(subId) : null });
+        setTimeout(() => scrollToTabSection(), 400);
+      }
+    }
+  }, [searchParams, categories]);
+
   const scrollToTabSection = () => {
     setTimeout(() => {
       const element = document.getElementById("segmented-toggle-section");
@@ -130,6 +154,42 @@ export default function Home() {
         element.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }, 100);
+  };
+
+  // Enter focused subcategory view
+  const enterSubCategoryView = async (cat, sub) => {
+    savedScrollY.current = window.scrollY;
+    setSubCategoryView({ category: cat, subcategory: sub, listings: [] });
+    setSubCategoryViewLoading(true);
+    setSubViewVisible(false);
+    // scroll to top
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      const data = await api.getListings({
+        categoryId: cat.id,
+        subCategoryId: sub.id,
+        status: "ACTIVE",
+        limit: 100,
+      });
+      setSubCategoryView({ category: cat, subcategory: sub, listings: data });
+    } catch (e) {
+      setSubCategoryView({ category: cat, subcategory: sub, listings: [] });
+    } finally {
+      setSubCategoryViewLoading(false);
+      // trigger fade-in after brief delay
+      setTimeout(() => setSubViewVisible(true), 40);
+    }
+  };
+
+  // Exit focused subcategory view and restore scroll
+  const exitSubCategoryView = () => {
+    setSubViewVisible(false);
+    setTimeout(() => {
+      setSubCategoryView(null);
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: savedScrollY.current, behavior: "instant" });
+      });
+    }, 220);
   };
 
   const handleDragScroll = (e) => {
@@ -565,13 +625,177 @@ export default function Home() {
 
   return (
     <div className="home-content-container">
+
+      {/* ========== FOCUSED SUBCATEGORY VIEW ========== */}
+      {subCategoryView && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 999,
+            background: "var(--bg-main)",
+            overflowY: "auto",
+            opacity: subViewVisible ? 1 : 0,
+            transform: subViewVisible ? "translateY(0)" : "translateY(16px)",
+            transition: "opacity 0.22s ease, transform 0.22s ease",
+          }}
+        >
+          {/* Sticky Header */}
+          <div
+            style={{
+              position: "sticky",
+              top: 0,
+              zIndex: 10,
+              background: "var(--bg-card)",
+              borderBottom: "1px solid var(--border-glass)",
+              backdropFilter: "blur(12px)",
+              padding: "12px 20px",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+            }}
+          >
+            <button
+              onClick={exitSubCategoryView}
+              style={{
+                background: "var(--bg-input)",
+                border: "1px solid var(--border-glass)",
+                borderRadius: "10px",
+                padding: "8px 14px",
+                color: "var(--text-main)",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "600",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                flexShrink: 0,
+              }}
+            >
+              ← Back
+            </button>
+
+            {/* Breadcrumb */}
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0, overflow: "hidden" }}>
+              <span style={{ fontSize: "13px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                {subCategoryView.category?.name}
+              </span>
+              <span style={{ color: "var(--text-dim)", fontSize: "12px" }}>›</span>
+              <span
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  color: "var(--accent-primary)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {subCategoryView.subcategory?.emoji} {subCategoryView.subcategory?.name}
+              </span>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "28px 20px" }}>
+            {/* Title */}
+            <h1
+              style={{
+                fontSize: "clamp(20px, 5vw, 28px)",
+                fontWeight: "800",
+                color: "var(--text-main)",
+                marginBottom: "6px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+              }}
+            >
+              {subCategoryView.subcategory?.emoji} {subCategoryView.subcategory?.name}
+            </h1>
+            <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "28px" }}>
+              in <strong style={{ color: "var(--text-main)" }}>{subCategoryView.category?.name}</strong>
+              {subCategoryView.listings.length > 0 && (
+                <> &nbsp;·&nbsp; <span style={{ color: "var(--accent-primary)", fontWeight: "600" }}>{subCategoryView.listings.length} listings found</span></>
+              )}
+            </p>
+
+            {/* Loading */}
+            {subCategoryViewLoading ? (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                  gap: "20px",
+                }}
+              >
+                {[...Array(8)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="glass-panel"
+                    style={{
+                      height: "280px",
+                      borderRadius: "14px",
+                      background: "var(--bg-card)",
+                      animation: "pulse 1.4s ease-in-out infinite",
+                    }}
+                  />
+                ))}
+              </div>
+            ) : subCategoryView.listings.length === 0 ? (
+              /* Empty State */
+              <div
+                className="glass-panel"
+                style={{
+                  padding: "72px 24px",
+                  textAlign: "center",
+                  borderRadius: "20px",
+                  border: "1px solid var(--border-glass)",
+                }}
+              >
+                <div style={{ fontSize: "56px", marginBottom: "16px" }}>🔍</div>
+                <h2 style={{ fontSize: "20px", fontWeight: "700", color: "var(--text-main)", marginBottom: "8px" }}>
+                  No products found
+                </h2>
+                <p style={{ fontSize: "14px", color: "var(--text-muted)", marginBottom: "24px" }}>
+                  There are no listings in <strong>{subCategoryView.subcategory?.name}</strong> yet.
+                  <br />Be the first to post one!
+                </p>
+                <button
+                  onClick={exitSubCategoryView}
+                  className="btn btn-primary"
+                  style={{ padding: "10px 28px", borderRadius: "50px" }}
+                >
+                  ← Go Back
+                </button>
+              </div>
+            ) : (
+              /* Product Grid */
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                  gap: "20px",
+                }}
+              >
+                {subCategoryView.listings.map((item) => (
+                  <ProductCard key={item.id} item={item} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========== HOMEPAGE (hidden behind subcategory view) ========== */}
+
       {/* Top Categories Grid Bar */}
       <div className="glass-panel mobile-flat-panel" style={{ padding: "24px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
           <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "700", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0 }}>
             📁 Browse Categories
           </h2>
-          <button
+          <Link
+            href="/categories"
             className="btn btn-secondary"
             style={{
               padding: "6px 12px",
@@ -581,17 +805,13 @@ export default function Home() {
               alignItems: "center",
               flexShrink: 0,
               whiteSpace: "nowrap",
-              cursor: "pointer"
-            }}
-            onClick={() => {
-              setSelectedCatFilter(null);
-              setSelectedSubCatFilter(null);
-              fetchListings({ categoryId: null, subCategoryId: null });
+              textDecoration: "none"
             }}
           >
             View All →
-          </button>
+          </Link>
         </div>
+
         <div className="scroll-arrow-wrapper">
           {showLeftCat && (
             <button className="scroll-arrow-btn left" onClick={() => scrollLeft(categoryScrollRef)}>◀</button>
@@ -700,14 +920,12 @@ export default function Home() {
                       className={`subcategory-pill-btn ${isSubSelected ? "active" : ""}`}
                       onClick={() => {
                         if (isSubSelected) {
+                          // second click on active pill → exit view
                           setSelectedSubCatFilter(null);
                           fetchListings({ subCategoryId: null });
                         } else {
                           setSelectedSubCatFilter(sub);
-                          const targetTab = getTabForCategory(sub) || getTabForCategory(selectedCatFilter);
-                          setActiveSegmentTab(targetTab);
-                          fetchListings({ subCategoryId: sub.id });
-                          scrollToTabSection();
+                          enterSubCategoryView(selectedCatFilter, sub);
                         }
                       }}
                       style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
@@ -1273,5 +1491,13 @@ export default function Home() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }
