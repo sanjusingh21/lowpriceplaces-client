@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/api";
+import { getImageSrcSet } from "@/utils/image";
 
 export default function DetailsClient({ id }) {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function DetailsClient({ id }) {
   const [reviewVideos, setReviewVideos] = useState([]);
   const [reviewSuccess, setReviewSuccess] = useState("");
   const [reviewError, setReviewError] = useState("");
+  const [aboutExpanded, setAboutExpanded] = useState(false);
 
   const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
 
@@ -148,11 +150,15 @@ export default function DetailsClient({ id }) {
             }}
           >
             <img
-              src={activeDetailImage ? `${imageServer}${activeDetailImage}` : "https://placehold.co/600x400?text=No+Photo"}
+              src={activeDetailImage ? (activeDetailImage.startsWith("http") ? activeDetailImage : `${imageServer}${activeDetailImage}`) : "https://placehold.co/600x400?text=No+Photo"}
+              srcSet={getImageSrcSet(activeDetailImage, imageServer) || undefined}
+              sizes="(max-width: 480px) 480px, (max-width: 768px) 768px, 1920px"
+              loading="lazy"
               alt={listingDetails.title}
               style={{ width: "100%", height: "100%", objectFit: "contain" }}
               onError={(e) => {
                 e.target.src = "https://placehold.co/600x400?text=No+Image+Provided";
+                e.target.srcSet = "";
               }}
             />
           </div>
@@ -180,10 +186,14 @@ export default function DetailsClient({ id }) {
                   >
                     <img
                       src={img ? (img.startsWith("http") ? img : `${imageServer}${img}`) : "https://placehold.co/100x100?text=No+Image"}
+                      srcSet={getImageSrcSet(img, imageServer) || undefined}
+                      sizes="80px"
+                      loading="lazy"
                       alt={`Thumbnail ${index + 1}`}
                       style={{ width: "100%", height: "100%", objectFit: "cover" }}
                       onError={(e) => {
                         e.target.src = "https://placehold.co/100x100?text=No+Image";
+                        e.target.srcSet = "";
                       }}
                     />
                   </div>
@@ -222,27 +232,35 @@ export default function DetailsClient({ id }) {
               <span style={{ color: "var(--text-dim)" }}>No reviews yet</span>
             )}
             <span style={{ color: "var(--text-dim)" }}>|</span>
-            <span>Seller: <strong>{listingDetails.seller?.username}</strong></span>
+            <span>Seller: <strong>{listingDetails.seller?.sellerProfile?.displayName || listingDetails.seller?.username}</strong></span>
             <span style={{ color: "var(--text-dim)" }}>|</span>
             <span>📅 Posted: <strong>{new Date(listingDetails.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</strong></span>
           </div>
 
           <div className="card-prices">
             {listingDetails.discountPercent > 0 ? (
-              <>
-                <span className="price-discounted" style={{ fontSize: "36px" }}>
-                  ₹{(listingDetails.price * (1 - listingDetails.discountPercent / 100)).toFixed(0)}
-                </span>
-                <span className="price-original" style={{ fontSize: "20px" }}>
-                  ₹{listingDetails.price}
-                </span>
-                <span className="card-badge" style={{ position: "static" }}>
-                  {listingDetails.discountPercent}% OFF Announcement!
-                </span>
-              </>
+              (() => {
+                const finalFrom = (listingDetails.price * (1 - listingDetails.discountPercent / 100)).toFixed(0);
+                const finalTo = listingDetails.priceMax
+                  ? (listingDetails.priceMax * (1 - listingDetails.discountPercent / 100)).toFixed(0)
+                  : null;
+                return (
+                  <>
+                    <span className="price-discounted" style={{ fontSize: "36px" }}>
+                      ₹{finalFrom}{finalTo ? ` - ₹${finalTo}` : ""}
+                    </span>
+                    <span className="price-original" style={{ fontSize: "20px" }}>
+                      ₹{listingDetails.price}{listingDetails.priceMax ? ` - ₹${listingDetails.priceMax}` : ""}
+                    </span>
+                    <span className="card-badge" style={{ position: "static" }}>
+                      {listingDetails.discountPercent}% OFF Announcement!
+                    </span>
+                  </>
+                );
+              })()
             ) : (
               <span className="price-discounted" style={{ fontSize: "36px" }}>
-                ₹{listingDetails.price}
+                ₹{listingDetails.price}{listingDetails.priceMax ? ` - ₹${listingDetails.priceMax}` : ""}
               </span>
             )}
           </div>
@@ -252,50 +270,136 @@ export default function DetailsClient({ id }) {
             <p className="detail-desc">{listingDetails.description}</p>
           </div>
 
-          {/* Contact and Messaging Box */}
-          <div className="glass-panel contact-card">
-            <h3 className="contact-title">Contact Seller</h3>
-            {user ? (
-              <>
-                <div className="contact-methods">
-                  <a
-                    href={`https://wa.me/${listingDetails.whatsappNumber.replace(/[^0-9]/g, "")}?text=Hi, I am interested in your listing: "${encodeURIComponent(listingDetails.title)}"`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-whatsapp"
-                    style={{ textDecoration: "none" }}
-                  >
-                    💬 Chat on WhatsApp ({listingDetails.whatsappNumber})
-                  </a>
-
-                  <a href={`tel:${listingDetails.contactNumber}`} className="btn btn-secondary" style={{ textDecoration: "none" }}>
-                    📞 Call Seller ({listingDetails.contactNumber})
-                  </a>
-
-                  <button
-                    className={`btn ${savedListings.includes(listingDetails.id) ? "btn-accent" : "btn-secondary"}`}
-                    onClick={() => toggleBookmark(listingDetails.id)}
-                  >
-                    {savedListings.includes(listingDetails.id) ? "⭐ Bookmarked" : "☆ Save/Bookmark Product"}
-                  </button>
+          {/* Seller Information Card */}
+          {listingDetails.seller?.sellerProfile && (
+            <div className="glass-panel seller-info-card" style={{ padding: "20px", marginTop: "20px" }}>
+              <h3 style={{ marginBottom: "12px", fontSize: "18px", borderBottom: "1px solid var(--border-glass)", paddingBottom: "8px" }}>
+                Seller Information
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div>
+                  <h4 style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-main)" }}>
+                    {listingDetails.seller.sellerProfile.displayName || listingDetails.seller.sellerProfile.fullName}
+                  </h4>
+                  {listingDetails.seller.sellerProfile.professionalTitle && (
+                    <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: "2px 0 0 0" }}>
+                      {listingDetails.seller.sellerProfile.professionalTitle}
+                    </p>
+                  )}
                 </div>
 
-                {/* In-app Message Inquiry composer */}
-                <form onSubmit={submitInquiry} className="inquiry-box" style={{ borderTop: "1px solid var(--border-glass)", paddingTop: "16px", marginTop: "8px" }}>
-                  <h4 style={{ fontSize: "14px", fontWeight: "600" }}>Send Instant Inquiry Message</h4>
-                  {inquirySuccess && <div className="alert-banner alert-success">{inquirySuccess}</div>}
-                  <textarea
-                    className="inquiry-textarea"
-                    placeholder="Ask the seller for availability, negotiation, or coordinates..."
-                    value={inquiryText}
-                    onChange={(e) => setInquiryText(e.target.value)}
-                    required
-                  ></textarea>
-                  <button type="submit" className="btn btn-primary">
-                    Send Message
-                  </button>
-                </form>
-              </>
+                <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "13px", color: "var(--text-dim)" }}>
+                  {listingDetails.seller.sellerProfile.yearsOfExperience !== undefined && listingDetails.seller.sellerProfile.yearsOfExperience !== null && (
+                    <span>⭐ Experience: <strong>{listingDetails.seller.sellerProfile.yearsOfExperience} Years</strong></span>
+                  )}
+                  {listingDetails.seller.sellerProfile.businessCategory && (
+                    <span>🏷️ Category: <strong>{listingDetails.seller.sellerProfile.businessCategory}</strong></span>
+                  )}
+                </div>
+
+                {listingDetails.seller.sellerProfile.aboutSeller && (
+                  <div style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.5" }}>
+                    <div
+                      style={{
+                        display: "-webkit-box",
+                        WebkitLineClamp: aboutExpanded ? "unset" : 3,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {listingDetails.seller.sellerProfile.aboutSeller}
+                    </div>
+                    {listingDetails.seller.sellerProfile.aboutSeller.split("\n").length > 3 || listingDetails.seller.sellerProfile.aboutSeller.length > 180 ? (
+                      <button
+                        onClick={() => setAboutExpanded(!aboutExpanded)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "var(--primary)",
+                          padding: 0,
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                          marginTop: "4px",
+                        }}
+                      >
+                        {aboutExpanded ? "Read Less" : "Read More"}
+                      </button>
+                    ) : null}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px", borderTop: "1px solid var(--border-glass)", paddingTop: "10px", marginTop: "4px" }}>
+                  {listingDetails.seller.sellerProfile.email && (
+                    <div>📧 Email: <a href={`mailto:${listingDetails.seller.sellerProfile.email}`} style={{ color: "var(--primary)", textDecoration: "none" }}>{listingDetails.seller.sellerProfile.email}</a></div>
+                  )}
+                  {listingDetails.seller.sellerProfile.mobileNumber && (
+                    <div>📞 Mobile: <a href={`tel:${listingDetails.seller.sellerProfile.mobileNumber}`} style={{ color: "var(--primary)", textDecoration: "none" }}>{listingDetails.seller.sellerProfile.mobileNumber}</a></div>
+                  )}
+                  {listingDetails.seller.sellerProfile.whatsAppNumber && (
+                    <div>💬 WhatsApp: <a href={`https://wa.me/${listingDetails.seller.sellerProfile.whatsAppNumber.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--primary)", textDecoration: "none" }}>{listingDetails.seller.sellerProfile.whatsAppNumber}</a></div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Contact and Messaging Box */}
+          <div className="glass-panel contact-card" style={{ marginTop: "20px" }}>
+            <h3 className="contact-title">Contact Seller</h3>
+            {user ? (
+              (() => {
+                const sellerProfile = listingDetails.seller?.sellerProfile;
+                const displayWhatsApp = sellerProfile ? sellerProfile.whatsAppNumber : listingDetails.whatsappNumber;
+                const displayCall = sellerProfile ? sellerProfile.mobileNumber : listingDetails.contactNumber;
+
+                return (
+                  <>
+                    <div className="contact-methods">
+                      {displayWhatsApp && (
+                        <a
+                          href={`https://wa.me/${displayWhatsApp.replace(/[^0-9]/g, "")}?text=Hi, I am interested in your listing: "${encodeURIComponent(listingDetails.title)}"`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-whatsapp"
+                          style={{ textDecoration: "none" }}
+                        >
+                          💬 Chat on WhatsApp ({displayWhatsApp})
+                        </a>
+                      )}
+
+                      {displayCall && (
+                        <a href={`tel:${displayCall}`} className="btn btn-secondary" style={{ textDecoration: "none" }}>
+                          📞 Call Seller ({displayCall})
+                        </a>
+                      )}
+
+                      <button
+                        className={`btn ${savedListings.includes(listingDetails.id) ? "btn-accent" : "btn-secondary"}`}
+                        onClick={() => toggleBookmark(listingDetails.id)}
+                      >
+                        {savedListings.includes(listingDetails.id) ? "⭐ Bookmarked" : "☆ Save/Bookmark Product"}
+                      </button>
+                    </div>
+
+                    {/* In-app Message Inquiry composer */}
+                    <form onSubmit={submitInquiry} className="inquiry-box" style={{ borderTop: "1px solid var(--border-glass)", paddingTop: "16px", marginTop: "8px" }}>
+                      <h4 style={{ fontSize: "14px", fontWeight: "600" }}>Send Instant Inquiry Message</h4>
+                      {inquirySuccess && <div className="alert-banner alert-success">{inquirySuccess}</div>}
+                      <textarea
+                        className="inquiry-textarea"
+                        placeholder="Ask the seller for availability, negotiation, or coordinates..."
+                        value={inquiryText}
+                        onChange={(e) => setInquiryText(e.target.value)}
+                        required
+                      ></textarea>
+                      <button type="submit" className="btn btn-primary">
+                        Send Message
+                      </button>
+                    </form>
+                  </>
+                );
+              })()
             ) : (
               <div style={{ textAlign: "center", padding: "16px 0 8px 0" }}>
                 <p style={{ color: "var(--text-muted)", marginBottom: "16px", fontSize: "14px", lineHeight: "1.5" }}>
@@ -417,6 +521,9 @@ export default function DetailsClient({ id }) {
                       <img
                         key={i}
                         src={`${imageServer}${img}`}
+                        srcSet={getImageSrcSet(img, imageServer) || undefined}
+                        sizes="(max-width: 480px) 150px, 300px"
+                        loading="lazy"
                         alt="Review image"
                         className="review-img"
                         onClick={() => window.open(`${imageServer}${img}`)}
@@ -447,24 +554,36 @@ export default function DetailsClient({ id }) {
       {/* Sticky Bottom Details Contact Bar (Mobile Only) */}
       <div className="mobile-detail-sticky-bar">
         {user ? (
-          <div style={{ display: "flex", gap: "10px", width: "100%" }}>
-            <a
-              href={`https://wa.me/${listingDetails.whatsappNumber.replace(/[^0-9]/g, "")}?text=Hi, I am interested in your listing: "${encodeURIComponent(listingDetails.title)}"`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-whatsapp"
-              style={{ flex: 1, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", gap: "6px", height: "44px", padding: 0 }}
-            >
-              💬 WhatsApp
-            </a>
-            <a
-              href={`tel:${listingDetails.contactNumber}`}
-              className="btn btn-secondary"
-              style={{ flex: 1, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", gap: "6px", height: "44px", padding: 0 }}
-            >
-              📞 Call Owner
-            </a>
-          </div>
+          (() => {
+            const sellerProfile = listingDetails.seller?.sellerProfile;
+            const displayWhatsApp = sellerProfile ? sellerProfile.whatsAppNumber : listingDetails.whatsappNumber;
+            const displayCall = sellerProfile ? sellerProfile.mobileNumber : listingDetails.contactNumber;
+
+            return (
+              <div style={{ display: "flex", gap: "10px", width: "100%" }}>
+                {displayWhatsApp && (
+                  <a
+                    href={`https://wa.me/${displayWhatsApp.replace(/[^0-9]/g, "")}?text=Hi, I am interested in your listing: "${encodeURIComponent(listingDetails.title)}"`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-whatsapp"
+                    style={{ flex: 1, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", gap: "6px", height: "44px", padding: 0 }}
+                  >
+                    💬 WhatsApp
+                  </a>
+                )}
+                {displayCall && (
+                  <a
+                    href={`tel:${displayCall}`}
+                    className="btn btn-secondary"
+                    style={{ flex: 1, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", gap: "6px", height: "44px", padding: 0 }}
+                  >
+                    📞 Call Owner
+                  </a>
+                )}
+              </div>
+            );
+          })()
         ) : (
           <div style={{ width: "100%" }}>
             <button

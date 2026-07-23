@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/api";
+import ProductCard from "@/components/ProductCard";
 
 export default function Dashboard() {
   const params = useParams();
@@ -66,9 +67,33 @@ export default function Dashboard() {
   // Load Dashboard Data
   const loadDashboardData = async () => {
     if (!user) return;
+    
+    if (activeTabParam === "saved" || activeTabParam === "bookmarks") {
+      fetchSavedListings();
+      fetchListings();
+    }
+
     if (user.role === "SELLER") {
       fetchSellerListings();
       fetchInquiries();
+      if (activeTabParam === "profile" || dashboardTab === "profile") {
+        try {
+          const prof = await api.getProfile();
+          setProfileForm({
+            fullName: prof.fullName || "",
+            displayName: prof.displayName || "",
+            professionalTitle: prof.professionalTitle || "",
+            yearsOfExperience: prof.yearsOfExperience !== null && prof.yearsOfExperience !== undefined ? String(prof.yearsOfExperience) : "",
+            businessCategory: prof.businessCategory || "",
+            aboutSeller: prof.aboutSeller || "",
+            email: prof.email || "",
+            mobileNumber: prof.mobileNumber || "",
+            whatsAppNumber: prof.whatsAppNumber || ""
+          });
+        } catch (e) {
+          console.error("Failed to load seller profile:", e);
+        }
+      }
     } else if (user.role === "BUYER") {
       fetchInquiries();
       fetchSavedListings();
@@ -112,16 +137,46 @@ export default function Dashboard() {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newPrice, setNewPrice] = useState("");
+  const [newPriceMax, setNewPriceMax] = useState("");
   const [newDiscount, setNewDiscount] = useState("0");
   const [newLocation, setNewLocation] = useState("");
   const [newWhatsapp, setNewWhatsapp] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newSubCategory, setNewSubCategory] = useState("");
+  const [newListingType, setNewListingType] = useState("SALES");
   const [newImageFiles, setNewImageFiles] = useState([]);
   const [toast, setToast] = useState(null);
   const [showAddLocDropdown, setShowAddLocDropdown] = useState(false);
   const [addLocSuggestions, setAddLocSuggestions] = useState([]);
+
+  // Seller Profile Tab state
+  const [profileForm, setProfileForm] = useState({
+    fullName: "",
+    displayName: "",
+    professionalTitle: "",
+    yearsOfExperience: "",
+    businessCategory: "",
+    aboutSeller: "",
+    email: "",
+    mobileNumber: "",
+    whatsAppNumber: ""
+  });
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    if (!user) return;
+    setSavingProfile(true);
+    try {
+      await api.updateProfile(profileForm);
+      triggerToast("Seller Profile updated successfully!", "success");
+    } catch (err) {
+      triggerToast(err.message, "error");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   // Auto detect listing coordinates
   const autoDetectListingLocation = () => {
@@ -194,6 +249,8 @@ export default function Dashboard() {
     formData.append("title", newTitle);
     formData.append("description", newDesc);
     formData.append("price", newPrice);
+    formData.append("priceMax", newPriceMax);
+    formData.append("listingType", newListingType);
     formData.append("discountPercent", newDiscount || 0);
     formData.append("location", newLocation);
     formData.append("whatsappNumber", newWhatsapp);
@@ -213,6 +270,8 @@ export default function Dashboard() {
       setNewTitle("");
       setNewDesc("");
       setNewPrice("");
+      setNewPriceMax("");
+      setNewListingType("SALES");
       setNewDiscount("0");
       setNewLocation("");
       setNewWhatsapp("");
@@ -307,97 +366,102 @@ export default function Dashboard() {
   }
 
   const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
+  const isBookmarksTab = dashboardTab === "saved" || dashboardTab === "bookmarks";
 
   return (
-    <div className="dashboard-layout">
+    <div className={`dashboard-layout ${isBookmarksTab ? "full-width" : ""}`}>
       {/* Mobile Direct Navigation Tabs */}
-      <div className="mobile-dashboard-tabs" style={{ display: "none", marginBottom: "16px", gap: "8px", width: "100%" }}>
-        {user.role === "SELLER" && (
-          <>
-            <button
-              className={`mobile-tab-btn ${dashboardTab === "my-listings" ? "active" : ""}`}
-              onClick={() => router.push("/dashboard/my-listings")}
-            >
-              📦 Listings
-            </button>
-            <button
-              className={`mobile-tab-btn ${dashboardTab === "add-listing" ? "active" : ""}`}
-              onClick={() => router.push("/dashboard/add-listing")}
-            >
-              ➕ Post
-            </button>
-            <button
-              className={`mobile-tab-btn ${dashboardTab === "leads" ? "active" : ""}`}
-              onClick={() => router.push("/dashboard/leads")}
-            >
-              💬 Messages ({sellerInquiries.length})
-            </button>
-          </>
-        )}
-        {user.role === "BUYER" && (
-          <>
-            <button
-              className={`mobile-tab-btn ${dashboardTab === "inquiries" ? "active" : ""}`}
-              onClick={() => router.push("/dashboard/inquiries")}
-            >
-              ✉️ Inquiries ({buyerInquiries.length})
-            </button>
-            <button
-              className={`mobile-tab-btn ${dashboardTab === "saved" || dashboardTab === "bookmarks" ? "active" : ""}`}
-              onClick={() => router.push("/dashboard/bookmarks")}
-            >
-              ⭐ Saved
-            </button>
-          </>
-        )}
-        {user.role === "ADMIN" && (
-          <>
-            <button
-              className={`mobile-tab-btn ${dashboardTab === "cities" ? "active" : ""}`}
-              onClick={() => router.push("/dashboard/cities")}
-            >
-              🌆 Cities
-            </button>
-          </>
-        )}
-      </div>
+      {!isBookmarksTab && (
+        <div className="mobile-dashboard-tabs" style={{ display: "flex", marginBottom: "16px", gap: "8px", width: "100%", overflowX: "auto", paddingBottom: "4px" }}>
+          {user.role === "SELLER" && (
+            <>
+              <button
+                className={`mobile-tab-btn ${dashboardTab === "my-listings" ? "active" : ""}`}
+                onClick={() => router.push("/dashboard/my-listings")}
+              >
+                📦 Listings
+              </button>
+              <button
+                className={`mobile-tab-btn ${dashboardTab === "add-listing" ? "active" : ""}`}
+                onClick={() => router.push("/dashboard/add-listing")}
+              >
+                ➕ Post
+              </button>
+              <button
+                className={`mobile-tab-btn ${dashboardTab === "leads" ? "active" : ""}`}
+                onClick={() => router.push("/dashboard/leads")}
+              >
+                💬 Messages ({sellerInquiries.length})
+              </button>
+              <button
+                className={`mobile-tab-btn ${dashboardTab === "profile" ? "active" : ""}`}
+                onClick={() => router.push("/dashboard/profile")}
+              >
+                👤 Profile
+              </button>
+            </>
+          )}
+          {user.role === "BUYER" && (
+            <>
+              <button
+                className={`mobile-tab-btn ${dashboardTab === "inquiries" ? "active" : ""}`}
+                onClick={() => router.push("/dashboard/inquiries")}
+              >
+                ✉️ Inquiries ({buyerInquiries.length})
+              </button>
+            </>
+          )}
+          {user.role === "ADMIN" && (
+            <>
+              <button
+                className={`mobile-tab-btn ${dashboardTab === "cities" ? "active" : ""}`}
+                onClick={() => router.push("/dashboard/cities")}
+              >
+                🌆 Cities
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
-      <aside className="dashboard-sidebar">
-        {user.role === "SELLER" && (
-          <>
-            <Link href="/dashboard/my-listings" className={`sidebar-tab ${dashboardTab === "my-listings" ? "active" : ""}`}>
-              📦 My Listings
-            </Link>
-            <Link href="/dashboard/add-listing" className={`sidebar-tab ${dashboardTab === "add-listing" ? "active" : ""}`}>
-              ➕ Post New Product
-            </Link>
-            <Link href="/dashboard/leads" className={`sidebar-tab ${dashboardTab === "leads" ? "active" : ""}`}>
-              💬 Buyer Messages ({sellerInquiries.length})
-            </Link>
-          </>
-        )}
+      {!isBookmarksTab && (
+        <aside className="dashboard-sidebar">
+          {user.role === "SELLER" && (
+            <>
+              <Link href="/dashboard/my-listings" className={`sidebar-tab ${dashboardTab === "my-listings" ? "active" : ""}`}>
+                📦 My Listings
+              </Link>
+              <Link href="/dashboard/add-listing" className={`sidebar-tab ${dashboardTab === "add-listing" ? "active" : ""}`}>
+                ➕ Post New Product
+              </Link>
+              <Link href="/dashboard/leads" className={`sidebar-tab ${dashboardTab === "leads" ? "active" : ""}`}>
+                💬 Buyer Messages ({sellerInquiries.length})
+              </Link>
+              <Link href="/dashboard/profile" className={`sidebar-tab ${dashboardTab === "profile" ? "active" : ""}`}>
+                👤 Seller Profile
+              </Link>
+            </>
+          )}
 
-        {user.role === "BUYER" && (
-          <>
-            <Link href="/dashboard/inquiries" className={`sidebar-tab ${dashboardTab === "inquiries" ? "active" : ""}`}>
-              ✉️ Sent Message Inquiries ({buyerInquiries.length})
-            </Link>
-            <Link href="/dashboard/bookmarks" className={`sidebar-tab ${dashboardTab === "saved" || dashboardTab === "bookmarks" ? "active" : ""}`}>
-              ⭐ Bookmarks & Saved
-            </Link>
-          </>
-        )}
+          {user.role === "BUYER" && (
+            <>
+              <Link href="/dashboard/inquiries" className={`sidebar-tab ${dashboardTab === "inquiries" ? "active" : ""}`}>
+                ✉️ Sent Message Inquiries ({buyerInquiries.length})
+              </Link>
+            </>
+          )}
 
-        {user.role === "ADMIN" && (
-          <>
-            <Link href="/dashboard/cities" className={`sidebar-tab ${dashboardTab === "cities" ? "active" : ""}`}>
-              🌆 Manage Cities
-            </Link>
-          </>
-        )}
-      </aside>
+          {user.role === "ADMIN" && (
+            <>
+              <Link href="/dashboard/cities" className={`sidebar-tab ${dashboardTab === "cities" ? "active" : ""}`}>
+                🌆 Manage Cities
+              </Link>
+            </>
+          )}
+        </aside>
+      )}
 
-      <section className="dashboard-content">
+      <section className="dashboard-content" style={isBookmarksTab ? { gridColumn: "span 2" } : {}}>
         {/* Tab: My Listings (Seller) */}
         {user.role === "SELLER" && dashboardTab === "my-listings" && (
           <div>
@@ -407,9 +471,16 @@ export default function Dashboard() {
                 const photos = item.imagePath ? item.imagePath.split(",") : [];
                 const coverImage = photos[0] || "";
                 const hasDiscount = item.discountPercent > 0;
-                const finalPrice = hasDiscount
-                  ? (item.price * (1 - item.discountPercent / 100)).toFixed(0)
-                  : item.price;
+                const priceFrom = item.price;
+                const finalPriceFrom = hasDiscount
+                  ? (priceFrom * (1 - item.discountPercent / 100)).toFixed(0)
+                  : priceFrom;
+
+                const priceTo = item.priceMax;
+                const finalPriceTo = priceTo && hasDiscount
+                  ? (priceTo * (1 - item.discountPercent / 100)).toFixed(0)
+                  : priceTo;
+
                 return (
                   <div
                     key={item.id}
@@ -443,11 +514,17 @@ export default function Dashboard() {
                         <div className="card-prices" style={{ marginBottom: "8px" }}>
                           {hasDiscount ? (
                             <>
-                              <span className="price-discounted" style={{ fontSize: "15px", fontWeight: "700" }}>₹{finalPrice}</span>
-                              <span className="price-original" style={{ fontSize: "11px", textDecoration: "line-through", color: "var(--text-dim)", marginLeft: "6px" }}>₹{item.price}</span>
+                              <span className="price-discounted" style={{ fontSize: "15px", fontWeight: "700" }}>
+                                ₹{finalPriceFrom}{finalPriceTo ? ` - ₹${finalPriceTo}` : ""}
+                              </span>
+                              <span className="price-original" style={{ fontSize: "11px", textDecoration: "line-through", color: "var(--text-dim)", marginLeft: "6px" }}>
+                                ₹{priceFrom}{priceTo ? ` - ₹${priceTo}` : ""}
+                              </span>
                             </>
                           ) : (
-                            <span className="price-discounted" style={{ fontSize: "15px", fontWeight: "700" }}>₹{item.price}</span>
+                            <span className="price-discounted" style={{ fontSize: "15px", fontWeight: "700" }}>
+                              ₹{priceFrom}{priceTo ? ` - ₹${priceTo}` : ""}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -504,6 +581,20 @@ export default function Dashboard() {
               </div>
 
               <div className="form-group">
+                <label className="form-label">Listing Type</label>
+                <select
+                  className="form-select"
+                  value={newListingType}
+                  onChange={(e) => setNewListingType(e.target.value)}
+                  required
+                >
+                  <option value="SALES">🛍️ Sales (New products)</option>
+                  <option value="SERVICES">💼 Work & Services</option>
+                  <option value="SECONDHAND">♻️ Second-Hand (Used items)</option>
+                </select>
+              </div>
+
+              <div className="form-group">
                 <label className="form-label">Root Category</label>
                 <select
                   className="form-select"
@@ -534,8 +625,27 @@ export default function Dashboard() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Price (₹ INR)</label>
-                <input type="number" className="form-input" placeholder="e.g. 499" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} required />
+                <label className="form-label">Price Range (₹ INR)</label>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                  <input
+                    type="number"
+                    className="form-input"
+                    placeholder="From (e.g. 499)"
+                    value={newPrice}
+                    onChange={(e) => setNewPrice(e.target.value)}
+                    required
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ color: "var(--text-muted)" }}>to</span>
+                  <input
+                    type="number"
+                    className="form-input"
+                    placeholder="To (e.g. 999)"
+                    value={newPriceMax}
+                    onChange={(e) => setNewPriceMax(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -1089,38 +1199,18 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Tab: Saved Bookmarks (Buyer) */}
-        {user.role === "BUYER" && (dashboardTab === "saved" || dashboardTab === "bookmarks") && (
+        {/* Tab: Saved Bookmarks (All Roles) */}
+        {(dashboardTab === "saved" || dashboardTab === "bookmarks") && (
           <div>
-            <h2 style={{ marginBottom: "16px" }}>Saved Products</h2>
+            <h2 style={{ marginBottom: "16px" }}>Shortlisted Products</h2>
             {savedListings.length === 0 ? (
               <div className="glass-panel" style={{ padding: "30px", textAlign: "center", color: "var(--text-muted)" }}>
-                No bookmarks saved yet. Explore products and click "Save/Bookmark Product" to add.
+                No shortlisted products saved yet. Explore products and click the heart icon on any listing card to add.
               </div>
             ) : (
               <div className="products-grid">
                 {listings.filter((l) => savedListings.includes(l.id)).map((item) => (
-                  <div key={item.id} className="glass-panel product-card" onClick={() => router.push(`/details/${item.id}`)} style={{ cursor: "pointer" }}>
-                    <div className="card-image-wrapper">
-                      <img
-                        src={item.imagePath ? `${imageServer}${item.imagePath.split(",")[0]}` : "https://placehold.co/400x300?text=No+Photo"}
-                        alt={item.title}
-                        className="card-img"
-                        onError={(e) => {
-                          e.target.src = "https://placehold.co/400x300?text=Product";
-                        }}
-                      />
-                    </div>
-                    <div className="card-content">
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                        <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "2px 6px", borderRadius: "4px", fontSize: "10.5px", fontWeight: "700" }}>
-                          LPP-{String(item.id).padStart(5, "0")}
-                        </span>
-                      </div>
-                      <h3 className="card-title">{item.title}</h3>
-                      <p className="price-discounted">₹{item.price}</p>
-                    </div>
-                  </div>
+                  <ProductCard key={item.id} item={item} />
                 ))}
               </div>
             )}
@@ -1206,6 +1296,129 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Seller Profile (Seller) */}
+        {user.role === "SELLER" && dashboardTab === "profile" && (
+          <div>
+            <h2 style={{ marginBottom: "16px" }}>Seller Profile</h2>
+            <div className="glass-panel form-card" style={{ padding: "24px" }}>
+              <form onSubmit={handleSaveProfile}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+                  <div className="form-group">
+                    <label className="form-label">Full Name</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. John Doe"
+                      value={profileForm.fullName}
+                      onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Display Name / Shop Name</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Luxe Deals Shop"
+                      value={profileForm.displayName}
+                      onChange={(e) => setProfileForm({ ...profileForm, displayName: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Professional Title</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Premium Certified Dealer"
+                      value={profileForm.professionalTitle}
+                      onChange={(e) => setProfileForm({ ...profileForm, professionalTitle: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Years of Experience</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      placeholder="e.g. 5"
+                      value={profileForm.yearsOfExperience}
+                      onChange={(e) => setProfileForm({ ...profileForm, yearsOfExperience: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Business Category</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Electronics & Gadgets"
+                      value={profileForm.businessCategory}
+                      onChange={(e) => setProfileForm({ ...profileForm, businessCategory: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Email Address</label>
+                    <input
+                      type="email"
+                      className="form-input"
+                      placeholder="e.g. contact@luxedeals.com"
+                      value={profileForm.email}
+                      onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Mobile Number (Optional)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. 9876543210"
+                      value={profileForm.mobileNumber}
+                      onChange={(e) => setProfileForm({ ...profileForm, mobileNumber: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">WhatsApp Number (Optional)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. 9876543210"
+                      value={profileForm.whatsAppNumber}
+                      onChange={(e) => setProfileForm({ ...profileForm, whatsAppNumber: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginTop: "20px", marginBottom: "0" }}>
+                  <label className="form-label">About Seller</label>
+                  <textarea
+                    className="form-input"
+                    placeholder="Describe your services, business, or shop..."
+                    rows={4}
+                    value={profileForm.aboutSeller}
+                    onChange={(e) => setProfileForm({ ...profileForm, aboutSeller: e.target.value })}
+                    required
+                    style={{ width: "100%", resize: "vertical" }}
+                  />
+                </div>
+
+                <button type="submit" className="btn btn-primary" style={{ marginTop: "20px" }} disabled={savingProfile}>
+                  {savingProfile ? "Saving..." : "💾 Save Profile"}
+                </button>
+              </form>
             </div>
           </div>
         )}

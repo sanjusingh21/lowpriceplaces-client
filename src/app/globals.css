@@ -32,6 +32,9 @@
   --radius-md: 12px;
   --radius-sm: 8px;
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --logo-blue: #2b5c8f;
+  --logo-green: #38a169;
+  --logo-gray: #718096;
 }
 
 body.dark-theme {
@@ -57,6 +60,9 @@ body.dark-theme {
     radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
     radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.05) 0px, transparent 50%),
     radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+  --logo-blue: #60a5fa;
+  --logo-green: #48bb78;
+  --logo-gray: #cbd5e0;
 }
 
 * {
@@ -79,6 +85,10 @@ body {
   transition: var(--transition);
   overflow-x: hidden !important;
   width: 100% !important;
+}
+
+a {
+  text-decoration: none;
 }
 
 h1,
@@ -146,6 +156,7 @@ h6 {
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px 16px;
+  padding-top: 90px;
 }
 
 /* Navigation Styles (Amazon Style Header) */
@@ -154,8 +165,9 @@ h6 {
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border-bottom: 1px solid var(--border-glass);
-  position: sticky;
+  position: fixed;
   top: 0;
+  width: 100%;
   z-index: 1000;
   transition: padding 0.25s ease, background 0.25s ease;
 }
@@ -173,9 +185,6 @@ h6 {
   font-family: 'Outfit', sans-serif;
   font-size: 24px;
   font-weight: 800;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -324,6 +333,7 @@ h6 {
   cursor: pointer;
   border: none;
   transition: var(--transition);
+  text-decoration: none;
 }
 
 .btn-primary {
@@ -373,7 +383,7 @@ h6 {
 /* Category Grid & Feed Section */
 .home-layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 260px minmax(0, 1fr);
   gap: 24px;
   margin-top: 20px;
 }
@@ -505,6 +515,7 @@ h6 {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-width: 0;
 }
 
 .section-header {
@@ -580,6 +591,24 @@ h6 {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.photo-count-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .card-content {
@@ -1088,6 +1117,7 @@ h6 {
   margin-bottom: 8px;
   transition: all 0.2s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 .category-bar-item:hover .category-bar-icon-box {
@@ -1199,15 +1229,17 @@ h6 {
   transform: scale(0.9);
 }
 
-.header-glass.scrolled .nav-actions {
-  opacity: 0 !important;
-  visibility: hidden !important;
-  width: 0 !important;
-  max-width: 0 !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  pointer-events: none !important;
+@media (max-width: 991px) {
+  .header-glass.scrolled .nav-actions {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+  }
 }
 
 .brand-logo,
@@ -1398,10 +1430,10 @@ h6 {
 @media (max-width: 991px) {
 
   /* Default Mobile Header State (Unscrolled) */
-  .header-glass:not(.scrolled) .search-wrapper {
+
+  .search-wrapper {
     display: none !important;
   }
-
 
   .mobile-search-hero {
     display: block !important;
@@ -1474,9 +1506,12 @@ h6 {
   }
 }
 
+
 .mobile-search-hero {
   display: none;
-  /* Hidden on desktop by default */
+  width: 100%;
+  max-width: 600px;
+  margin: 16px auto 24px auto;
 }
 
 /* Mobile Side Navigation Drawer */
@@ -1599,12 +1634,12 @@ h6 {
     overflow-x: auto !important;
     padding: 12px 8px !important;
     gap: 12px !important;
-    scrollbar-width: none;
+    scrollbar-width: none !important;
     -webkit-overflow-scrolling: touch;
   }
 
   .category-bar-grid::-webkit-scrollbar {
-    display: none;
+    display: none !important;
   }
 
   .category-bar-item {
@@ -1674,11 +1709,11 @@ h6 {
     padding: 8px 8px !important;
     gap: 10px !important;
     margin: 0 -8px !important;
-    scrollbar-width: none;
+    scrollbar-width: none !important;
   }
 
   .subcategory-pills-row::-webkit-scrollbar {
-    display: none;
+    display: none !important;
   }
 
   .subcategory-pill {
@@ -2017,6 +2052,7 @@ h6 {
   .content-wrapper {
     padding: 16px 8px !important;
     overflow-x: hidden !important;
+    padding-top: 70px !important;
   }
 
   .nav-container {
@@ -2386,5 +2422,214 @@ h6 {
 
   .feed-card .card-desc {
     font-size: 10.5px !important;
+  }
+}
+
+/* Hide scrollbars but keep functionality */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari and Opera */
+}
+
+/* Customize Splide Arrows to match LowPricePlaces theme */
+.splide__arrow {
+  background: rgba(13, 14, 21, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: white !important;
+  opacity: 0.85;
+  transition: all 0.2s ease;
+}
+
+.splide__arrow:hover {
+  background: var(--primary) !important;
+  opacity: 1;
+}
+
+.splide__arrow svg {
+  fill: currentColor !important;
+}
+
+/* Segmented toggle for Featured Listings type */
+.segmented-toggle-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.segmented-toggle {
+  display: inline-flex;
+  background: var(--bg-glass-card, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border-glass);
+  border-radius: 30px;
+  padding: 4px;
+  gap: 4px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: var(--shadow-glass);
+}
+
+.segmented-toggle-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 26px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-dim);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  outline: none;
+}
+
+.segmented-toggle-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.segmented-toggle-btn.active {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+@media (max-width: 480px) {
+  .segmented-toggle-btn {
+    padding: 8px 8px;
+    font-size: 11px;
+    gap: 4px;
+  }
+  
+  .segmented-toggle-btn span.tab-label-text {
+    display: inline;
+  }
+}
+
+/* Shortlist heart button hover styles */
+.bookmark-btn:hover {
+  transform: scale(1.1);
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.bookmark-btn:active {
+  transform: scale(0.95);
+}
+
+.dashboard-layout.full-width {
+  grid-template-columns: 1fr;
+}
+
+/* Grab scroll cursor styling */
+.grab-scroll-container {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  scrollbar-width: none !important; /* Hide scrollbars by default in Firefox */
+  -ms-overflow-style: none !important; /* Hide in IE/Edge */
+}
+
+.grab-scroll-container:active,
+.grab-scroll-container.active {
+  cursor: grabbing;
+}
+
+/* Hide scrollbars by default for Webkit browsers */
+.grab-scroll-container::-webkit-scrollbar,
+.horizontal-scroll-container::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Sleek custom scrollbars shown ONLY on hover for desktop users (devices with hover capabilities) */
+@media (hover: hover) {
+  .grab-scroll-container:hover,
+  .horizontal-scroll-container:hover {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent !important;
+  }
+
+  .grab-scroll-container:hover::-webkit-scrollbar,
+  .horizontal-scroll-container:hover::-webkit-scrollbar {
+    display: block !important;
+    height: 4px !important;
+  }
+
+  .grab-scroll-container:hover::-webkit-scrollbar-track,
+  .horizontal-scroll-container:hover::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+
+  .grab-scroll-container:hover::-webkit-scrollbar-thumb,
+  .horizontal-scroll-container:hover::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-radius: 10px !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .grab-scroll-container:hover::-webkit-scrollbar-thumb:hover,
+  .horizontal-scroll-container:hover::-webkit-scrollbar-thumb:hover {
+    background: var(--primary) !important;
+  }
+}
+
+/* Premium Scroll Arrow buttons */
+.scroll-arrow-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.scroll-arrow-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1.5px solid var(--primary);
+  color: #fff;
+  backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.scroll-arrow-btn:hover {
+  background: var(--primary);
+  color: #fff;
+  transform: translateY(-50%) scale(1.15);
+  box-shadow: 0 0 20px var(--primary-glow);
+}
+
+.scroll-arrow-btn.left {
+  left: 8px;
+}
+
+.scroll-arrow-btn.right {
+  right: 8px;
+}
+
+/* Hide scroll arrow buttons on mobile/tablet screen touch viewports */
+@media (max-width: 1024px) {
+  .scroll-arrow-btn {
+    display: none !important;
   }
 }

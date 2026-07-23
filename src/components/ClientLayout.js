@@ -132,6 +132,7 @@ export default function ClientLayout({ children }) {
       const formData = new FormData();
       formData.append('title', editingListing.title);
       formData.append('price', editingListing.price);
+      formData.append('priceMax', editingListing.priceMax || '');
       formData.append('discountPercent', editingListing.discountPercent);
       formData.append('location', editingListing.location);
       formData.append('description', editingListing.description);
@@ -139,7 +140,7 @@ export default function ClientLayout({ children }) {
 
       if (editImageFiles && editImageFiles.length > 0) {
         for (let i = 0; i < editImageFiles.length; i++) {
-          formData.append('images', editImageFiles[i]);
+          formData.append('image', editImageFiles[i]);
         }
       }
 
@@ -285,12 +286,21 @@ export default function ClientLayout({ children }) {
           >
             ☰
           </button>
-          <div className="brand-logo" onClick={() => { setSelectedCatFilter(null); setSelectedSubCatFilter(null); fetchListings({ categoryId: null, subCategoryId: null }); router.push('/'); }}>
+          <div className="brand-logo" onClick={() => {
+            setSelectedCatFilter(null);
+            setSelectedSubCatFilter(null);
+            setSearchQuery("");
+            setLocationFilter("");
+            setLocationSearchInput("");
+            fetchListings({ categoryId: null, subCategoryId: null, search: "", location: "" });
+            router.push('/');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}>
             <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <linearGradient id="logo-grad" x1="31" y1="10" x2="79" y2="95" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#6366f1" />
-                  <stop offset="1" stopColor="#ec4899" />
+                  <stop stopColor="var(--logo-blue)" />
+                  <stop offset="1" stopColor="var(--logo-green)" />
                 </linearGradient>
                 <mask id="logo-mask">
                   <rect width="100" height="100" fill="white" />
@@ -308,7 +318,12 @@ export default function ClientLayout({ children }) {
                 <path d="M 31 72 L 79 72 L 60 95 Z" fill="url(#logo-grad)" />
               </g>
             </svg>
-            lowpriceplaces
+            <span style={{ display: 'flex', alignItems: 'baseline' }}>
+              <span style={{ color: 'var(--logo-blue)' }}>low</span>
+              <span style={{ color: 'var(--logo-green)', fontWeight: 'bold' }}>p</span>
+              <span style={{ color: 'var(--logo-blue)' }}>riceplaces</span>
+              <span style={{ color: 'var(--logo-gray)', fontSize: '0.75em', marginLeft: '1px' }}>.com</span>
+            </span>
           </div>
 
           {pathname === '/' && (
@@ -380,18 +395,27 @@ export default function ClientLayout({ children }) {
                 </span>
 
                 {(user.role === 'SELLER' || user.role === 'BUYER' || user.role === 'ADMIN') && (
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      if (user.role === 'ADMIN') {
-                        window.location.href = 'https://admin2.lowpriceplaces.com';
-                      } else {
-                        router.push(`/dashboard/${user.role === 'SELLER' ? 'my-listings' : 'inquiries'}`);
-                      }
-                    }}
-                  >
-                    {user.role === 'ADMIN' ? 'Admin Dashboard' : 'Profile'}
-                  </button>
+                  <>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => router.push('/dashboard/bookmarks')}
+                      style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                    >
+                      ❤️ Shortlist
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        if (user.role === 'ADMIN') {
+                          window.location.href = 'https://admin2.lowpriceplaces.com';
+                        } else {
+                          router.push(`/dashboard/${user.role === 'SELLER' ? 'my-listings' : 'inquiries'}`);
+                        }
+                      }}
+                    >
+                      {user.role === 'ADMIN' ? 'Admin Dashboard' : 'Profile'}
+                    </button>
+                  </>
                 )}
 
                 <button className="btn btn-primary" onClick={logout}>
@@ -410,6 +434,11 @@ export default function ClientLayout({ children }) {
 
       {/* Main Content Router */}
       <main className="content-wrapper">
+        {pathname === '/' && (
+          <div className="mobile-search-hero">
+            {renderSearchForm()}
+          </div>
+        )}
         {children}
       </main>
 
@@ -449,16 +478,29 @@ export default function ClientLayout({ children }) {
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Price (₹)</label>
-                <input
-                  type="number"
-                  className="form-input"
-                  value={editingListing.price}
-                  onChange={(e) => setEditingListing({ ...editingListing, price: e.target.value })}
-                  required
-                />
-              </div>
+               <div className="form-group">
+                 <label className="form-label">Price Range (₹)</label>
+                 <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                   <input
+                     type="number"
+                     className="form-input"
+                     placeholder="From"
+                     value={editingListing.price || ""}
+                     onChange={(e) => setEditingListing({ ...editingListing, price: e.target.value })}
+                     required
+                     style={{ flex: 1 }}
+                   />
+                   <span style={{ color: "var(--text-muted)" }}>to</span>
+                   <input
+                     type="number"
+                     className="form-input"
+                     placeholder="To"
+                     value={editingListing.priceMax || ""}
+                     onChange={(e) => setEditingListing({ ...editingListing, priceMax: e.target.value })}
+                     style={{ flex: 1 }}
+                   />
+                 </div>
+               </div>
 
               <div className="form-group">
                 <label className="form-label">Discount (%)</label>
@@ -531,7 +573,21 @@ export default function ClientLayout({ children }) {
                 )}
               </div>
 
-              <div className="form-group">
+               <div className="form-group">
+                 <label className="form-label">Listing Type</label>
+                 <select
+                   className="form-select"
+                   value={editingListing.listingType || "SALES"}
+                   onChange={(e) => setEditingListing({ ...editingListing, listingType: e.target.value })}
+                   required
+                 >
+                   <option value="SALES">🛍️ Sales (New products)</option>
+                   <option value="SERVICES">💼 Work & Services</option>
+                   <option value="SECONDHAND">♻️ Second-Hand (Used items)</option>
+                 </select>
+               </div>
+
+               <div className="form-group">
                 <label className="form-label">Category</label>
                 <select
                   className="form-select"
@@ -579,9 +635,24 @@ export default function ClientLayout({ children }) {
       <div className={`mobile-drawer-overlay ${mobileMenuOpen ? 'open' : ''}`} onClick={() => setMobileMenuOpen(false)}>
         <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
           <div className="drawer-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <div className="brand-logo" style={{ fontSize: '20px' }} onClick={() => { setMobileMenuOpen(false); router.push('/'); }}>
+            <div className="brand-logo" style={{ fontSize: '20px' }} onClick={() => {
+              setMobileMenuOpen(false);
+              setSelectedCatFilter(null);
+              setSelectedSubCatFilter(null);
+              setSearchQuery("");
+              setLocationFilter("");
+              setLocationSearchInput("");
+              fetchListings({ categoryId: null, subCategoryId: null, search: "", location: "" });
+              router.push('/');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}>
               <span style={{ fontSize: '18px' }}>🛍️</span>
-              <span>lowpriceplaces</span>
+              <span style={{ display: 'flex', alignItems: 'baseline' }}>
+                <span style={{ color: 'var(--logo-blue)' }}>low</span>
+                <span style={{ color: 'var(--logo-green)', fontWeight: 'bold' }}>p</span>
+                <span style={{ color: 'var(--logo-blue)' }}>riceplaces</span>
+                <span style={{ color: 'var(--logo-gray)', fontSize: '0.75em', marginLeft: '1px' }}>.com</span>
+              </span>
             </div>
             <button className="drawer-close-btn" onClick={() => setMobileMenuOpen(false)}>✖</button>
           </div>
@@ -605,7 +676,16 @@ export default function ClientLayout({ children }) {
             )}
 
             <div className="drawer-nav-list">
-              <Link href="/" className="drawer-nav-item" onClick={() => { setMobileMenuOpen(false); setSelectedCatFilter(null); setSelectedSubCatFilter(null); fetchListings(); }}>
+              <Link href="/" className="drawer-nav-item" onClick={() => {
+                setMobileMenuOpen(false);
+                setSelectedCatFilter(null);
+                setSelectedSubCatFilter(null);
+                setSearchQuery("");
+                setLocationFilter("");
+                setLocationSearchInput("");
+                fetchListings({ categoryId: null, subCategoryId: null, search: "", location: "" });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}>
                 🏠 Home Feed
               </Link>
               {user ? (
@@ -644,7 +724,16 @@ export default function ClientLayout({ children }) {
       <div className="mobile-bottom-nav">
         <div
           className={`mobile-bottom-nav-item ${pathname === '/' ? 'active' : ''}`}
-          onClick={() => { router.push('/'); }}
+          onClick={() => {
+            setSelectedCatFilter(null);
+            setSelectedSubCatFilter(null);
+            setSearchQuery("");
+            setLocationFilter("");
+            setLocationSearchInput("");
+            fetchListings({ categoryId: null, subCategoryId: null, search: "", location: "" });
+            router.push('/');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
         >
           <span className="mobile-bottom-nav-icon">🏠</span>
           <span>Home</span>
@@ -685,10 +774,8 @@ export default function ClientLayout({ children }) {
           onClick={() => {
             if (!user) {
               router.push('/login');
-            } else if (user.role === 'BUYER') {
-              router.push('/dashboard/bookmarks');
             } else {
-              router.push(`/dashboard/${user.role === 'ADMIN' ? 'cities' : 'my-listings'}`);
+              router.push('/dashboard/bookmarks');
             }
           }}
         >

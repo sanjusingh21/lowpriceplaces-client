@@ -51,6 +51,39 @@ export function AppContextProvider({ children }) {
   const [selectedSortBy, setSelectedSortBy] = useState('date_desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [currentNearbyPage, setCurrentNearbyPage] = useState(1);
+  const [userCoords, setUserCoords] = useState({ lat: 12.9716, lng: 77.5946 }); // Default to Bangalore
+
+  const cityCoords = {
+    mumbai: { lat: 19.0760, lng: 72.8777 },
+    delhi: { lat: 28.7041, lng: 77.1025 },
+    bangalore: { lat: 12.9716, lng: 77.5946 },
+    hyderabad: { lat: 17.3850, lng: 78.4867 },
+    chennai: { lat: 13.0827, lng: 80.2707 },
+    kolkata: { lat: 22.5726, lng: 88.3639 },
+    pune: { lat: 18.5204, lng: 73.8567 },
+    jaipur: { lat: 26.9124, lng: 75.7873 },
+    lucknow: { lat: 26.8467, lng: 80.9462 },
+    ahmedabad: { lat: 23.0225, lng: 72.5714 }
+  };
+
+  useEffect(() => {
+    if (!locationFilter) {
+      setUserCoords({ lat: 12.9716, lng: 77.5946 });
+      return;
+    }
+    const locLower = locationFilter.toLowerCase();
+    let found = false;
+    for (const city of Object.keys(cityCoords)) {
+      if (locLower.includes(city)) {
+        setUserCoords(cityCoords[city]);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      setUserCoords({ lat: 12.9716, lng: 77.5946 });
+    }
+  }, [locationFilter]);
 
   // UI state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -177,6 +210,12 @@ export function AppContextProvider({ children }) {
         sortBy: mergedSortBy
       };
 
+      const finalLat = overrideFilters.lat !== undefined ? overrideFilters.lat : (userCoords ? userCoords.lat : null);
+      const finalLng = overrideFilters.lng !== undefined ? overrideFilters.lng : (userCoords ? userCoords.lng : null);
+
+      if (finalLat) activeFilters.lat = finalLat;
+      if (finalLng) activeFilters.lng = finalLng;
+
       if (exactLocation && !isNationwide && overrideFilters.location === undefined) {
         activeFilters.location = parentCity;
       }
@@ -240,10 +279,13 @@ export function AppContextProvider({ children }) {
   };
 
   const fetchSavedListings = async () => {
-    if (!user) return;
     try {
-      const res = await api.getListings({ bookmarkedOnly: true });
-      setSavedListings(res.exact || res || []);
+      const saved = localStorage.getItem("lowpriceplaces_saved");
+      if (saved) {
+        setSavedListings(JSON.parse(saved).map(id => Number(id)));
+      } else {
+        setSavedListings([]);
+      }
     } catch (e) {
       console.error("Fetch bookmarks error:", e);
     }
@@ -313,6 +355,7 @@ export function AppContextProvider({ children }) {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(async (position) => {
         const { latitude, longitude } = position.coords;
+        setUserCoords({ lat: latitude, lng: longitude });
         try {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await res.json();
@@ -322,7 +365,7 @@ export function AppContextProvider({ children }) {
 
           setLocationFilter(detected);
           setShowLocationDropdown(false);
-          fetchListings({ location: detected });
+          fetchListings({ location: detected, lat: latitude, lng: longitude });
         } catch (e) {
           console.error(e);
           setLocationFilter("Madhapur, Hyderabad");
@@ -342,11 +385,13 @@ export function AppContextProvider({ children }) {
   };
 
   const toggleBookmark = (id) => {
+    const numId = Number(id);
+    const currentSaved = (savedListings || []).map(item => Number(item));
     let updated;
-    if (savedListings.includes(id)) {
-      updated = savedListings.filter(item => item !== id);
+    if (currentSaved.includes(numId)) {
+      updated = currentSaved.filter(item => item !== numId);
     } else {
-      updated = [...savedListings, id];
+      updated = [...currentSaved, numId];
     }
     setSavedListings(updated);
     if (typeof window !== "undefined") {
@@ -486,6 +531,8 @@ export function AppContextProvider({ children }) {
         setCurrentPage,
         currentNearbyPage,
         setCurrentNearbyPage,
+        userCoords,
+        setUserCoords,
         
         mobileMenuOpen,
         setMobileMenuOpen,

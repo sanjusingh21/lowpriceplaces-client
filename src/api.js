@@ -223,6 +223,18 @@ export const api = {
     return request("/cities");
   },
 
+  // Seller Profile
+  async getProfile() {
+    return request("/profile");
+  },
+
+  async updateProfile(profileData) {
+    return request("/profile", {
+      method: "PUT",
+      body: profileData
+    });
+  },
+
   async addCity(name, emoji) {
     return request("/cities", {
       method: "POST",
@@ -233,6 +245,73 @@ export const api = {
   async deleteCity(id) {
     return request(`/cities/${id}`, {
       method: "DELETE"
+    });
+  },
+
+  // Stores and Services
+  async getStores(params = {}) {
+    const query = {};
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== "") {
+        query[key] = params[key];
+      }
+    });
+    const queryString = Object.keys(query).length > 0
+      ? "?" + new URLSearchParams(query).toString()
+      : "";
+    return request(`/stores${queryString}`);
+  },
+
+  async getServices(params = {}) {
+    const query = {};
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== "") {
+        query[key] = params[key];
+      }
+    });
+    const queryString = Object.keys(query).length > 0
+      ? "?" + new URLSearchParams(query).toString()
+      : "";
+    return request(`/services${queryString}`);
+  },
+
+  async getStoreById(id, params = {}) {
+    const query = {};
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== "") {
+        query[key] = params[key];
+      }
+    });
+    const queryString = Object.keys(query).length > 0
+      ? "?" + new URLSearchParams(query).toString()
+      : "";
+    return request(`/stores/${id}${queryString}`);
+  },
+
+  async getServiceById(id, params = {}) {
+    const query = {};
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== "") {
+        query[key] = params[key];
+      }
+    });
+    const queryString = Object.keys(query).length > 0
+      ? "?" + new URLSearchParams(query).toString()
+      : "";
+    return request(`/services/${id}${queryString}`);
+  },
+
+  async addStoreReview(id, rating, comment) {
+    return request(`/stores/${id}/reviews`, {
+      method: "POST",
+      body: { rating, comment }
+    });
+  },
+
+  async addServiceReview(id, rating, comment) {
+    return request(`/services/${id}/reviews`, {
+      method: "POST",
+      body: { rating, comment }
     });
   }
 };
