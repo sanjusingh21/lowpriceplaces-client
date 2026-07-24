@@ -89,6 +89,10 @@ export function AppContextProvider({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
+  // Subcategory overlay view — stored globally so Home button can close it
+  const [subCategoryView, setSubCategoryView] = useState(null);
+  const [subCategoryViewLoading, setSubCategoryViewLoading] = useState(false);
+
   // Dashboard & Inbox state
   const [dashboardTab, setDashboardTab] = useState('my-listings');
   const [sellerInquiries, setSellerInquiries] = useState([]);
@@ -97,6 +101,67 @@ export function AppContextProvider({ children }) {
   const [activeInquiryId, setActiveInquiryId] = useState(null);
   const [editingListing, setEditingListing] = useState(null);
   const [sellerListings, setSellerListings] = useState([]);
+
+  // 2-User Direct Chatting App state
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [allChats, setAllChats] = useState([]);
+  const [activeChatId, setActiveChatId] = useState(null);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+  // Buyer / Seller mode switch state for single login account
+  const [userMode, setUserMode] = useState("BUYER");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedMode = localStorage.getItem("lowpriceplaces_user_mode");
+      if (savedMode) {
+        setUserMode(savedMode);
+      } else if (user?.role === "SELLER") {
+        setUserMode("SELLER");
+      }
+    }
+  }, [user]);
+
+  const switchUserMode = (mode) => {
+    setUserMode(mode);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("lowpriceplaces_user_mode", mode);
+    }
+  };
+
+  const fetchUserChats = async () => {
+    if (!getAuthToken()) return;
+    try {
+      const chats = await api.getAllChats();
+      setAllChats(chats);
+      let unread = 0;
+      chats.forEach(c => {
+        const lastMsg = c.messages?.[c.messages.length - 1];
+        if (lastMsg && user && lastMsg.senderId !== user.id && c.status !== "READ") {
+          unread++;
+        }
+      });
+      setUnreadChatCount(unread);
+    } catch (e) {
+      console.error("Fetch chats error:", e);
+    }
+  };
+
+  const startDirectChatWithListing = async (listingId, initialMessage = "") => {
+    if (!getAuthToken()) {
+      return false;
+    }
+    try {
+      const chat = await api.startDirectChat(listingId, initialMessage);
+      await fetchUserChats();
+      setActiveChatId(chat.id);
+      setIsChatOpen(true);
+      return chat;
+    } catch (e) {
+      console.error("Start chat error:", e);
+      throw e;
+    }
+  };
 
   // Load user status, categories, and listings on startup
   useEffect(() => {
@@ -538,7 +603,12 @@ export function AppContextProvider({ children }) {
         setMobileMenuOpen,
         mobileFiltersOpen,
         setMobileFiltersOpen,
-        
+
+        subCategoryView,
+        setSubCategoryView,
+        subCategoryViewLoading,
+        setSubCategoryViewLoading,
+
         dashboardTab,
         setDashboardTab,
         sellerInquiries,
@@ -554,6 +624,19 @@ export function AppContextProvider({ children }) {
         sellerListings,
         setSellerListings,
         
+        isChatOpen,
+        setIsChatOpen,
+        allChats,
+        setAllChats,
+        activeChatId,
+        setActiveChatId,
+        unreadChatCount,
+        fetchUserChats,
+        startDirectChatWithListing,
+
+        userMode,
+        switchUserMode,
+
         fetchCategories,
         fetchCities,
         fetchListings,

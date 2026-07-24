@@ -51,7 +51,11 @@ function HomeContent() {
     detectUserLocation,
     extractParentCity,
     userCoords,
-    setUserCoords
+    setUserCoords,
+    subCategoryView,
+    setSubCategoryView,
+    subCategoryViewLoading,
+    setSubCategoryViewLoading,
   } = useApp();
 
   const ITEMS_PER_PAGE = 20;
@@ -59,8 +63,6 @@ function HomeContent() {
   const [nearbyStores, setNearbyStores] = useState([]);
   const [nearbyServices, setNearbyServices] = useState([]);
   const [activeSegmentTab, setActiveSegmentTab] = useState("SALES");
-  const [subCategoryView, setSubCategoryView] = useState(null); // { category, subcategory, listings }
-  const [subCategoryViewLoading, setSubCategoryViewLoading] = useState(false);
   const [subViewVisible, setSubViewVisible] = useState(false); // for fade animation
   const savedScrollY = useRef(0);
 
@@ -683,6 +685,9 @@ function HomeContent() {
               <span style={{ color: "var(--text-dim)", fontSize: "12px" }}>›</span>
               <span
                 style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
                   fontSize: "13px",
                   fontWeight: "700",
                   color: "var(--accent-primary)",
@@ -691,7 +696,17 @@ function HomeContent() {
                   textOverflow: "ellipsis",
                 }}
               >
-                {subCategoryView.subcategory?.emoji} {subCategoryView.subcategory?.name}
+                {subCategoryView.subcategory?.imagePath ? (
+                  <img
+                    src={`${imageServer}${subCategoryView.subcategory.imagePath}`}
+                    alt={subCategoryView.subcategory.name}
+                    style={{ width: "18px", height: "18px", objectFit: "cover", borderRadius: "3px" }}
+                    onError={(e) => { e.target.style.display = "none"; }}
+                  />
+                ) : (
+                  <span>{subCategoryView.subcategory?.emoji}</span>
+                )}
+                {subCategoryView.subcategory?.name}
               </span>
             </div>
           </div>
@@ -710,7 +725,17 @@ function HomeContent() {
                 gap: "10px",
               }}
             >
-              {subCategoryView.subcategory?.emoji} {subCategoryView.subcategory?.name}
+              {subCategoryView.subcategory?.imagePath ? (
+                <img
+                  src={`${imageServer}${subCategoryView.subcategory.imagePath}`}
+                  alt={subCategoryView.subcategory.name}
+                  style={{ width: "32px", height: "32px", objectFit: "cover", borderRadius: "6px" }}
+                  onError={(e) => { e.target.style.display = "none"; }}
+                />
+              ) : (
+                <span>{subCategoryView.subcategory?.emoji}</span>
+              )}
+              {subCategoryView.subcategory?.name}
             </h1>
             <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "28px" }}>
               in <strong style={{ color: "var(--text-main)" }}>{subCategoryView.category?.name}</strong>
@@ -930,7 +955,16 @@ function HomeContent() {
                       }}
                       style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                     >
-                      <span>{sub.emoji || "🔹"}</span>
+                      {sub.imagePath ? (
+                        <img
+                          src={`${imageServer}${sub.imagePath}`}
+                          alt={sub.name}
+                          style={{ width: "16px", height: "16px", objectFit: "cover", borderRadius: "3px" }}
+                          onError={(e) => { e.target.style.display = "none"; }}
+                        />
+                      ) : (
+                        <span>{sub.emoji || "🔹"}</span>
+                      )}
                       {sub.name}
                     </button>
                   );

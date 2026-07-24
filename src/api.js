@@ -36,34 +36,44 @@ export function setCurrentUser(user) {
 }
 
 // Request Helper
-async function request(endpoint, options = {}) {
-  const headers = {};
+async function request(endpoint, options = {}, isRetry = false) {
   const token = getAuthToken();
+  const headers = {
+    ...options.headers
+  };
+
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  // Handle standard JSON objects vs Multipart Forms
   if (!(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
-    if (options.body) {
+    if (options.body && typeof options.body === "object") {
       options.body = JSON.stringify(options.body);
     }
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      ...headers,
-      ...options.headers
-    }
-  });
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers
+    });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || "Network error occurred.");
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "Network error occurred.");
+    }
+    return data;
+  } catch (err) {
+    if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
+      if (!isRetry) {
+        await new Promise((r) => setTimeout(r, 500));
+        return request(endpoint, options, true);
+      }
+      throw new Error("Unable to connect to the backend server (http://localhost:5000). Please ensure the backend server is running.");
+    }
+    throw err;
   }
-  return data;
 }
 
 export const api = {
@@ -204,6 +214,24 @@ export const api = {
 
   async getBuyerInquiries() {
     return request("/inquiries/buyer");
+  },
+
+  async getAllChats() {
+    return request("/chats/all");
+  },
+
+  async startDirectChat(listingId, initialMessage) {
+    return request("/chats/start", {
+      method: "POST",
+      body: { listingId, initialMessage }
+    });
+  },
+
+  async sendChatMessage(inquiryId, text) {
+    return request(`/inquiries/${inquiryId}/message`, {
+      method: "POST",
+      body: { text }
+    });
   },
 
   async replyToInquiry(id, replyMessage) {

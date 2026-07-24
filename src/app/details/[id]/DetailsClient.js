@@ -9,7 +9,7 @@ import { getImageSrcSet } from "@/utils/image";
 
 export default function DetailsClient({ id }) {
   const router = useRouter();
-  const { user, savedListings, toggleBookmark } = useApp();
+  const { user, savedListings, toggleBookmark, startDirectChatWithListing } = useApp();
 
   const [listingDetails, setListingDetails] = useState(null);
   const [activeDetailImage, setActiveDetailImage] = useState("");
@@ -346,70 +346,109 @@ export default function DetailsClient({ id }) {
 
           {/* Contact and Messaging Box */}
           <div className="glass-panel contact-card" style={{ marginTop: "20px" }}>
-            <h3 className="contact-title">Contact Seller</h3>
-            {user ? (
-              (() => {
-                const sellerProfile = listingDetails.seller?.sellerProfile;
-                const displayWhatsApp = sellerProfile ? sellerProfile.whatsAppNumber : listingDetails.whatsappNumber;
-                const displayCall = sellerProfile ? sellerProfile.mobileNumber : listingDetails.contactNumber;
+            <h3 className="contact-title" style={{ fontSize: "16px", fontWeight: "700", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+              💬 Contact &amp; Live Chat
+            </h3>
 
-                return (
-                  <>
-                    <div className="contact-methods">
+            {(() => {
+              const sellerProfile = listingDetails.seller?.sellerProfile;
+              const allowChat = sellerProfile ? sellerProfile.allowChat !== false : true;
+              const showWhatsapp = sellerProfile ? sellerProfile.showWhatsapp !== false : true;
+              const showPhone = sellerProfile ? sellerProfile.showPhone !== false : true;
+
+              const displayWhatsApp = showWhatsapp ? (sellerProfile ? sellerProfile.whatsAppNumber : listingDetails.whatsappNumber) : null;
+              const displayCall = showPhone ? (sellerProfile ? sellerProfile.mobileNumber : listingDetails.contactNumber) : null;
+
+              return (
+                <div className="contact-methods" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {/* In-App Direct Chat (No Phone Number Needed) */}
+                  {allowChat && (
+                    <button
+                      className="btn btn-primary"
+                      onClick={async () => {
+                        if (!user) {
+                          router.push("/login");
+                          return;
+                        }
+                        try {
+                          await startDirectChatWithListing(listingDetails.id);
+                        } catch (e) {
+                          alert(e.message || "Could not start chat.");
+                        }
+                      }}
+                      style={{
+                        background: "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)",
+                        color: "#ffffff",
+                        fontWeight: "700",
+                        fontSize: "14px",
+                        padding: "12px 18px",
+                        borderRadius: "12px",
+                        border: "none",
+                        boxShadow: "0 4px 16px rgba(99, 102, 241, 0.4)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        cursor: "pointer",
+                        width: "100%",
+                      }}
+                    >
+                      💬 Chat with Seller (Private)
+                    </button>
+                  )}
+
+                  {user ? (
+                    <>
                       {displayWhatsApp && (
                         <a
                           href={`https://wa.me/${displayWhatsApp.replace(/[^0-9]/g, "")}?text=Hi, I am interested in your listing: "${encodeURIComponent(listingDetails.title)}"`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="btn btn-whatsapp"
-                          style={{ textDecoration: "none" }}
+                          style={{ textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
                         >
-                          💬 Chat on WhatsApp ({displayWhatsApp})
+                          💬 WhatsApp
                         </a>
                       )}
 
                       {displayCall && (
-                        <a href={`tel:${displayCall}`} className="btn btn-secondary" style={{ textDecoration: "none" }}>
-                          📞 Call Seller ({displayCall})
+                        <a
+                          href={`tel:${displayCall}`}
+                          className="btn btn-secondary"
+                          style={{ textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+                        >
+                          📞 Call Owner
                         </a>
                       )}
-
+                    </>
+                  ) : (
+                    (showWhatsapp || showPhone) && (
                       <button
-                        className={`btn ${savedListings.includes(listingDetails.id) ? "btn-accent" : "btn-secondary"}`}
-                        onClick={() => toggleBookmark(listingDetails.id)}
+                        className="btn btn-secondary"
+                        onClick={() => router.push("/login")}
+                        style={{ width: "100%", fontSize: "13px" }}
                       >
-                        {savedListings.includes(listingDetails.id) ? "⭐ Bookmarked" : "☆ Save/Bookmark Product"}
+                        🔒 Log in to view Phone / WhatsApp
                       </button>
-                    </div>
+                    )
+                  )}
 
-                    {/* In-app Message Inquiry composer */}
-                    <form onSubmit={submitInquiry} className="inquiry-box" style={{ borderTop: "1px solid var(--border-glass)", paddingTop: "16px", marginTop: "8px" }}>
-                      <h4 style={{ fontSize: "14px", fontWeight: "600" }}>Send Instant Inquiry Message</h4>
-                      {inquirySuccess && <div className="alert-banner alert-success">{inquirySuccess}</div>}
-                      <textarea
-                        className="inquiry-textarea"
-                        placeholder="Ask the seller for availability, negotiation, or coordinates..."
-                        value={inquiryText}
-                        onChange={(e) => setInquiryText(e.target.value)}
-                        required
-                      ></textarea>
-                      <button type="submit" className="btn btn-primary">
-                        Send Message
-                      </button>
-                    </form>
-                  </>
-                );
-              })()
-            ) : (
-              <div style={{ textAlign: "center", padding: "16px 0 8px 0" }}>
-                <p style={{ color: "var(--text-muted)", marginBottom: "16px", fontSize: "14px", lineHeight: "1.5" }}>
-                  Please log in to contact the seller and view listing contact details.
-                </p>
-                <button className="btn btn-primary" onClick={() => router.push("/login")} style={{ width: "100%" }}>
-                  Log In to Contact Seller
-                </button>
-              </div>
-            )}
+                  <button
+                    className={`btn ${savedListings.includes(listingDetails.id) ? "btn-accent" : "btn-secondary"}`}
+                    onClick={() => {
+                      if (!user) {
+                        router.push("/login");
+                        return;
+                      }
+                      toggleBookmark(listingDetails.id);
+                    }}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+                  >
+                    {savedListings.includes(listingDetails.id) ? "⭐ Shortlisted" : "☆ Save / Shortlist Product"}
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

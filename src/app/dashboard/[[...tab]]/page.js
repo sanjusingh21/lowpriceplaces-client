@@ -42,7 +42,8 @@ export default function Dashboard() {
 
   const activeTabParam = params.tab?.[0] || "";
 
-  const [dashboardTab, setDashboardTab] = useState("my-listings");
+  // Dynamic active tab — initialized from URL param or defaults to "profile"
+  const [dashboardTab, setDashboardTab] = useState(activeTabParam || "profile");
 
   // Sync route param with state tab
   useEffect(() => {
@@ -50,62 +51,35 @@ export default function Dashboard() {
     if (activeTabParam) {
       setDashboardTab(activeTabParam);
     } else {
-      // Default fallback tabs
-      if (user.role === "SELLER") {
-        setDashboardTab("my-listings");
-        router.replace("/dashboard/my-listings");
-      } else if (user.role === "BUYER") {
-        setDashboardTab("inquiries");
-        router.replace("/dashboard/inquiries");
-      } else if (user.role === "ADMIN") {
-        setDashboardTab("cities");
-        router.replace("/dashboard/cities");
-      }
+      setDashboardTab("profile");
     }
   }, [activeTabParam, user]);
 
-  // Load Dashboard Data
+  // Load Dashboard Data (Profile & Bookmarks focus)
   const loadDashboardData = async () => {
     if (!user) return;
-    
-    if (activeTabParam === "saved" || activeTabParam === "bookmarks") {
+    try {
       fetchSavedListings();
       fetchListings();
-    }
-
-    if (user.role === "SELLER") {
-      fetchSellerListings();
-      fetchInquiries();
-      if (activeTabParam === "profile" || dashboardTab === "profile") {
-        try {
-          const prof = await api.getProfile();
-          setProfileForm({
-            fullName: prof.fullName || "",
-            displayName: prof.displayName || "",
-            professionalTitle: prof.professionalTitle || "",
-            yearsOfExperience: prof.yearsOfExperience !== null && prof.yearsOfExperience !== undefined ? String(prof.yearsOfExperience) : "",
-            businessCategory: prof.businessCategory || "",
-            aboutSeller: prof.aboutSeller || "",
-            email: prof.email || "",
-            mobileNumber: prof.mobileNumber || "",
-            whatsAppNumber: prof.whatsAppNumber || ""
-          });
-        } catch (e) {
-          console.error("Failed to load seller profile:", e);
-        }
+      const prof = await api.getProfile();
+      if (prof) {
+        setProfileForm({
+          fullName: prof.fullName || user.username?.split("@")[0] || "",
+          displayName: prof.displayName || user.username?.split("@")[0] || "",
+          professionalTitle: prof.professionalTitle || "",
+          yearsOfExperience: prof.yearsOfExperience !== null && prof.yearsOfExperience !== undefined ? String(prof.yearsOfExperience) : "",
+          businessCategory: prof.businessCategory || "",
+          aboutSeller: prof.aboutSeller || "",
+          email: prof.email || user.email || user.username || "",
+          mobileNumber: prof.mobileNumber || "",
+          whatsAppNumber: prof.whatsAppNumber || "",
+          showWhatsapp: prof.showWhatsapp !== false,
+          showPhone: prof.showPhone !== false,
+          allowChat: prof.allowChat !== false
+        });
       }
-    } else if (user.role === "BUYER") {
-      fetchInquiries();
-      fetchSavedListings();
-      fetchListings(); // Load catalog items so bookmarks list renders titles/prices
-    } else if (user.role === "ADMIN") {
-      // Admin loads configured cities
-      try {
-        const data = await api.getCities();
-        if (data) setCitiesList(data);
-      } catch (e) {
-        console.error(e);
-      }
+    } catch (e) {
+      console.error("Failed to load profile:", e);
     }
   };
 
@@ -366,65 +340,64 @@ export default function Dashboard() {
   }
 
   const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
-  const isBookmarksTab = dashboardTab === "saved" || dashboardTab === "bookmarks";
+  // Use URL param directly — available immediately, no render-cycle delay
+  const activeTab = activeTabParam || dashboardTab;
+  const isBookmarksTab = activeTab === "saved" || activeTab === "bookmarks";
+  const isChatTab = activeTab === "leads" || activeTab === "inquiries";
+  const isProfileTab = activeTab === "profile" || (!isBookmarksTab && !isChatTab && activeTab !== "cities");
 
   return (
-    <div className={`dashboard-layout ${isBookmarksTab ? "full-width" : ""}`}>
-      {/* Mobile Direct Navigation Tabs */}
-      {!isBookmarksTab && (
-        <div className="mobile-dashboard-tabs" style={{ display: "flex", marginBottom: "16px", gap: "8px", width: "100%", overflowX: "auto", paddingBottom: "4px" }}>
-          {user.role === "SELLER" && (
-            <>
-              <button
-                className={`mobile-tab-btn ${dashboardTab === "my-listings" ? "active" : ""}`}
-                onClick={() => router.push("/dashboard/my-listings")}
-              >
-                📦 Listings
-              </button>
-              <button
-                className={`mobile-tab-btn ${dashboardTab === "add-listing" ? "active" : ""}`}
-                onClick={() => router.push("/dashboard/add-listing")}
-              >
-                ➕ Post
-              </button>
-              <button
-                className={`mobile-tab-btn ${dashboardTab === "leads" ? "active" : ""}`}
-                onClick={() => router.push("/dashboard/leads")}
-              >
-                💬 Messages ({sellerInquiries.length})
-              </button>
-              <button
-                className={`mobile-tab-btn ${dashboardTab === "profile" ? "active" : ""}`}
-                onClick={() => router.push("/dashboard/profile")}
-              >
-                👤 Profile
-              </button>
-            </>
-          )}
-          {user.role === "BUYER" && (
-            <>
-              <button
-                className={`mobile-tab-btn ${dashboardTab === "inquiries" ? "active" : ""}`}
-                onClick={() => router.push("/dashboard/inquiries")}
-              >
-                ✉️ Inquiries ({buyerInquiries.length})
-              </button>
-            </>
-          )}
-          {user.role === "ADMIN" && (
-            <>
-              <button
-                className={`mobile-tab-btn ${dashboardTab === "cities" ? "active" : ""}`}
-                onClick={() => router.push("/dashboard/cities")}
-              >
-                🌆 Cities
-              </button>
-            </>
-          )}
-        </div>
-      )}
+    <div className={`dashboard-layout ${isBookmarksTab || isChatTab || isProfileTab ? "full-width" : ""}`}>
+      {/* Dynamic Single Navigation Tab Header */}
+      <div
+        className="mobile-dashboard-tabs"
+        style={{
+          display: "flex",
+          marginBottom: "20px",
+          width: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        {isBookmarksTab ? (
+          <button
+            className="mobile-tab-btn active"
+            onClick={() => router.push("/dashboard/bookmarks")}
+            style={{
+              flex: "0 1 240px",
+              justifyContent: "center",
+              fontWeight: "700",
+              fontSize: "15px",
+              padding: "12px 24px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            ❤️ Shortlist
+          </button>
+        ) : (
+          <button
+            className="mobile-tab-btn active"
+            onClick={() => router.push("/dashboard/profile")}
+            style={{
+              flex: "0 1 240px",
+              justifyContent: "center",
+              fontWeight: "700",
+              fontSize: "15px",
+              padding: "12px 24px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            👤 Profile
+          </button>
+        )}
+      </div>
 
-      {!isBookmarksTab && (
+      {/* Sidebar — hidden on chat/profile page */}
+      {!isBookmarksTab && !isChatTab && !isProfileTab && (
         <aside className="dashboard-sidebar">
           {user.role === "SELLER" && (
             <>
@@ -461,7 +434,7 @@ export default function Dashboard() {
         </aside>
       )}
 
-      <section className="dashboard-content" style={isBookmarksTab ? { gridColumn: "span 2" } : {}}>
+      <section className="dashboard-content" style={(isBookmarksTab || isChatTab || isProfileTab) ? { gridColumn: "span 2" } : {}}>
         {/* Tab: My Listings (Seller) */}
         {user.role === "SELLER" && dashboardTab === "my-listings" && (
           <div>
@@ -724,7 +697,27 @@ export default function Dashboard() {
         {/* Tab: Leads Inbox (Seller) */}
         {user.role === "SELLER" && dashboardTab === "leads" && (
           <div>
-            <h2 style={{ marginBottom: "16px" }}>Buyer Inquiries & Leads Inbox</h2>
+            {/* Chat Header */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: "14px",
+              padding: "16px 0 20px",
+              borderBottom: "1px solid var(--border-glass)",
+              marginBottom: "20px",
+            }}>
+              <button
+                onClick={() => router.back()}
+                style={{
+                  background: "var(--bg-input)", border: "1px solid var(--border-glass)",
+                  borderRadius: "10px", padding: "8px 14px", color: "var(--text-main)",
+                  cursor: "pointer", fontSize: "14px", fontWeight: "600",
+                  display: "flex", alignItems: "center", gap: "6px",
+                }}
+              >← Back</button>
+              <div>
+                <h1 style={{ fontSize: "20px", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>💬 Messages</h1>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "2px 0 0" }}>{sellerInquiries.length} conversations</p>
+              </div>
+            </div>
             {sellerInquiries.length === 0 ? (
               <div className="glass-panel" style={{ padding: "30px", textAlign: "center", color: "var(--text-muted)" }}>
                 No inquiries sent by buyers yet. Keep advertising!
@@ -972,7 +965,27 @@ export default function Dashboard() {
         {/* Tab: Sent Inquiries (Buyer) */}
         {user.role === "BUYER" && dashboardTab === "inquiries" && (
           <div>
-            <h2 style={{ marginBottom: "16px" }}>Sent Message History</h2>
+            {/* Chat Header */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: "14px",
+              padding: "16px 0 20px",
+              borderBottom: "1px solid var(--border-glass)",
+              marginBottom: "20px",
+            }}>
+              <button
+                onClick={() => router.back()}
+                style={{
+                  background: "var(--bg-input)", border: "1px solid var(--border-glass)",
+                  borderRadius: "10px", padding: "8px 14px", color: "var(--text-main)",
+                  cursor: "pointer", fontSize: "14px", fontWeight: "600",
+                  display: "flex", alignItems: "center", gap: "6px",
+                }}
+              >← Back</button>
+              <div>
+                <h1 style={{ fontSize: "20px", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>💬 Messages</h1>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "2px 0 0" }}>{buyerInquiries.length} conversations</p>
+              </div>
+            </div>
             {buyerInquiries.length === 0 ? (
               <div className="glass-panel" style={{ padding: "30px", textAlign: "center", color: "var(--text-muted)" }}>
                 You haven't sent any messages to sellers yet.
@@ -1199,19 +1212,51 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Tab: Saved Bookmarks (All Roles) */}
-        {(dashboardTab === "saved" || dashboardTab === "bookmarks") && (
-          <div>
-            <h2 style={{ marginBottom: "16px" }}>Shortlisted Products</h2>
+        {/* Tab: Saved Bookmarks / Shortlist (All Roles) */}
+        {(dashboardTab === "saved" || dashboardTab === "bookmarks" || activeTabParam === "bookmarks" || activeTabParam === "saved") && (
+          <div style={{ width: "100%" }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: "12px",
+              padding: "12px 0 18px",
+              borderBottom: "1px solid var(--border-glass)",
+              marginBottom: "20px",
+            }}>
+              <button
+                onClick={() => router.back()}
+                style={{
+                  background: "var(--bg-input)", border: "1px solid var(--border-glass)",
+                  borderRadius: "10px", padding: "8px 14px", color: "var(--text-main)",
+                  cursor: "pointer", fontSize: "14px", fontWeight: "600",
+                  display: "flex", alignItems: "center", gap: "6px",
+                }}
+              >← Back</button>
+              <div>
+                <h1 style={{ fontSize: "clamp(17px, 4vw, 20px)", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>❤️ Shortlisted Products</h1>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "2px 0 0" }}>Items you have bookmarked ({savedListings.length})</p>
+              </div>
+            </div>
+
             {savedListings.length === 0 ? (
-              <div className="glass-panel" style={{ padding: "30px", textAlign: "center", color: "var(--text-muted)" }}>
-                No shortlisted products saved yet. Explore products and click the heart icon on any listing card to add.
+              <div className="glass-panel" style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)" }}>
+                <span style={{ fontSize: "36px", display: "block", marginBottom: "10px" }}>❤️</span>
+                <p style={{ margin: 0, fontSize: "14px", color: "var(--text-main)", fontWeight: "600" }}>No shortlisted items yet</p>
+                <p style={{ margin: "6px 0 0", fontSize: "12px" }}>Browse listings and tap the Shortlist / Bookmark button to save products here.</p>
               </div>
             ) : (
               <div className="products-grid">
-                {listings.filter((l) => savedListings.includes(l.id)).map((item) => (
-                  <ProductCard key={item.id} item={item} />
-                ))}
+                {(() => {
+                  const shortlistedItems = listings.filter((l) => savedListings.includes(l.id));
+                  if (shortlistedItems.length === 0) {
+                    return (
+                      <div className="glass-panel" style={{ padding: "30px", gridColumn: "1 / -1", textAlign: "center", color: "var(--text-muted)" }}>
+                        Loading your shortlisted products...
+                      </div>
+                    );
+                  }
+                  return shortlistedItems.map((item) => (
+                    <ProductCard key={item.id} item={item} />
+                  ));
+                })()}
               </div>
             )}
           </div>
@@ -1300,122 +1345,202 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Tab: Seller Profile (Seller) */}
-        {user.role === "SELLER" && dashboardTab === "profile" && (
-          <div>
-            <h2 style={{ marginBottom: "16px" }}>Seller Profile</h2>
-            <div className="glass-panel form-card" style={{ padding: "24px" }}>
-              <form onSubmit={handleSaveProfile}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-                  <div className="form-group">
+        {/* Tab: User Profile */}
+        {!isBookmarksTab && !isChatTab && (dashboardTab === "profile" || activeTab === "profile") && (
+          <div style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+            {/* Profile Header */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: "12px",
+              padding: "12px 0 18px",
+              borderBottom: "1px solid var(--border-glass)",
+              marginBottom: "20px",
+              flexWrap: "wrap",
+            }}>
+              <button
+                onClick={() => router.back()}
+                style={{
+                  background: "var(--bg-input)", border: "1px solid var(--border-glass)",
+                  borderRadius: "10px", padding: "8px 14px", color: "var(--text-main)",
+                  cursor: "pointer", fontSize: "14px", fontWeight: "600",
+                  display: "flex", alignItems: "center", gap: "6px",
+                  flexShrink: 0,
+                }}
+              >← Back</button>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <h1 style={{ fontSize: "clamp(17px, 4vw, 20px)", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>👤 User Profile</h1>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "2px 0 0" }}>Manage your public profile &amp; contact info</p>
+              </div>
+            </div>
+            <div className="glass-panel form-card" style={{ padding: "clamp(16px, 4vw, 24px)", width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
+              <form onSubmit={handleSaveProfile} style={{ width: "100%" }}>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+                  gap: "16px 20px",
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}>
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
                     <label className="form-label">Full Name</label>
                     <input
                       type="text"
                       className="form-input"
                       placeholder="e.g. John Doe"
-                      value={profileForm.fullName}
+                      value={profileForm.fullName || ""}
                       onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
                       required
+                      style={{ width: "100%", boxSizing: "border-box" }}
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
                     <label className="form-label">Display Name / Shop Name</label>
                     <input
                       type="text"
                       className="form-input"
                       placeholder="e.g. Luxe Deals Shop"
-                      value={profileForm.displayName}
+                      value={profileForm.displayName || ""}
                       onChange={(e) => setProfileForm({ ...profileForm, displayName: e.target.value })}
                       required
+                      style={{ width: "100%", boxSizing: "border-box" }}
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
                     <label className="form-label">Professional Title</label>
                     <input
                       type="text"
                       className="form-input"
                       placeholder="e.g. Premium Certified Dealer"
-                      value={profileForm.professionalTitle}
+                      value={profileForm.professionalTitle || ""}
                       onChange={(e) => setProfileForm({ ...profileForm, professionalTitle: e.target.value })}
                       required
+                      style={{ width: "100%", boxSizing: "border-box" }}
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
                     <label className="form-label">Years of Experience</label>
                     <input
                       type="number"
                       className="form-input"
                       placeholder="e.g. 5"
-                      value={profileForm.yearsOfExperience}
+                      value={profileForm.yearsOfExperience || ""}
                       onChange={(e) => setProfileForm({ ...profileForm, yearsOfExperience: e.target.value })}
                       required
+                      style={{ width: "100%", boxSizing: "border-box" }}
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
                     <label className="form-label">Business Category</label>
                     <input
                       type="text"
                       className="form-input"
                       placeholder="e.g. Electronics & Gadgets"
-                      value={profileForm.businessCategory}
+                      value={profileForm.businessCategory || ""}
                       onChange={(e) => setProfileForm({ ...profileForm, businessCategory: e.target.value })}
                       required
+                      style={{ width: "100%", boxSizing: "border-box" }}
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
                     <label className="form-label">Email Address</label>
                     <input
                       type="email"
                       className="form-input"
                       placeholder="e.g. contact@luxedeals.com"
-                      value={profileForm.email}
+                      value={profileForm.email || ""}
                       onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
                       required
+                      style={{ width: "100%", boxSizing: "border-box" }}
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
                     <label className="form-label">Mobile Number (Optional)</label>
                     <input
                       type="text"
                       className="form-input"
                       placeholder="e.g. 9876543210"
-                      value={profileForm.mobileNumber}
+                      value={profileForm.mobileNumber || ""}
                       onChange={(e) => setProfileForm({ ...profileForm, mobileNumber: e.target.value })}
+                      style={{ width: "100%", boxSizing: "border-box" }}
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
                     <label className="form-label">WhatsApp Number (Optional)</label>
                     <input
                       type="text"
                       className="form-input"
                       placeholder="e.g. 9876543210"
-                      value={profileForm.whatsAppNumber}
+                      value={profileForm.whatsAppNumber || ""}
                       onChange={(e) => setProfileForm({ ...profileForm, whatsAppNumber: e.target.value })}
+                      style={{ width: "100%", boxSizing: "border-box" }}
                     />
                   </div>
                 </div>
 
-                <div className="form-group" style={{ marginTop: "20px", marginBottom: "0" }}>
+                {/* Privacy & Contact Visibility Settings */}
+                <div style={{
+                  marginTop: "20px",
+                  padding: "16px 20px",
+                  background: "var(--bg-input)",
+                  border: "1px solid var(--border-glass)",
+                  borderRadius: "14px"
+                }}>
+                  <h4 style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main)", margin: "0 0 12px 0", display: "flex", alignItems: "center", gap: "6px" }}>
+                    🔒 Seller Privacy &amp; Contact Settings
+                  </h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "600", color: "var(--text-main)" }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(profileForm.showWhatsapp)}
+                        onChange={(e) => setProfileForm({ ...profileForm, showWhatsapp: e.target.checked })}
+                        style={{ width: "18px", height: "18px", accentColor: "var(--primary)" }}
+                      />
+                      ☑ Show WhatsApp Number
+                    </label>
+
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "600", color: "var(--text-main)" }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(profileForm.showPhone)}
+                        onChange={(e) => setProfileForm({ ...profileForm, showPhone: e.target.checked })}
+                        style={{ width: "18px", height: "18px", accentColor: "var(--primary)" }}
+                      />
+                      ☑ Show Phone Number
+                    </label>
+
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "600", color: "var(--text-main)" }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(profileForm.allowChat)}
+                        onChange={(e) => setProfileForm({ ...profileForm, allowChat: e.target.checked })}
+                        style={{ width: "18px", height: "18px", accentColor: "var(--primary)" }}
+                      />
+                      ☑ Allow In-App Chat
+                    </label>
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginTop: "20px", marginBottom: "0", width: "100%" }}>
                   <label className="form-label">About Seller</label>
                   <textarea
                     className="form-input"
                     placeholder="Describe your services, business, or shop..."
                     rows={4}
-                    value={profileForm.aboutSeller}
+                    value={profileForm.aboutSeller || ""}
                     onChange={(e) => setProfileForm({ ...profileForm, aboutSeller: e.target.value })}
                     required
-                    style={{ width: "100%", resize: "vertical" }}
+                    style={{ width: "100%", resize: "vertical", boxSizing: "border-box" }}
                   />
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ marginTop: "20px" }} disabled={savingProfile}>
+                <button type="submit" className="btn btn-primary" style={{ marginTop: "20px", width: "100%", maxWidth: "240px" }} disabled={savingProfile}>
                   {savingProfile ? "Saving..." : "💾 Save Profile"}
                 </button>
               </form>

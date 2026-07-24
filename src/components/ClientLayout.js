@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/api";
+import ChatDrawer from "@/components/ChatDrawer";
 
 export default function ClientLayout({ children }) {
   const pathname = usePathname();
@@ -41,8 +42,37 @@ export default function ClientLayout({ children }) {
     setEditingListing,
     fetchListings,
     fetchSellerListings,
-    detectUserLocation
+    detectUserLocation,
+    setSubCategoryView,
+    isChatOpen,
+    setIsChatOpen,
+    unreadChatCount,
+    fetchUserChats,
+    userMode,
+    switchUserMode,
   } = useApp();
+
+  // Unread chat/inquiry count
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) { setUnreadCount(0); return; }
+    async function fetchUnread() {
+      try {
+        const data = user.role === 'SELLER'
+          ? await api.getSellerInquiries()
+          : await api.getBuyerInquiries();
+        const unread = (data || []).filter(inq =>
+          (user.role === 'SELLER' && !inq.isReadBySeller) ||
+          (user.role === 'BUYER'  && !inq.isReadByBuyer)
+        ).length;
+        setUnreadCount(unread);
+      } catch { setUnreadCount(0); }
+    }
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   // Scroll listener
   useEffect(() => {
@@ -390,12 +420,48 @@ export default function ClientLayout({ children }) {
             </button>
             {user ? (
               <>
+                <button
+                  className="btn"
+                  onClick={() => switchUserMode(userMode === "BUYER" ? "SELLER" : "BUYER")}
+                  style={{
+                    background: userMode === "SELLER" ? "rgba(16, 185, 129, 0.15)" : "rgba(99, 102, 241, 0.15)",
+                    border: userMode === "SELLER" ? "1px solid rgba(16, 185, 129, 0.4)" : "1px solid rgba(99, 102, 241, 0.4)",
+                    color: userMode === "SELLER" ? "#10b981" : "#6366f1",
+                    fontWeight: "700",
+                    fontSize: "12px",
+                    padding: "6px 12px",
+                    borderRadius: "20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    cursor: "pointer"
+                  }}
+                  title="Click to switch account mode"
+                >
+                  {userMode === "SELLER" ? "🏪 Seller Mode" : "🛒 Buyer Mode"}
+                </button>
+
                 <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  Hello, <strong style={{ color: 'var(--text-main)' }}>{user.username ? user.username.split('@')[0] : ''}</strong> ({user.role})
+                  Hello, <strong style={{ color: 'var(--text-main)' }}>{user.username ? user.username.split('@')[0] : ''}</strong>
                 </span>
 
                 {(user.role === 'SELLER' || user.role === 'BUYER' || user.role === 'ADMIN') && (
                   <>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        if (!user) {
+                          router.push('/login');
+                        } else {
+                          fetchUserChats();
+                          setIsChatOpen(true);
+                        }
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                      title="Open 1-on-1 Messages & Chat"
+                    >
+                      💬 Messages
+                    </button>
                     <button
                       className="btn btn-secondary"
                       onClick={() => router.push('/dashboard/bookmarks')}
@@ -409,7 +475,7 @@ export default function ClientLayout({ children }) {
                         if (user.role === 'ADMIN') {
                           window.location.href = 'https://admin2.lowpriceplaces.com';
                         } else {
-                          router.push(`/dashboard/${user.role === 'SELLER' ? 'my-listings' : 'inquiries'}`);
+                          router.push('/dashboard/profile');
                         }
                       }}
                     >
@@ -725,33 +791,41 @@ export default function ClientLayout({ children }) {
         <div
           className={`mobile-bottom-nav-item ${pathname === '/' ? 'active' : ''}`}
           onClick={() => {
-            setSelectedCatFilter(null);
-            setSelectedSubCatFilter(null);
-            setSearchQuery("");
-            setLocationFilter("");
-            setLocationSearchInput("");
-            fetchListings({ categoryId: null, subCategoryId: null, search: "", location: "" });
-            router.push('/');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            // Close subcategory overlay if open
+            try { setSubCategoryView(null); } catch(e) {}
+            // Reset all filter state
+            try { setSelectedCatFilter(null); } catch(e) {}
+            try { setSelectedSubCatFilter(null); } catch(e) {}
+            try { setSearchQuery(""); } catch(e) {}
+            try { setLocationFilter(""); } catch(e) {}
+            try { setLocationSearchInput(""); } catch(e) {}
+            // If already on home page, just scroll & refetch
+            if (pathname === '/') {
+              try { fetchListings({ categoryId: null, subCategoryId: null, search: "", location: "" }); } catch(e) {}
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+              // Navigate to home — use href for a clean state reset from deep pages
+              router.push('/');
+              setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 150);
+            }
           }}
         >
           <span className="mobile-bottom-nav-icon">🏠</span>
           <span>Home</span>
         </div>
         <div
-          className="mobile-bottom-nav-item"
+          className={`mobile-bottom-nav-item ${isChatOpen ? 'active' : ''}`}
           onClick={() => {
-            router.push('/');
-            setTimeout(() => {
-              const searchHero = document.querySelector('.mobile-search-hero');
-              if (searchHero) {
-                searchHero.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }
-            }, 200);
+            if (!user) {
+              router.push('/login');
+            } else {
+              fetchUserChats();
+              setIsChatOpen(true);
+            }
           }}
         >
-          <span className="mobile-bottom-nav-icon">🔍</span>
-          <span>Search</span>
+          <span className="mobile-bottom-nav-icon">💬</span>
+          <span>Chat</span>
         </div>
         <div
           className={`mobile-bottom-nav-item ${pathname === '/dashboard/add-listing' ? 'active' : ''}`}
@@ -788,7 +862,7 @@ export default function ClientLayout({ children }) {
             if (!user) {
               router.push('/login');
             } else {
-              router.push(`/dashboard/${user.role === 'ADMIN' ? 'cities' : (user.role === 'SELLER' ? 'my-listings' : 'inquiries')}`);
+              router.push('/dashboard/profile');
             }
           }}
         >
@@ -796,6 +870,8 @@ export default function ClientLayout({ children }) {
           <span>Profile</span>
         </div>
       </div>
+
+      <ChatDrawer />
     </div>
   );
 }
