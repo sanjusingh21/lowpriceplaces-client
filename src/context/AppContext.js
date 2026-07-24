@@ -122,10 +122,18 @@ export function AppContextProvider({ children }) {
     }
   }, [user]);
 
-  const switchUserMode = (mode) => {
+  const switchUserMode = async (mode) => {
     setUserMode(mode);
     if (typeof window !== "undefined") {
       localStorage.setItem("lowpriceplaces_user_mode", mode);
+    }
+    if (user) {
+      try {
+        const updatedUser = await api.switchRole(mode);
+        setUser(updatedUser);
+      } catch (err) {
+        console.error("Failed to switch database user role:", err);
+      }
     }
   };
 

@@ -5,7 +5,7 @@ import { useApp } from "@/context/AppContext";
 import ProductCard from "@/components/ProductCard";
 import { api } from "@/api";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { getImageSrcSet } from "@/utils/image";
 import { Splide, SplideSlide } from "@splidejs/react-splide";
 import "@splidejs/react-splide/css";
@@ -56,6 +56,13 @@ function HomeContent() {
     setSubCategoryView,
     subCategoryViewLoading,
     setSubCategoryViewLoading,
+    user,
+    userMode,
+    switchUserMode,
+    sellerListings,
+    fetchSellerListings,
+    sellerInquiries,
+    fetchInquiries,
   } = useApp();
 
   const ITEMS_PER_PAGE = 20;
@@ -64,9 +71,12 @@ function HomeContent() {
   const [nearbyServices, setNearbyServices] = useState([]);
   const [activeSegmentTab, setActiveSegmentTab] = useState("SALES");
   const [subViewVisible, setSubViewVisible] = useState(false); // for fade animation
+  const [showAllCitiesModal, setShowAllCitiesModal] = useState(false);
+  const [citySearchQuery, setCitySearchQuery] = useState("");
   const savedScrollY = useRef(0);
 
   const searchParams = useSearchParams();
+  const router = useRouter();
   const categoryScrollRef = useRef(null);
   const subcategoryScrollRef = useRef(null);
   const cityScrollRef = useRef(null);
@@ -148,6 +158,13 @@ function HomeContent() {
       }
     }
   }, [searchParams, categories]);
+
+  useEffect(() => {
+    if (userMode === "SELLER" && user) {
+      fetchSellerListings();
+      fetchInquiries();
+    }
+  }, [userMode, user]);
 
   const scrollToTabSection = () => {
     setTimeout(() => {
@@ -813,12 +830,211 @@ function HomeContent() {
 
       {/* ========== HOMEPAGE (hidden behind subcategory view) ========== */}
 
-      {/* Top Categories Grid Bar */}
-      <div className="glass-panel mobile-flat-panel" style={{ padding: "24px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "700", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0 }}>
-            📁 Browse Categories
-          </h2>
+      {/* 🔄 Account Mode Switcher Tab Bar */}
+      <div 
+        className="glass-panel mobile-flat-panel" 
+        style={{ 
+          padding: "16px 24px", 
+          marginBottom: "24px", 
+          background: "linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(236, 72, 153, 0.08) 100%)", 
+          border: "1.5px solid var(--border-glass)",
+          borderRadius: "20px"
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+          <div>
+            <h2 style={{ fontSize: "clamp(15px, 4vw, 18px)", fontWeight: "800", color: "var(--text-main)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+              {userMode === "SELLER" ? "🏪 Seller Account Mode" : "🛒 Buyer Account Mode"}
+            </h2>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "3px 0 0 0" }}>
+              {userMode === "SELLER" 
+                ? "You are viewing lowpriceplaces as a seller. Post ads, view leads & manage inquiries."
+                : "You are viewing lowpriceplaces as a buyer. Browse ads, search items & chat with sellers."}
+            </p>
+          </div>
+
+          <div style={{ display: "inline-flex", background: "var(--bg-input)", border: "1px solid var(--border-glass)", borderRadius: "40px", padding: "4px", gap: "4px" }}>
+            <button
+              onClick={() => switchUserMode("BUYER")}
+              style={{
+                padding: "8px 20px",
+                borderRadius: "32px",
+                border: "none",
+                fontSize: "13.5px",
+                fontWeight: "700",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                background: userMode === "BUYER" ? "linear-gradient(135deg, #4f46e5, #6366f1)" : "transparent",
+                color: userMode === "BUYER" ? "#ffffff" : "var(--text-muted)",
+                boxShadow: userMode === "BUYER" ? "0 2px 8px rgba(99, 102, 241, 0.3)" : "none"
+              }}
+            >
+              🛒 Buyer Mode
+            </button>
+            <button
+              onClick={() => switchUserMode("SELLER")}
+              style={{
+                padding: "8px 20px",
+                borderRadius: "32px",
+                border: "none",
+                fontSize: "13.5px",
+                fontWeight: "700",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                background: userMode === "SELLER" ? "linear-gradient(135deg, #059669, #10b981)" : "transparent",
+                color: userMode === "SELLER" ? "#ffffff" : "var(--text-muted)",
+                boxShadow: userMode === "SELLER" ? "0 2px 8px rgba(16, 185, 129, 0.3)" : "none"
+              }}
+            >
+              🏪 Seller Mode
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {userMode === "SELLER" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px", marginBottom: "32px" }}>
+          {/* Welcome Seller Card */}
+          <div 
+            className="glass-panel" 
+            style={{ 
+              padding: "32px", 
+              borderRadius: "20px", 
+              background: "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)",
+              border: "1px solid var(--border-glass)",
+              position: "relative",
+              overflow: "hidden"
+            }}
+          >
+            <div style={{ position: "absolute", top: "-10px", right: "-10px", fontSize: "120px", opacity: 0.08, userSelect: "none" }}>🏪</div>
+            <h2 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: "800", color: "var(--text-main)", marginBottom: "8px" }}>
+              Welcome back, {user?.username ? user.username.split('@')[0] : "Seller"}! 👋
+            </h2>
+            <p style={{ fontSize: "14px", color: "var(--text-muted)", maxWidth: "600px", margin: "0 0 24px 0", lineHeight: "1.6" }}>
+              Advertise new items, manage active inquiries, edit contact settings, or track statistics for your shop. Everything you need is right at your fingertips.
+            </p>
+
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              <Link href="/dashboard/add-listing" className="btn btn-primary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "700", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                ➕ Post New Product
+              </Link>
+              <Link href="/dashboard/my-listings" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "700", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                📦 Manage My Listings
+              </Link>
+              <Link href="/dashboard/leads" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "700", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                💬 Buyer Messages ({sellerInquiries.length})
+              </Link>
+              <Link href="/dashboard/profile" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "700", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                🔒 Privacy & Profile Settings
+              </Link>
+            </div>
+          </div>
+
+          {/* Stats Summary Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px" }}>
+            <div className="glass-panel" style={{ padding: "20px 24px", borderRadius: "16px", border: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "16px" }}>
+              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px" }}>📦</div>
+              <div>
+                <span style={{ display: "block", fontSize: "12px", color: "var(--text-dim)", fontWeight: "600" }}>Total Listings</span>
+                <span style={{ fontSize: "22px", fontWeight: "800", color: "var(--text-main)" }}>{sellerListings.length}</span>
+              </div>
+            </div>
+            <div className="glass-panel" style={{ padding: "20px 24px", borderRadius: "16px", border: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "16px" }}>
+              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(99, 102, 241, 0.15)", color: "#6366f1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px" }}>💬</div>
+              <div>
+                <span style={{ display: "block", fontSize: "12px", color: "var(--text-dim)", fontWeight: "600" }}>Buyer Leads</span>
+                <span style={{ fontSize: "22px", fontWeight: "800", color: "var(--text-main)" }}>{sellerInquiries.length}</span>
+              </div>
+            </div>
+            <div className="glass-panel" style={{ padding: "20px 24px", borderRadius: "16px", border: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "16px" }}>
+              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px" }}>⭐</div>
+              <div>
+                <span style={{ display: "block", fontSize: "12px", color: "var(--text-dim)", fontWeight: "600" }}>Shop Rating</span>
+                <span style={{ fontSize: "22px", fontWeight: "800", color: "var(--text-main)" }}>5.0 ★</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Seller listings section */}
+          <div className="glass-panel" style={{ padding: "24px", borderRadius: "16px", border: "1px solid var(--border-glass)" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-main)", margin: "0 0 16px 0", display: "flex", alignItems: "center", gap: "6px" }}>
+              📂 My Current Listings ({sellerListings.length})
+            </h3>
+            {sellerListings.length === 0 ? (
+              <div style={{ padding: "40px 16px", textAlign: "center", color: "var(--text-muted)" }}>
+                <p style={{ margin: "0 0 16px 0", fontSize: "14px" }}>You have not posted any advertising listings yet.</p>
+                <Link href="/dashboard/add-listing" className="btn btn-primary" style={{ padding: "8px 20px", borderRadius: "30px", textDecoration: "none", fontSize: "13px" }}>
+                  Create Your First Listing
+                </Link>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "20px" }}>
+                {sellerListings.map((item) => {
+                  const photos = item.imagePath ? item.imagePath.split(",") : [];
+                  const coverImage = photos[0] || "";
+                  return (
+                    <div 
+                      key={item.id} 
+                      className="glass-panel product-card" 
+                      style={{ height: "auto", display: "flex", flexDirection: "column", background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glass)", borderRadius: "14px", overflow: "hidden", cursor: "pointer" }}
+                      onClick={() => router.push(`/details/${item.id}`)}
+                    >
+                      <div style={{ height: "150px", position: "relative", background: "#000" }}>
+                        <img 
+                          src={coverImage ? `${imageServer}${coverImage}` : "https://placehold.co/400x300?text=No+Photo"} 
+                          alt={item.title} 
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          onError={(e) => { e.target.src = "https://placehold.co/400x300?text=Product"; }}
+                        />
+                        <span style={{ position: "absolute", top: "10px", right: "10px", padding: "4px 8px", fontSize: "10px", fontWeight: "700", borderRadius: "4px", background: item.status === "ACTIVE" ? "var(--emerald-glow)" : "rgba(245, 158, 11, 0.15)", color: item.status === "ACTIVE" ? "var(--emerald)" : "#fbbf24" }}>
+                          {item.status}
+                        </span>
+                      </div>
+                      <div style={{ padding: "12px", display: "flex", flexDirection: "column", flex: 1 }}>
+                        <h4 style={{ margin: "0 0 6px 0", fontSize: "14px", fontWeight: "700", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {item.title}
+                        </h4>
+                        <span style={{ fontSize: "15px", fontWeight: "800", color: "var(--text-main)", marginBottom: "12px" }}>
+                          ₹{item.price}{item.priceMax ? ` - ₹${item.priceMax}` : ""}
+                        </span>
+                        <div style={{ marginTop: "auto", display: "flex", gap: "6px" }}>
+                          <Link href={`/dashboard/my-listings`} className="btn btn-secondary" style={{ flex: 1, padding: "6px", fontSize: "11px", borderRadius: "6px", textAlign: "center", textDecoration: "none" }} onClick={(e) => e.stopPropagation()}>
+                            ✏️ Edit
+                          </Link>
+                          <button 
+                            className="btn btn-accent" 
+                            style={{ flex: 1, padding: "6px", fontSize: "11px", borderRadius: "6px" }}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (confirm(`Delete listing LPP-${String(item.id).padStart(5, "0")}?`)) {
+                                try {
+                                  await api.deleteListing(item.id);
+                                  fetchSellerListings();
+                                } catch (err) {
+                                  alert(err.message);
+                                }
+                              }
+                            }}
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Top Categories Grid Bar */}
+          <div className="glass-panel mobile-flat-panel" style={{ padding: "24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "700", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0 }}>
+                📁 Browse Categories
+              </h2>
           <Link
             href="/categories"
             className="btn btn-secondary"
@@ -920,7 +1136,7 @@ function HomeContent() {
         </div>
 
         {/* Subcategories Pills bar */}
-        {selectedCatFilter && selectedCatFilter.subCategories?.length > 0 && (
+        {selectedCatFilter && (selectedCatFilter.subCategories?.length > 0 || selectedCatFilter.subcategories?.length > 0) && (
           <div className="subcategory-bar-pills">
             <span className="subcategory-title">Subcategories:</span>
             <div className="scroll-arrow-wrapper">
@@ -937,21 +1153,15 @@ function HomeContent() {
                 onScroll={() => updateArrowVisibility(subcategoryScrollRef, setShowLeftSubCat, setShowRightSubCat)}
                 style={{ scrollBehavior: "smooth" }}
               >
-                {selectedCatFilter.subCategories.map((sub) => {
+                {(selectedCatFilter.subCategories || selectedCatFilter.subcategories || []).map((sub) => {
                   const isSubSelected = selectedSubCatFilter?.id === sub.id;
                   return (
                     <button
                       key={sub.id}
                       className={`subcategory-pill-btn ${isSubSelected ? "active" : ""}`}
                       onClick={() => {
-                        if (isSubSelected) {
-                          // second click on active pill → exit view
-                          setSelectedSubCatFilter(null);
-                          fetchListings({ subCategoryId: null });
-                        } else {
-                          setSelectedSubCatFilter(sub);
-                          enterSubCategoryView(selectedCatFilter, sub);
-                        }
+                        setSelectedSubCatFilter(sub);
+                        router.push(`/category/${selectedCatFilter.slug}/${sub.slug}`);
                       }}
                       style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                     >
@@ -997,9 +1207,8 @@ function HomeContent() {
               cursor: "pointer"
             }}
             onClick={() => {
-              setLocationFilter("India");
-              setLocationSearchInput("India");
-              fetchListings({ location: "India" });
+              setCitySearchQuery("");
+              setShowAllCitiesModal(true);
             }}
           >
             View All →
@@ -1504,6 +1713,7 @@ function HomeContent() {
           )}
         </section>
       </div>
+    </>)}
 
       {/* Mobile Bottom Filter Drawer */}
       <div className={`mobile-filter-drawer-overlay ${mobileFiltersOpen ? "open" : ""}`} onClick={() => setMobileFiltersOpen(false)}>
@@ -1524,6 +1734,174 @@ function HomeContent() {
           ⚡ Filters & Sort {isAnyFilterApplied && <span className="filter-active-dot"></span>}
         </button>
       </div>
+
+      {/* View All Cities Modal overlay */}
+      {showAllCitiesModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            animation: "fadeIn 0.2s ease-out",
+          }}
+          onClick={() => setShowAllCitiesModal(false)}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "600px",
+              background: "var(--bg-card, #141422)",
+              border: "1px solid var(--border-glass)",
+              borderRadius: "20px",
+              padding: "24px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+              maxHeight: "85vh",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
+              animation: "slideUp 0.3s ease-out",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <h3 style={{ fontSize: "18px", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>
+                  📍 Select Your City / Location
+                </h3>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "4px 0 0 0" }}>
+                  Choose a location to discover deals near you
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAllCitiesModal(false)}
+                style={{
+                  background: "rgba(255, 255, 255, 0.1)",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: "32px",
+                  height: "32px",
+                  color: "#ffffff",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
+              >
+                ✖
+              </button>
+            </div>
+
+            {/* Modal Search Input */}
+            <div style={{ position: "relative" }}>
+              <input
+                type="text"
+                placeholder="Search city name..."
+                value={citySearchQuery}
+                onChange={(e) => setCitySearchQuery(e.target.value)}
+                style={{
+                  width: "100%",
+                  background: "var(--bg-input)",
+                  border: "1px solid var(--border-glass)",
+                  borderRadius: "12px",
+                  padding: "12px 16px 12px 40px",
+                  color: "var(--text-main)",
+                  fontSize: "14px",
+                  outline: "none"
+                }}
+              />
+              <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", fontSize: "16px", color: "var(--text-dim)" }}>
+                🔍
+              </span>
+            </div>
+
+            {/* Modal Grid of Cities */}
+            <div style={{ overflowY: "auto", flex: 1, paddingRight: "4px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: "12px" }}>
+                {/* Nationwide All India Option */}
+                <div
+                  onClick={() => {
+                    setLocationFilter("India");
+                    setLocationSearchInput("India");
+                    fetchListings({ location: "India" });
+                    setShowAllCitiesModal(false);
+                  }}
+                  style={{
+                    background: (!locationFilter || locationFilter.toLowerCase() === "india") ? "var(--primary)" : "rgba(255,255,255,0.03)",
+                    border: "1px solid var(--border-glass)",
+                    borderRadius: "14px",
+                    padding: "16px 8px",
+                    textAlign: "center",
+                    cursor: "pointer",
+                    transition: "var(--transition)"
+                  }}
+                >
+                  <span style={{ fontSize: "28px", display: "block", marginBottom: "8px" }}>🇮🇳</span>
+                  <span style={{ fontSize: "12px", fontWeight: "700", color: "#ffffff" }}>All India</span>
+                </div>
+
+                {citiesList
+                  .filter((c) => c.name.toLowerCase().includes(citySearchQuery.toLowerCase()))
+                  .map((c) => {
+                    const isSelected = locationFilter?.toLowerCase() === c.name.toLowerCase();
+                    return (
+                      <div
+                        key={c.id || c.name}
+                        onClick={() => {
+                          setLocationFilter(c.name);
+                          setLocationSearchInput(c.name);
+                          fetchListings({ location: c.name });
+                          setShowAllCitiesModal(false);
+                        }}
+                        style={{
+                          background: isSelected ? "var(--primary)" : "rgba(255,255,255,0.03)",
+                          border: "1px solid var(--border-glass)",
+                          borderRadius: "14px",
+                          padding: "16px 8px",
+                          textAlign: "center",
+                          cursor: "pointer",
+                          transition: "var(--transition)",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center"
+                        }}
+                      >
+                        {c.imagePath ? (
+                          <img
+                            src={`${imageServer}${c.imagePath}`}
+                            alt={c.name}
+                            style={{
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "8px",
+                              objectFit: "cover",
+                              marginBottom: "8px"
+                            }}
+                          />
+                        ) : (
+                          <span style={{ fontSize: "28px", display: "block", marginBottom: "8px" }}>
+                            {c.emoji || "📍"}
+                          </span>
+                        )}
+                        <span style={{ fontSize: "12px", fontWeight: "700", color: "#ffffff", wordBreak: "break-word" }}>
+                          {c.name}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

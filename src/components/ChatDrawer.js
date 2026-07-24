@@ -13,14 +13,49 @@ export default function ChatDrawer() {
     allChats,
     activeChatId,
     setActiveChatId,
-    unreadChatCount,
     fetchUserChats,
   } = useApp();
 
   const [messageInput, setMessageInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [activeChatMessages, setActiveChatMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const messagesEndRef = useRef(null);
   const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
+
+  // Fetch message history for active chat
+  useEffect(() => {
+    if (!isChatOpen || !user || !activeChatId) {
+      setActiveChatMessages([]);
+      return;
+    }
+
+    let isMounted = true;
+    async function loadMessages() {
+      setLoadingMessages(true);
+      try {
+        const data = await api.getInquiryMessages(activeChatId);
+        if (isMounted) {
+          setActiveChatMessages(data);
+          // Mark conversation as read
+          await api.markInquiryRead(activeChatId);
+          fetchUserChats(); // Refresh unread count in drawer list
+        }
+      } catch (err) {
+        console.error("Failed to load messages:", err);
+      } finally {
+        if (isMounted) {
+          setLoadingMessages(false);
+        }
+      }
+    }
+
+    loadMessages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeChatId, isChatOpen, user]);
 
   // Socket.IO Real-Time Chat Listener
   useEffect(() => {
@@ -29,8 +64,14 @@ export default function ChatDrawer() {
     const socket = io(imageServer);
     socket.emit("join_room", activeChatId);
 
-    socket.on("receive_message", () => {
+    socket.on("receive_message", (newMessage) => {
       fetchUserChats();
+      if (newMessage && newMessage.inquiryId === activeChatId) {
+        setActiveChatMessages((prev) => {
+          if (prev.some((m) => m.id === newMessage.id)) return prev;
+          return [...prev, newMessage];
+        });
+      }
     });
 
     return () => {
@@ -38,27 +79,27 @@ export default function ChatDrawer() {
     };
   }, [isChatOpen, user, activeChatId]);
 
-  // Auto-poll messages every 3s as fallback
+  // Auto-poll chats list every 6s as fallback
   useEffect(() => {
     if (isChatOpen && user) {
       fetchUserChats();
       const interval = setInterval(() => {
         fetchUserChats();
-      }, 3000);
+      }, 6000);
       return () => clearInterval(interval);
     }
   }, [isChatOpen, user]);
 
-  // Scroll to bottom of active message list when activeChatId or messages update
+  // Scroll to bottom of active message list
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [allChats, activeChatId]);
+  }, [activeChatMessages]);
 
   if (!isChatOpen || !user) return null;
 
-  const activeChat = allChats.find((c) => c.id === activeChatId) || allChats[0];
+  const activeChat = allChats.find((c) => c.id === activeChatId);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -68,13 +109,48 @@ export default function ChatDrawer() {
     setSending(true);
 
     try {
-      await api.sendChatMessage(activeChat.id, textToSend);
+      const newMsg = await api.sendChatMessage(activeChat.id, textToSend);
+      setActiveChatMessages((prev) => [...prev, newMsg]);
       await fetchUserChats();
     } catch (err) {
       console.error("Failed to send message:", err);
     } finally {
       setSending(false);
     }
+  };
+
+  // Helper: Get message media type icon
+  const getMessageTypeIcon = (text = "") => {
+    const lower = text.toLowerCase().trim();
+    if (lower.match(/\.(jpeg|jpg|gif|png|webp)/) || lower.includes("[image]") || lower.includes("[photo]")) {
+      return "📷 ";
+    }
+    if (lower.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)/) || lower.includes("[pdf]") || lower.includes("[document]")) {
+      return "📄 ";
+    }
+    if (lower.match(/\.(mp4|mov|avi|mkv|webm)/) || lower.includes("[video]")) {
+      return "🎥 ";
+    }
+    if (lower.match(/\.(mp3|wav|ogg|m4a|aac)/) || lower.includes("[audio]") || lower.includes("[voice]")) {
+      return "🎵 ";
+    }
+    return null;
+  };
+
+  // Helper: Format message time like WhatsApp
+  const formatMsgTime = (timestamp) => {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    const now = new Date();
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    }
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
   return (
@@ -95,7 +171,7 @@ export default function ChatDrawer() {
       <div
         style={{
           width: "100%",
-          maxWidth: "850px",
+          maxWidth: "900px",
           height: "100%",
           background: "var(--bg-card, #141422)",
           borderLeft: "1px solid var(--border-glass, rgba(255,255,255,0.1))",
@@ -121,10 +197,10 @@ export default function ChatDrawer() {
             <span style={{ fontSize: "22px" }}>💬</span>
             <div>
               <h2 style={{ fontSize: "17px", fontWeight: "700", margin: 0, color: "var(--text-main, #fff)" }}>
-                Messages
+                Chats
               </h2>
               <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)" }}>
-                Direct 1-on-1 Conversation
+                Classifieds Conversations
               </span>
             </div>
           </div>
@@ -148,144 +224,208 @@ export default function ChatDrawer() {
           </button>
         </div>
 
-        {/* Drawer Main Body: Split View */}
-        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        {/* Drawer Main Body: WhatsApp Responsive Split View */}
+        <div 
+          className={`chat-split-container ${activeChatId ? "has-active-chat" : ""}`}
+          style={{ flex: 1, display: "flex", overflow: "hidden" }}
+        >
           {/* Left Conversations Sidebar */}
           <div
+            className="chat-sidebar"
             style={{
-              width: "280px",
+              width: "340px",
               borderRight: "1px solid var(--border-glass, rgba(255,255,255,0.1))",
-              background: "rgba(0, 0, 0, 0.15)",
+              background: "rgba(0, 0, 0, 0.12)",
               display: "flex",
               flexDirection: "column",
               overflowY: "auto",
+              flexShrink: 0
             }}
           >
-            <div
-              style={{
-                padding: "12px 16px",
-                fontSize: "12px",
-                fontWeight: "700",
-                color: "var(--text-dim, #64748b)",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-                borderBottom: "1px solid rgba(255,255,255,0.05)",
-              }}
-            >
-              Active Chats ({allChats.length})
-            </div>
-
             {allChats.length === 0 ? (
-              <div
-                style={{
-                  padding: "30px 16px",
-                  textAlign: "center",
-                  fontSize: "13px",
-                  color: "var(--text-muted, #94a3b8)",
-                }}
-              >
-                No active chat conversations yet. Click "Chat Now" on any product listing to start messaging a seller!
+              <div style={{ padding: "40px 24px", textAlign: "center", fontSize: "13px", color: "var(--text-muted)" }}>
+                No active conversations yet. Click "Chat Now" on listings to message sellers!
               </div>
             ) : (
-              allChats.map((chat) => {
-                const isActive = activeChat?.id === chat.id;
-                const lastMsg = chat.messages?.[chat.messages.length - 1];
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {allChats.map((chat) => {
+                  const isActive = activeChatId === chat.id;
+                  const lastMsg = chat.latestMessage || chat.messages?.[chat.messages.length - 1];
+                  const hasUnread = chat.unreadCount > 0;
+                  const isOnline = chat.otherUser?.isOnline;
 
-                return (
-                  <div
-                    key={chat.id}
-                    onClick={() => setActiveChatId(chat.id)}
-                    style={{
-                      padding: "12px 16px",
-                      borderBottom: "1px solid rgba(255,255,255,0.04)",
-                      cursor: "pointer",
-                      background: isActive ? "rgba(99, 102, 241, 0.12)" : "transparent",
-                      borderLeft: isActive ? "3px solid var(--primary, #6366f1)" : "3px solid transparent",
-                      transition: "all 0.15s ease",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                    }}
-                  >
-                    {/* User Avatar */}
+                  // Name priority: display name -> otherUser name -> phone number
+                  const displayName = chat.otherUser?.name || chat.otherUser?.phoneNumber || "User";
+                  const avatarLetter = displayName.charAt(0).toUpperCase();
+
+                  // Avatar background color based on name hash for consistency
+                  const colors = [
+                    "linear-gradient(135deg, #10b981, #059669)", // Emerald
+                    "linear-gradient(135deg, #3b82f6, #2563eb)", // Blue
+                    "linear-gradient(135deg, #8b5cf6, #7c3aed)", // Violet
+                    "linear-gradient(135deg, #ec4899, #db2777)", // Pink
+                    "linear-gradient(135deg, #f59e0b, #d97706)", // Amber
+                    "linear-gradient(135deg, #ef4444, #dc2626)"  // Red
+                  ];
+                  const charCode = displayName.charCodeAt(0) || 0;
+                  const bgGradient = colors[charCode % colors.length];
+
+                  return (
                     <div
+                      key={chat.id}
+                      onClick={() => setActiveChatId(chat.id)}
                       style={{
-                        width: "40px",
-                        height: "40px",
-                        borderRadius: "50%",
-                        background: isActive
-                          ? "linear-gradient(135deg, #6366f1, #ec4899)"
-                          : "linear-gradient(135deg, #334155, #475569)",
-                        color: "#fff",
+                        padding: "12px 16px",
+                        borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
+                        cursor: "pointer",
+                        background: isActive ? "rgba(255, 255, 255, 0.06)" : "transparent",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: "700",
-                        fontSize: "15px",
-                        flexShrink: 0,
+                        gap: "12px",
+                        transition: "background 0.2s ease",
+                        position: "relative"
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) e.currentTarget.style.background = "rgba(255, 255, 255, 0.02)";
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) e.currentTarget.style.background = "transparent";
                       }}
                     >
-                      {chat.otherUser?.name ? chat.otherUser.name.charAt(0).toUpperCase() : "U"}
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          marginBottom: "2px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: "13.5px",
-                            fontWeight: "600",
-                            color: "var(--text-main, #fff)",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {chat.otherUser?.name || "User"}
-                        </span>
-                      </div>
-
-                      <div
-                        style={{
-                          fontSize: "11.5px",
-                          color: "var(--text-muted, #94a3b8)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        🛍️ {chat.listing?.title || "Product Listing"}
-                      </div>
-
-                      {lastMsg && (
+                      {/* Avatar Wrapper */}
+                      <div style={{ position: "relative", flexShrink: 0 }}>
                         <div
                           style={{
-                            fontSize: "12px",
-                            color: "var(--text-dim, #64748b)",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            marginTop: "2px",
+                            width: "48px",
+                            height: "48px",
+                            borderRadius: "50%",
+                            background: bgGradient,
+                            color: "#fff",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: "700",
+                            fontSize: "17px",
                           }}
                         >
-                          {lastMsg.senderId === user.id ? "You: " : ""}{lastMsg.text}
+                          {avatarLetter}
                         </div>
-                      )}
+                        {/* Online status indicator */}
+                        <div
+                          style={{
+                            position: "absolute",
+                            bottom: "2px",
+                            right: "2px",
+                            width: "12px",
+                            height: "12px",
+                            borderRadius: "50%",
+                            background: isOnline ? "#10b981" : "#94a3b8",
+                            border: "2px solid var(--bg-card, #141422)",
+                            boxShadow: "0 0 4px rgba(0,0,0,0.5)"
+                          }}
+                        />
+                      </div>
+
+                      {/* Card Middle Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
+                          <span
+                            style={{
+                              fontSize: "14.5px",
+                              fontWeight: hasUnread ? "700" : "600",
+                              color: hasUnread ? "var(--text-main, #fff)" : "rgba(255, 255, 255, 0.9)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              marginRight: "8px"
+                            }}
+                          >
+                            {displayName}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              color: hasUnread ? "#10b981" : "var(--text-dim, #64748b)",
+                              fontWeight: hasUnread ? "700" : "normal",
+                              whiteSpace: "nowrap",
+                              flexShrink: 0
+                            }}
+                          >
+                            {lastMsg ? formatMsgTime(lastMsg.createdAt) : ""}
+                          </span>
+                        </div>
+
+                        {/* Product listing tag */}
+                        <div style={{ fontSize: "11.5px", color: "var(--primary, #6366f1)", fontWeight: "500", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "3px" }}>
+                          🏷️ {chat.listing?.title || "Product Listing"}
+                        </div>
+
+                        {/* Last message preview with type icon */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span
+                            style={{
+                              fontSize: "12.5px",
+                              color: hasUnread ? "rgba(255,255,255,0.9)" : "var(--text-muted, #94a3b8)",
+                              fontWeight: hasUnread ? "600" : "normal",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              flex: 1
+                            }}
+                          >
+                            {lastMsg ? (
+                              <>
+                                {getMessageTypeIcon(lastMsg.text)}
+                                {lastMsg.senderId === user.id ? "You: " : ""}
+                                {lastMsg.text}
+                              </>
+                            ) : (
+                              "No messages yet"
+                            )}
+                          </span>
+
+                          {/* Unread count badge */}
+                          {hasUnread && (
+                            <span
+                              style={{
+                                background: "#10b981",
+                                color: "#ffffff",
+                                borderRadius: "50%",
+                                minWidth: "20px",
+                                height: "20px",
+                                padding: "0 6px",
+                                fontSize: "11px",
+                                fontWeight: "700",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                                marginLeft: "8px"
+                              }}
+                            >
+                              {chat.unreadCount}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
           </div>
 
           {/* Right Message Chat Stream Window */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.08)" }}>
+          <div 
+            className="chat-window"
+            style={{ 
+              flex: 1, 
+              display: "flex", 
+              flexDirection: "column", 
+              background: "rgba(0,0,0,0.06)",
+              minWidth: 0
+            }}
+          >
             {activeChat ? (
               <>
                 {/* Chat Top Banner */}
@@ -299,22 +439,47 @@ export default function ChatDrawer() {
                     gap: "12px",
                   }}
                 >
+                  {/* Mobile Back Arrow to Conversations List */}
+                  <button
+                    className="chat-back-btn"
+                    onClick={() => setActiveChatId(null)}
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      border: "none",
+                      color: "#fff",
+                      borderRadius: "6px",
+                      padding: "6px 12px",
+                      fontSize: "13px",
+                      cursor: "pointer",
+                      display: "none", // Display set to block in responsive CSS
+                      alignItems: "center",
+                      gap: "4px",
+                      marginRight: "6px"
+                    }}
+                  >
+                    ← Back
+                  </button>
+
+                  {/* Listing thumbnail */}
                   {activeChat.listing?.imagePath ? (
                     <img
                       src={`${imageServer}${activeChat.listing.imagePath.split(",")[0]}`}
                       alt={activeChat.listing.title}
-                      style={{ width: "38px", height: "38px", objectFit: "cover", borderRadius: "6px" }}
+                      style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "8px" }}
                       onError={(e) => { e.target.style.display = 'none'; }}
                     />
                   ) : (
-                    <div style={{ width: "38px", height: "38px", borderRadius: "6px", background: "rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>🛍️</div>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "8px", background: "rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>🛍️</div>
                   )}
 
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main, #fff)" }}>
-                      Chatting with {activeChat.otherUser?.name}
+                      {activeChat.otherUser?.name || "User"}
+                      <span style={{ fontSize: "11px", color: activeChat.otherUser?.isOnline ? "#10b981" : "#94a3b8", fontWeight: "500", marginLeft: "8px" }}>
+                        ● {activeChat.otherUser?.isOnline ? "Online" : "Offline"}
+                      </span>
                     </div>
-                    <div style={{ fontSize: "12px", color: "var(--primary, #6366f1)", fontWeight: "600" }}>
+                    <div style={{ fontSize: "12px", color: "var(--primary, #6366f1)", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       Item: {activeChat.listing?.title} (₹{activeChat.listing?.price})
                     </div>
                   </div>
@@ -331,13 +496,16 @@ export default function ChatDrawer() {
                     gap: "12px",
                   }}
                 >
-                  {activeChat.messages && activeChat.messages.length > 0 ? (
-                    activeChat.messages.map((msg, idx) => {
+                  {loadingMessages && activeChatMessages.length === 0 ? (
+                    <div style={{ textAlign: "center", color: "var(--text-muted)", marginTop: "40px", fontSize: "13px" }}>
+                      Loading messages...
+                    </div>
+                  ) : activeChatMessages.length > 0 ? (
+                    activeChatMessages.map((msg, idx) => {
                       const isMe = msg.senderId === user.id;
 
                       return (
                         <div
-                          key={msg.id || idx}
                           style={{
                             alignSelf: isMe ? "flex-end" : "flex-start",
                             maxWidth: "75%",
@@ -351,12 +519,12 @@ export default function ChatDrawer() {
                               padding: "10px 14px",
                               borderRadius: isMe ? "16px 16px 2px 16px" : "16px 16px 16px 2px",
                               background: isMe
-                                ? "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)"
+                                ? "linear-gradient(135deg, #059669 0%, #10b981 100%)" // WhatsApp style green gradient
                                 : "var(--bg-input, rgba(255,255,255,0.08))",
                               color: "#ffffff",
                               fontSize: "13.5px",
                               lineHeight: "1.45",
-                              boxShadow: isMe ? "0 4px 12px rgba(79,70,229,0.3)" : "none",
+                              boxShadow: isMe ? "0 4px 12px rgba(16,185,129,0.2)" : "none",
                               wordBreak: "break-word",
                             }}
                           >
@@ -415,7 +583,7 @@ export default function ChatDrawer() {
                     type="submit"
                     disabled={!messageInput.trim() || sending}
                     style={{
-                      background: "linear-gradient(135deg, #4f46e5, #ec4899)",
+                      background: "linear-gradient(135deg, #10b981, #059669)", // WhatsApp green send button
                       border: "none",
                       color: "#fff",
                       borderRadius: "24px",
@@ -435,9 +603,10 @@ export default function ChatDrawer() {
                 </form>
               </>
             ) : (
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
-                <span style={{ fontSize: "40px", marginBottom: "12px" }}>💬</span>
-                Select a conversation on the left to start chatting
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", padding: "16px" }}>
+                <span style={{ fontSize: "52px", marginBottom: "16px" }}>💬</span>
+                <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-main)", marginBottom: "4px" }}>No Chat Selected</div>
+                Select a conversation on the left to start messaging.
               </div>
             )}
           </div>

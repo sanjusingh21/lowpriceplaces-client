@@ -1,4 +1,14 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "/api";
+const getApiBase = () => {
+  if (process.env.NEXT_PUBLIC_API_BASE) {
+    return process.env.NEXT_PUBLIC_API_BASE;
+  }
+  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+    return "http://localhost:5000/api";
+  }
+  return "/api";
+};
+
+const API_BASE = getApiBase();
 
 export function getAuthToken() {
   if (typeof window !== 'undefined') {
@@ -138,6 +148,16 @@ export const api = {
     }
   },
 
+  async switchRole(role) {
+    const data = await request("/auth/switch-role", {
+      method: "PUT",
+      body: { role }
+    });
+    setAuthToken(data.token);
+    setCurrentUser(data.user);
+    return data.user;
+  },
+
   // Categories
   async getCategories() {
     return request("/categories");
@@ -228,16 +248,26 @@ export const api = {
   },
 
   async sendChatMessage(inquiryId, text) {
-    return request(`/inquiries/${inquiryId}/message`, {
+    return request(`/inquiries/${inquiryId}/messages`, {
       method: "POST",
       body: { text }
     });
   },
 
-  async replyToInquiry(id, replyMessage) {
-    return request(`/inquiries/${id}/reply`, {
+  async replyToInquiry(id, text) {
+    return request(`/inquiries/${id}/messages`, {
       method: "POST",
-      body: { replyMessage }
+      body: { text }
+    });
+  },
+
+  async getInquiryMessages(id) {
+    return request(`/inquiries/${id}/messages`);
+  },
+
+  async markInquiryRead(id) {
+    return request(`/inquiries/${id}/read`, {
+      method: "POST"
     });
   },
 

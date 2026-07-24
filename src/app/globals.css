@@ -1178,7 +1178,14 @@ h6 {
 .subcategory-pills-row {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  width: 100%;
+}
+.subcategory-pills-row::-webkit-scrollbar {
+  display: none !important;
 }
 
 .subcategory-pill-btn {

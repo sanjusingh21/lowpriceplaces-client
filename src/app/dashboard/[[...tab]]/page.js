@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/api";
 import ProductCard from "@/components/ProductCard";
+import { io } from "socket.io-client";
 
 export default function Dashboard() {
   const params = useParams();
@@ -44,6 +45,76 @@ export default function Dashboard() {
 
   // Dynamic active tab — initialized from URL param or defaults to "profile"
   const [dashboardTab, setDashboardTab] = useState(activeTabParam || "profile");
+
+  const [dashboardMessages, setDashboardMessages] = useState([]);
+  const [loadingDashboardMessages, setLoadingDashboardMessages] = useState(false);
+  const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
+
+  // Fetch message history for active dashboard chat
+  useEffect(() => {
+    if (!user || !activeInquiryId) {
+      setDashboardMessages([]);
+      return;
+    }
+
+    let isMounted = true;
+    async function loadMessages() {
+      setLoadingDashboardMessages(true);
+      try {
+        const data = await api.getInquiryMessages(activeInquiryId);
+        if (isMounted) {
+          setDashboardMessages(data);
+          // Mark as read
+          await api.markInquiryRead(activeInquiryId);
+          fetchInquiries();
+        }
+      } catch (err) {
+        console.error("Failed to load messages in dashboard:", err);
+      } finally {
+        if (isMounted) {
+          setLoadingDashboardMessages(false);
+        }
+      }
+    }
+
+    loadMessages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeInquiryId, user]);
+
+  // Socket.IO real-time listener for active dashboard chat
+  useEffect(() => {
+    if (!user || !activeInquiryId) return;
+
+    const socket = io(imageServer);
+    socket.emit("join_room", activeInquiryId);
+
+    socket.on("receive_message", (newMessage) => {
+      fetchInquiries();
+      if (newMessage && newMessage.inquiryId === activeInquiryId) {
+        setDashboardMessages((prev) => {
+          if (prev.some((m) => m.id === newMessage.id)) return prev;
+          return [...prev, newMessage];
+        });
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user, activeInquiryId]);
+
+  // Scroll active chat messages to bottom
+  useEffect(() => {
+    if (activeInquiryId) {
+      const element = document.getElementById(`chat-messages-${activeInquiryId}`);
+      if (element) {
+        element.scrollTop = element.scrollHeight;
+      }
+    }
+  }, [dashboardMessages, activeInquiryId]);
 
   // Sync route param with state tab
   useEffect(() => {
@@ -272,7 +343,7 @@ export default function Dashboard() {
   // Chat inquiries methods
   const markAsRead = async (id) => {
     try {
-      await api.replyToInquiry(id, ""); // Triggers read flag
+      await api.markInquiryRead(id);
       fetchInquiries();
     } catch (e) {
       console.error(e);
@@ -284,19 +355,65 @@ export default function Dashboard() {
     if (!text.trim()) return;
 
     try {
-      await api.replyToInquiry(inqId, text);
+      const newMsg = await api.replyToInquiry(inqId, text);
+      setDashboardMessages((prev) => [...prev, newMsg]);
       setReplyTexts((prev) => ({ ...prev, [inqId]: "" }));
       fetchInquiries();
-      // Scroll to bottom
-      setTimeout(() => {
-        const element = document.getElementById(`chat-messages-${inqId}`);
-        if (element) {
-          element.scrollTop = element.scrollHeight;
-        }
-      }, 100);
     } catch (e) {
       alert("Error sending message: " + e.message);
     }
+  };
+
+  // Helper: Get message file/media type icon
+  const getMessageTypeIcon = (text = "") => {
+    const lower = text.toLowerCase().trim();
+    if (lower.match(/\.(jpeg|jpg|gif|png|webp)/) || lower.includes("[image]") || lower.includes("[photo]")) {
+      return "📷 ";
+    }
+    if (lower.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)/) || lower.includes("[pdf]") || lower.includes("[document]")) {
+      return "📄 ";
+    }
+    if (lower.match(/\.(mp4|mov|avi|mkv|webm)/) || lower.includes("[video]")) {
+      return "🎥 ";
+    }
+    if (lower.match(/\.(mp3|wav|ogg|m4a|aac)/) || lower.includes("[audio]") || lower.includes("[voice]")) {
+      return "🎵 ";
+    }
+    return null;
+  };
+
+  // Helper: Format message time like WhatsApp
+  const formatMsgTime = (timestamp) => {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    const now = new Date();
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    }
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
+  // Helper: Get Chat Metadata (name, phone, online)
+  const getChatMetadata = (inq) => {
+    const isSeller = user?.role === "SELLER";
+    const displayName = isSeller
+      ? (inq.buyer?.username?.split("@")[0] || inq.buyer?.phoneNumber || "Buyer")
+      : (inq.listing?.seller?.username?.split("@")[0] || inq.listing?.seller?.phoneNumber || "Seller");
+    
+    const phoneNumber = isSeller
+      ? (inq.buyer?.phoneNumber || inq.buyer?.whatsappNumber || "")
+      : (inq.listing?.seller?.phoneNumber || inq.listing?.seller?.whatsappNumber || "");
+
+    const isOnline = isSeller
+      ? (inq.buyerId % 3 !== 0)
+      : (inq.listing?.sellerId % 3 !== 0);
+
+    return { displayName, phoneNumber, isOnline };
   };
 
   // Admin Cities state
@@ -338,8 +455,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
   // Use URL param directly — available immediately, no render-cycle delay
   const activeTab = activeTabParam || dashboardTab;
   const isBookmarksTab = activeTab === "saved" || activeTab === "bookmarks";
@@ -723,14 +838,30 @@ export default function Dashboard() {
                 No inquiries sent by buyers yet. Keep advertising!
               </div>
             ) : (
-              <div className={`chat-split-container ${activeInquiryId ? "has-active-chat" : ""}`} style={{ display: "flex", gap: "20px", height: "550px", background: "var(--bg-card)", border: "1px solid var(--border-glass)", borderRadius: "16px", overflow: "hidden" }}>
-                <div className="chat-sidebar" style={{ width: "320px", borderRight: "1px solid var(--border-glass)", display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.1)" }}>
-                  <div style={{ padding: "16px", borderBottom: "1px solid var(--border-glass)", fontWeight: "600", color: "var(--text-main)" }}>Conversations</div>
+              <div className={`chat-split-container ${activeInquiryId ? "has-active-chat" : ""}`} style={{ display: "flex", gap: "20px", height: "580px", background: "var(--bg-card)", border: "1px solid var(--border-glass)", borderRadius: "20px", overflow: "hidden" }}>
+                {/* Conversations List Sidebar */}
+                <div className="chat-sidebar" style={{ width: "340px", borderRight: "1px solid var(--border-glass)", display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.12)", flexShrink: 0 }}>
+                  <div style={{ padding: "16px", borderBottom: "1px solid var(--border-glass)", fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>Conversations</div>
                   <div style={{ flex: 1, overflowY: "auto" }}>
                     {sellerInquiries.map((inq) => {
                       const isActive = activeInquiryId === inq.id;
-                      const lastMsg = inq.messages?.[inq.messages.length - 1];
-                      const isUnread = lastMsg && lastMsg.senderId !== user.id && inq.status !== "READ";
+                      const lastMsg = inq.latestMessage || inq.messages?.[inq.messages.length - 1];
+                      const hasUnread = inq.unreadCount > 0;
+                      const { displayName, isOnline } = getChatMetadata(inq);
+                      const avatarLetter = displayName.charAt(0).toUpperCase();
+
+                      // Dynamic avatar background gradient
+                      const colors = [
+                        "linear-gradient(135deg, #10b981, #059669)",
+                        "linear-gradient(135deg, #3b82f6, #2563eb)",
+                        "linear-gradient(135deg, #8b5cf6, #7c3aed)",
+                        "linear-gradient(135deg, #ec4899, #db2777)",
+                        "linear-gradient(135deg, #f59e0b, #d97706)",
+                        "linear-gradient(135deg, #ef4444, #dc2626)"
+                      ];
+                      const charCode = displayName.charCodeAt(0) || 0;
+                      const bgGradient = colors[charCode % colors.length];
+
                       return (
                         <div
                           key={inq.id}
@@ -739,90 +870,131 @@ export default function Dashboard() {
                             markAsRead(inq.id);
                           }}
                           style={{
-                            padding: "14px 16px",
-                            borderBottom: "1px solid rgba(255,255,255,0.03)",
+                            padding: "12px 16px",
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
                             cursor: "pointer",
-                            background: isActive ? "rgba(99, 102, 241, 0.08)" : "transparent",
-                            transition: "var(--transition)",
+                            background: isActive ? "rgba(255, 255, 255, 0.06)" : "transparent",
                             display: "flex",
                             alignItems: "center",
                             gap: "12px",
+                            transition: "background 0.2s ease",
+                            position: "relative"
                           }}
                         >
-                          <div style={{
-                            width: "38px",
-                            height: "38px",
-                            borderRadius: "50%",
-                            background: isActive ? "linear-gradient(135deg, #6366f1, #ec4899)" : "linear-gradient(135deg, #374151, #4b5563)",
-                            color: "#ffffff",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontWeight: "700",
-                            fontSize: "14px",
-                            textTransform: "uppercase",
-                            flexShrink: 0,
-                          }}>
-                            {inq.buyer?.username ? inq.buyer.username.charAt(0) : "U"}
+                          {/* Avatar with online status */}
+                          <div style={{ position: "relative", flexShrink: 0 }}>
+                            <div
+                              style={{
+                                width: "46px",
+                                height: "46px",
+                                borderRadius: "50%",
+                                background: bgGradient,
+                                color: "#ffffff",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: "700",
+                                fontSize: "16px",
+                              }}
+                            >
+                              {avatarLetter}
+                            </div>
+                            <div
+                              style={{
+                                position: "absolute",
+                                bottom: "1px",
+                                right: "1px",
+                                width: "11px",
+                                height: "11px",
+                                borderRadius: "50%",
+                                background: isOnline ? "#10b981" : "#94a3b8",
+                                border: "2px solid var(--bg-card, #141422)",
+                                boxShadow: "0 0 4px rgba(0,0,0,0.5)"
+                              }}
+                            />
                           </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                              <span style={{ fontSize: "13.5px", fontWeight: isUnread ? "700" : "600", color: isUnread ? "var(--text-main)" : "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {inq.buyer?.username?.split("@")[0]}
-                              </span>
-                              {(() => {
-                                const unreadCount = (() => {
-                                  if (inq.status === "READ") return 0;
-                                  const msgs = inq.messages || [];
-                                  let lastMyMsgIndex = -1;
-                                  for (let i = msgs.length - 1; i >= 0; i--) {
-                                    if (msgs[i].senderId === user.id) {
-                                      lastMyMsgIndex = i;
-                                      break;
-                                    }
-                                  }
-                                  let count = 0;
-                                  for (let i = lastMyMsgIndex + 1; i < msgs.length; i++) {
-                                    if (msgs[i].senderId !== user.id) {
-                                      count++;
-                                    }
-                                  }
-                                  return count;
-                                })();
 
-                                if (unreadCount > 0) {
-                                  return (
-                                    <span style={{
-                                      background: "#ef4444",
-                                      color: "#ffffff",
-                                      borderRadius: "10px",
-                                      padding: "2px 6px",
-                                      fontSize: "10px",
-                                      fontWeight: "700",
-                                      minWidth: "18px",
-                                      textAlign: "center",
-                                      display: "inline-block",
-                                      lineHeight: "1.2",
-                                      flexShrink: 0,
-                                    }}>
-                                      {unreadCount}
-                                    </span>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-                            <div style={{ fontSize: "12px", color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}>
-                              <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "1px 4px", borderRadius: "3px", fontSize: "9.5px", fontWeight: "700", flexShrink: 0 }}>
-                                LPP-{String(inq.listing?.id || inq.listingId).padStart(5, "0")}
+                          {/* Info Column */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "3px" }}>
+                              <span
+                                style={{
+                                  fontSize: "14px",
+                                  fontWeight: hasUnread ? "700" : "600",
+                                  color: hasUnread ? "var(--text-main)" : "rgba(255,255,255,0.85)",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  marginRight: "6px"
+                                }}
+                              >
+                                {displayName}
                               </span>
-                              <span>{inq.listing?.title}</span>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  color: hasUnread ? "#10b981" : "var(--text-dim)",
+                                  fontWeight: hasUnread ? "700" : "normal",
+                                  whiteSpace: "nowrap",
+                                  flexShrink: 0
+                                }}
+                              >
+                                {lastMsg ? formatMsgTime(lastMsg.createdAt) : ""}
+                              </span>
                             </div>
-                            {lastMsg && (
-                              <div style={{ fontSize: "12px", color: isUnread ? "var(--text-main)" : "var(--text-dim)", fontStyle: isUnread ? "normal" : "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: "2px" }}>
-                                {lastMsg.text}
-                              </div>
-                            )}
+
+                            {/* Product tag */}
+                            <div style={{ fontSize: "11.5px", color: "var(--primary)", fontWeight: "500", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "2px" }}>
+                              🏷️ {inq.listing?.title || "Product Listing"}
+                            </div>
+
+                            {/* Message Preview */}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span
+                                style={{
+                                  fontSize: "12.5px",
+                                  color: hasUnread ? "rgba(255,255,255,0.9)" : "var(--text-muted)",
+                                  fontWeight: hasUnread ? "600" : "normal",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  flex: 1
+                                }}
+                              >
+                                {lastMsg ? (
+                                  <>
+                                    {getMessageTypeIcon(lastMsg.text)}
+                                    {lastMsg.senderId === user.id ? "You: " : ""}
+                                    {lastMsg.text}
+                                  </>
+                                ) : (
+                                  "No messages yet"
+                                )}
+                              </span>
+
+                              {/* Unread count badge */}
+                              {hasUnread && (
+                                <span
+                                  style={{
+                                    background: "#10b981",
+                                    color: "#ffffff",
+                                    borderRadius: "50%",
+                                    minWidth: "19px",
+                                    height: "19px",
+                                    padding: "0 5px",
+                                    fontSize: "10.5px",
+                                    fontWeight: "700",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    flexShrink: 0,
+                                    marginLeft: "6px"
+                                  }}
+                                >
+                                  {inq.unreadCount}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -830,50 +1002,59 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="chat-window" style={{ flex: 1, display: "flex", flexDirection: "column", background: "transparent" }}>
+                {/* Right Chat Message Pane */}
+                <div className="chat-window" style={{ flex: 1, display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.06)", minWidth: 0 }}>
                   {(() => {
                     const activeInq = sellerInquiries.find((i) => i.id === activeInquiryId);
                     if (!activeInq) {
                       return (
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-dim)", gap: "12px" }}>
-                          <span style={{ fontSize: "48px" }}>💬</span>
-                          <div style={{ fontSize: "15px" }}>Select a conversation to start chatting</div>
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", padding: "16px" }}>
+                          <span style={{ fontSize: "52px", marginBottom: "16px" }}>💬</span>
+                          <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-main)", marginBottom: "4px" }}>No Chat Selected</div>
+                          Select a conversation on the left to view messages.
                         </div>
                       );
                     }
+
+                    const { displayName, isOnline } = getChatMetadata(activeInq);
+
                     return (
                       <>
-                        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "12px", background: "rgba(0,0,0,0.05)" }}>
+                        {/* Chat Room Banner */}
+                        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "12px", background: "rgba(255,255,255,0.01)" }}>
                           <button
                             className="chat-back-btn"
                             onClick={() => setActiveInquiryId(null)}
                             style={{
-                              background: "none",
+                              background: "rgba(255,255,255,0.08)",
                               border: "none",
-                              color: "var(--primary)",
-                              fontSize: "14px",
-                              fontWeight: "600",
+                              color: "#fff",
+                              borderRadius: "6px",
+                              padding: "6px 12px",
+                              fontSize: "13px",
                               cursor: "pointer",
-                              padding: "4px 8px 4px 0",
-                              display: "none",
+                              display: "none", // responsive CSS toggles this
                               alignItems: "center",
                               gap: "4px",
+                              marginRight: "6px"
                             }}
                           >
-                            ⬅ Back
+                            ← Back
                           </button>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>{activeInq.buyer?.username?.split("@")[0]}</div>
-                            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                              <span>Listing:</span>
-                              <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "2px 5px", borderRadius: "4px", fontSize: "10.5px", fontWeight: "700" }}>
-                                LPP-{String(activeInq.listing?.id || activeInq.listingId).padStart(5, "0")}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>
+                              {displayName}
+                              <span style={{ fontSize: "11px", color: isOnline ? "#10b981" : "#94a3b8", fontWeight: "500", marginLeft: "8px" }}>
+                                ● {isOnline ? "Online" : "Offline"}
                               </span>
-                              <strong>{activeInq.listing?.title}</strong> (₹{activeInq.listing?.price})
+                            </div>
+                            <div style={{ fontSize: "12.5px", color: "var(--primary)", marginTop: "2px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              Listing: {activeInq.listing?.title} (₹{activeInq.listing?.price})
                             </div>
                           </div>
                         </div>
 
+                        {/* Message History Stream */}
                         <div
                           id={`chat-messages-${activeInq.id}`}
                           style={{
@@ -883,58 +1064,64 @@ export default function Dashboard() {
                             gap: "12px",
                             padding: "20px",
                             overflowY: "auto",
-                            background: "rgba(0,0,0,0.1)",
+                            background: "rgba(0,0,0,0.04)",
                           }}
                         >
-                          {activeInq.messages?.map((msg) => {
-                            const isMe = msg.senderId === user.id;
-                            const hasDoubleTicks = activeInq.status === "READ" || activeInq.status === "REPLIED";
-                            return (
-                              <div key={msg.id} style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignSelf: isMe ? "flex-end" : "flex-start",
-                                maxWidth: "75%",
-                              }}>
-                                <div style={{
-                                  background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7)" : "rgba(120, 120, 120, 0.12)",
-                                  color: isMe ? "#ffffff" : "var(--text-main)",
-                                  border: isMe ? "none" : "1px solid var(--border-glass)",
-                                  padding: "10px 14px",
-                                  borderRadius: isMe ? "16px 16px 2px 16px" : "16px 16px 16px 2px",
-                                  fontSize: "13.5px",
-                                  lineHeight: "1.4",
-                                  boxShadow: isMe ? "0 2px 8px rgba(99, 102, 241, 0.2)" : "none",
-                                }}>
-                                  {msg.text}
-                                </div>
-                                <span style={{
-                                  fontSize: "10px",
-                                  color: "var(--text-dim)",
-                                  marginTop: "4px",
-                                  alignSelf: isMe ? "flex-end" : "flex-start",
+                          {loadingDashboardMessages && dashboardMessages.length === 0 ? (
+                            <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>Loading chat messages...</div>
+                          ) : (
+                            dashboardMessages.map((msg) => {
+                              const isMe = msg.senderId === user.id;
+                              const hasDoubleTicks = activeInq.status === "READ" || activeInq.status === "REPLIED";
+                              return (
+                                <div key={msg.id} style={{
                                   display: "flex",
-                                  alignItems: "center",
-                                  gap: "4px",
+                                  flexDirection: "column",
+                                  alignSelf: isMe ? "flex-end" : "flex-start",
+                                  maxWidth: "75%",
+                                  alignItems: isMe ? "flex-end" : "flex-start"
                                 }}>
-                                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                  {isMe && (
-                                    <span style={{ color: hasDoubleTicks ? "#3b82f6" : "var(--text-dim)", fontWeight: "bold" }}>
-                                      {hasDoubleTicks ? "✓✓" : "✓"}
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                            );
-                          })}
+                                  <div style={{
+                                    background: isMe ? "linear-gradient(135deg, #059669 0%, #10b981 100%)" : "var(--bg-input, rgba(255,255,255,0.08))",
+                                    color: "#ffffff",
+                                    padding: "10px 14px",
+                                    borderRadius: isMe ? "16px 16px 2px 16px" : "16px 16px 16px 2px",
+                                    fontSize: "13.5px",
+                                    lineHeight: "1.45",
+                                    boxShadow: isMe ? "0 4px 12px rgba(16,185,129,0.2)" : "none",
+                                    wordBreak: "break-word"
+                                  }}>
+                                    {msg.text}
+                                  </div>
+                                  <span style={{
+                                    fontSize: "10px",
+                                    color: "var(--text-dim)",
+                                    marginTop: "4px",
+                                    padding: "0 4px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}>
+                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                    {isMe && (
+                                      <span style={{ color: hasDoubleTicks ? "#10b981" : "var(--text-dim)", fontWeight: "bold" }}>
+                                        {hasDoubleTicks ? "✓✓" : "✓"}
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              );
+                            })
+                          )}
                         </div>
 
-                        <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-glass)", background: "rgba(0,0,0,0.05)" }}>
+                        {/* Chat Input Field */}
+                        <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-glass)", background: "rgba(255,255,255,0.01)" }}>
                           <div style={{ display: "flex", gap: "8px" }}>
                             <input
                               type="text"
                               className="reply-input"
-                              style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-glass)", borderRadius: "8px", padding: "10px 14px", color: "var(--text-main)", fontSize: "13.5px" }}
+                              style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-glass)", borderRadius: "24px", padding: "10px 16px", color: "var(--text-main)", fontSize: "13.5px", outline: "none" }}
                               placeholder="Type a message..."
                               value={replyTexts[activeInq.id] || ""}
                               onChange={(e) => setReplyTexts((prev) => ({ ...prev, [activeInq.id]: e.target.value }))}
@@ -946,7 +1133,7 @@ export default function Dashboard() {
                             />
                             <button
                               className="btn btn-primary"
-                              style={{ padding: "0 20px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                              style={{ padding: "0 22px", borderRadius: "24px", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #10b981, #059669)", border: "none" }}
                               onClick={() => handleSendMessage(activeInq.id)}
                             >
                               Send
@@ -991,14 +1178,30 @@ export default function Dashboard() {
                 You haven't sent any messages to sellers yet.
               </div>
             ) : (
-              <div className="chat-split-container" style={{ display: "flex", gap: "20px", height: "550px", background: "var(--bg-card)", border: "1px solid var(--border-glass)", borderRadius: "16px", overflow: "hidden" }}>
-                <div className="chat-sidebar" style={{ width: "320px", borderRight: "1px solid var(--border-glass)", display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.1)" }}>
-                  <div style={{ padding: "16px", borderBottom: "1px solid var(--border-glass)", fontWeight: "600", color: "var(--text-main)" }}>Conversations</div>
+              <div className={`chat-split-container ${activeInquiryId ? "has-active-chat" : ""}`} style={{ display: "flex", gap: "20px", height: "580px", background: "var(--bg-card)", border: "1px solid var(--border-glass)", borderRadius: "20px", overflow: "hidden" }}>
+                {/* Conversations List Sidebar */}
+                <div className="chat-sidebar" style={{ width: "340px", borderRight: "1px solid var(--border-glass)", display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.12)", flexShrink: 0 }}>
+                  <div style={{ padding: "16px", borderBottom: "1px solid var(--border-glass)", fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>Conversations</div>
                   <div style={{ flex: 1, overflowY: "auto" }}>
                     {buyerInquiries.map((inq) => {
                       const isActive = activeInquiryId === inq.id;
-                      const lastMsg = inq.messages?.[inq.messages.length - 1];
-                      const isUnread = lastMsg && lastMsg.senderId !== user.id && inq.status !== "READ";
+                      const lastMsg = inq.latestMessage || inq.messages?.[inq.messages.length - 1];
+                      const hasUnread = inq.unreadCount > 0;
+                      const { displayName, isOnline } = getChatMetadata(inq);
+                      const avatarLetter = displayName.charAt(0).toUpperCase();
+
+                      // Dynamic avatar background gradient
+                      const colors = [
+                        "linear-gradient(135deg, #10b981, #059669)",
+                        "linear-gradient(135deg, #3b82f6, #2563eb)",
+                        "linear-gradient(135deg, #8b5cf6, #7c3aed)",
+                        "linear-gradient(135deg, #ec4899, #db2777)",
+                        "linear-gradient(135deg, #f59e0b, #d97706)",
+                        "linear-gradient(135deg, #ef4444, #dc2626)"
+                      ];
+                      const charCode = displayName.charCodeAt(0) || 0;
+                      const bgGradient = colors[charCode % colors.length];
+
                       return (
                         <div
                           key={inq.id}
@@ -1007,90 +1210,131 @@ export default function Dashboard() {
                             markAsRead(inq.id);
                           }}
                           style={{
-                            padding: "14px 16px",
-                            borderBottom: "1px solid rgba(255,255,255,0.03)",
+                            padding: "12px 16px",
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
                             cursor: "pointer",
-                            background: isActive ? "rgba(99, 102, 241, 0.08)" : "transparent",
-                            transition: "var(--transition)",
+                            background: isActive ? "rgba(255, 255, 255, 0.06)" : "transparent",
                             display: "flex",
                             alignItems: "center",
                             gap: "12px",
+                            transition: "background 0.2s ease",
+                            position: "relative"
                           }}
                         >
-                          <div style={{
-                            width: "38px",
-                            height: "38px",
-                            borderRadius: "50%",
-                            background: isActive ? "linear-gradient(135deg, #6366f1, #ec4899)" : "linear-gradient(135deg, #374151, #4b5563)",
-                            color: "#ffffff",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontWeight: "700",
-                            fontSize: "14px",
-                            textTransform: "uppercase",
-                            flexShrink: 0,
-                          }}>
-                            {inq.listing?.seller?.username ? inq.listing.seller.username.charAt(0) : "S"}
+                          {/* Avatar with online status */}
+                          <div style={{ position: "relative", flexShrink: 0 }}>
+                            <div
+                              style={{
+                                width: "46px",
+                                height: "46px",
+                                borderRadius: "50%",
+                                background: bgGradient,
+                                color: "#ffffff",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: "700",
+                                fontSize: "16px",
+                              }}
+                            >
+                              {avatarLetter}
+                            </div>
+                            <div
+                              style={{
+                                position: "absolute",
+                                bottom: "1px",
+                                right: "1px",
+                                width: "11px",
+                                height: "11px",
+                                borderRadius: "50%",
+                                background: isOnline ? "#10b981" : "#94a3b8",
+                                border: "2px solid var(--bg-card, #141422)",
+                                boxShadow: "0 0 4px rgba(0,0,0,0.5)"
+                              }}
+                            />
                           </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                              <span style={{ fontSize: "13.5px", fontWeight: isUnread ? "700" : "600", color: isUnread ? "var(--text-main)" : "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {inq.listing?.seller?.username?.split("@")[0]}
-                              </span>
-                              {(() => {
-                                const unreadCount = (() => {
-                                  if (inq.status === "READ") return 0;
-                                  const msgs = inq.messages || [];
-                                  let lastMyMsgIndex = -1;
-                                  for (let i = msgs.length - 1; i >= 0; i--) {
-                                    if (msgs[i].senderId === user.id) {
-                                      lastMyMsgIndex = i;
-                                      break;
-                                    }
-                                  }
-                                  let count = 0;
-                                  for (let i = lastMyMsgIndex + 1; i < msgs.length; i++) {
-                                    if (msgs[i].senderId !== user.id) {
-                                      count++;
-                                    }
-                                  }
-                                  return count;
-                                })();
 
-                                if (unreadCount > 0) {
-                                  return (
-                                    <span style={{
-                                      background: "#ef4444",
-                                      color: "#ffffff",
-                                      borderRadius: "10px",
-                                      padding: "2px 6px",
-                                      fontSize: "10px",
-                                      fontWeight: "700",
-                                      minWidth: "18px",
-                                      textAlign: "center",
-                                      display: "inline-block",
-                                      lineHeight: "1.2",
-                                      flexShrink: 0,
-                                    }}>
-                                      {unreadCount}
-                                    </span>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-                            <div style={{ fontSize: "12px", color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}>
-                              <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "1px 4px", borderRadius: "3px", fontSize: "9.5px", fontWeight: "700", flexShrink: 0 }}>
-                                LPP-{String(inq.listing?.id || inq.listingId).padStart(5, "0")}
+                          {/* Info Column */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "3px" }}>
+                              <span
+                                style={{
+                                  fontSize: "14px",
+                                  fontWeight: hasUnread ? "700" : "600",
+                                  color: hasUnread ? "var(--text-main)" : "rgba(255,255,255,0.85)",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  marginRight: "6px"
+                                }}
+                              >
+                                {displayName}
                               </span>
-                              <span>{inq.listing?.title}</span>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  color: hasUnread ? "#10b981" : "var(--text-dim)",
+                                  fontWeight: hasUnread ? "700" : "normal",
+                                  whiteSpace: "nowrap",
+                                  flexShrink: 0
+                                }}
+                              >
+                                {lastMsg ? formatMsgTime(lastMsg.createdAt) : ""}
+                              </span>
                             </div>
-                            {lastMsg && (
-                              <div style={{ fontSize: "12px", color: isUnread ? "var(--text-main)" : "var(--text-dim)", fontStyle: isUnread ? "normal" : "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: "2px" }}>
-                                {lastMsg.text}
-                              </div>
-                            )}
+
+                            {/* Product tag */}
+                            <div style={{ fontSize: "11.5px", color: "var(--primary)", fontWeight: "500", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "2px" }}>
+                              🏷️ {inq.listing?.title || "Product Listing"}
+                            </div>
+
+                            {/* Message Preview */}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span
+                                style={{
+                                  fontSize: "12.5px",
+                                  color: hasUnread ? "rgba(255,255,255,0.9)" : "var(--text-muted)",
+                                  fontWeight: hasUnread ? "600" : "normal",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  flex: 1
+                                }}
+                              >
+                                {lastMsg ? (
+                                  <>
+                                    {getMessageTypeIcon(lastMsg.text)}
+                                    {lastMsg.senderId === user.id ? "You: " : ""}
+                                    {lastMsg.text}
+                                  </>
+                                ) : (
+                                  "No messages yet"
+                                )}
+                              </span>
+
+                              {/* Unread count badge */}
+                              {hasUnread && (
+                                <span
+                                  style={{
+                                    background: "#10b981",
+                                    color: "#ffffff",
+                                    borderRadius: "50%",
+                                    minWidth: "19px",
+                                    height: "19px",
+                                    padding: "0 5px",
+                                    fontSize: "10.5px",
+                                    fontWeight: "700",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    flexShrink: 0,
+                                    marginLeft: "6px"
+                                  }}
+                                >
+                                  {inq.unreadCount}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -1098,32 +1342,59 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="chat-window" style={{ flex: 1, display: "flex", flexDirection: "column", background: "transparent" }}>
+                {/* Right Chat Message Pane */}
+                <div className="chat-window" style={{ flex: 1, display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.06)", minWidth: 0 }}>
                   {(() => {
                     const activeInq = buyerInquiries.find((i) => i.id === activeInquiryId);
                     if (!activeInq) {
                       return (
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-dim)", gap: "12px" }}>
-                          <span style={{ fontSize: "48px" }}>💬</span>
-                          <div style={{ fontSize: "15px" }}>Select a conversation to start chatting</div>
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", padding: "16px" }}>
+                          <span style={{ fontSize: "52px", marginBottom: "16px" }}>💬</span>
+                          <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-main)", marginBottom: "4px" }}>No Chat Selected</div>
+                          Select a conversation on the left to view messages.
                         </div>
                       );
                     }
+
+                    const { displayName, isOnline } = getChatMetadata(activeInq);
+
                     return (
                       <>
-                        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-glass)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,0.05)" }}>
-                          <div>
-                            <div style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>Seller: {activeInq.listing?.seller?.username}</div>
-                            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                              <span>Listing:</span>
-                              <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "2px 5px", borderRadius: "4px", fontSize: "10.5px", fontWeight: "700" }}>
-                                LPP-{String(activeInq.listing?.id || activeInq.listingId).padStart(5, "0")}
+                        {/* Chat Room Banner */}
+                        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "12px", background: "rgba(255,255,255,0.01)" }}>
+                          <button
+                            className="chat-back-btn"
+                            onClick={() => setActiveInquiryId(null)}
+                            style={{
+                              background: "rgba(255,255,255,0.08)",
+                              border: "none",
+                              color: "#fff",
+                              borderRadius: "6px",
+                              padding: "6px 12px",
+                              fontSize: "13px",
+                              cursor: "pointer",
+                              display: "none", // responsive CSS toggles this
+                              alignItems: "center",
+                              gap: "4px",
+                              marginRight: "6px"
+                            }}
+                          >
+                            ← Back
+                          </button>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>
+                              {displayName}
+                              <span style={{ fontSize: "11px", color: isOnline ? "#10b981" : "#94a3b8", fontWeight: "500", marginLeft: "8px" }}>
+                                ● {isOnline ? "Online" : "Offline"}
                               </span>
-                              <strong>{activeInq.listing?.title}</strong>
+                            </div>
+                            <div style={{ fontSize: "12.5px", color: "var(--primary)", marginTop: "2px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              Listing: {activeInq.listing?.title} (₹{activeInq.listing?.price})
                             </div>
                           </div>
                         </div>
 
+                        {/* Message History Stream */}
                         <div
                           id={`chat-messages-${activeInq.id}`}
                           style={{
@@ -1133,58 +1404,64 @@ export default function Dashboard() {
                             gap: "12px",
                             padding: "20px",
                             overflowY: "auto",
-                            background: "rgba(0,0,0,0.1)",
+                            background: "rgba(0,0,0,0.04)",
                           }}
                         >
-                          {activeInq.messages?.map((msg) => {
-                            const isMe = msg.senderId === user.id;
-                            const hasDoubleTicks = activeInq.status === "READ" || activeInq.status === "REPLIED";
-                            return (
-                              <div key={msg.id} style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignSelf: isMe ? "flex-end" : "flex-start",
-                                maxWidth: "75%",
-                              }}>
-                                <div style={{
-                                  background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7)" : "rgba(120, 120, 120, 0.12)",
-                                  color: isMe ? "#ffffff" : "var(--text-main)",
-                                  border: isMe ? "none" : "1px solid var(--border-glass)",
-                                  padding: "10px 14px",
-                                  borderRadius: isMe ? "16px 16px 2px 16px" : "16px 16px 16px 2px",
-                                  fontSize: "13.5px",
-                                  lineHeight: "1.4",
-                                  boxShadow: isMe ? "0 2px 8px rgba(99, 102, 241, 0.2)" : "none",
-                                }}>
-                                  {msg.text}
-                                </div>
-                                <span style={{
-                                  fontSize: "10px",
-                                  color: "var(--text-dim)",
-                                  marginTop: "4px",
-                                  alignSelf: isMe ? "flex-end" : "flex-start",
+                          {loadingDashboardMessages && dashboardMessages.length === 0 ? (
+                            <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>Loading chat messages...</div>
+                          ) : (
+                            dashboardMessages.map((msg) => {
+                              const isMe = msg.senderId === user.id;
+                              const hasDoubleTicks = activeInq.status === "READ" || activeInq.status === "REPLIED";
+                              return (
+                                <div key={msg.id} style={{
                                   display: "flex",
-                                  alignItems: "center",
-                                  gap: "4px",
+                                  flexDirection: "column",
+                                  alignSelf: isMe ? "flex-end" : "flex-start",
+                                  maxWidth: "75%",
+                                  alignItems: isMe ? "flex-end" : "flex-start"
                                 }}>
-                                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                  {isMe && (
-                                    <span style={{ color: hasDoubleTicks ? "#3b82f6" : "var(--text-dim)", fontWeight: "bold" }}>
-                                      {hasDoubleTicks ? "✓✓" : "✓"}
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                            );
-                          })}
+                                  <div style={{
+                                    background: isMe ? "linear-gradient(135deg, #059669 0%, #10b981 100%)" : "var(--bg-input, rgba(255,255,255,0.08))",
+                                    color: "#ffffff",
+                                    padding: "10px 14px",
+                                    borderRadius: isMe ? "16px 16px 2px 16px" : "16px 16px 16px 2px",
+                                    fontSize: "13.5px",
+                                    lineHeight: "1.45",
+                                    boxShadow: isMe ? "0 4px 12px rgba(16,185,129,0.2)" : "none",
+                                    wordBreak: "break-word"
+                                  }}>
+                                    {msg.text}
+                                  </div>
+                                  <span style={{
+                                    fontSize: "10px",
+                                    color: "var(--text-dim)",
+                                    marginTop: "4px",
+                                    padding: "0 4px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}>
+                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                    {isMe && (
+                                      <span style={{ color: hasDoubleTicks ? "#10b981" : "var(--text-dim)", fontWeight: "bold" }}>
+                                        {hasDoubleTicks ? "✓✓" : "✓"}
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              );
+                            })
+                          )}
                         </div>
 
-                        <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-glass)", background: "rgba(0,0,0,0.05)" }}>
+                        {/* Chat Input Field */}
+                        <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-glass)", background: "rgba(255,255,255,0.01)" }}>
                           <div style={{ display: "flex", gap: "8px" }}>
                             <input
                               type="text"
                               className="reply-input"
-                              style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-glass)", borderRadius: "8px", padding: "10px 14px", color: "var(--text-main)", fontSize: "13.5px" }}
+                              style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-glass)", borderRadius: "24px", padding: "10px 16px", color: "var(--text-main)", fontSize: "13.5px", outline: "none" }}
                               placeholder="Type a message..."
                               value={replyTexts[activeInq.id] || ""}
                               onChange={(e) => setReplyTexts((prev) => ({ ...prev, [activeInq.id]: e.target.value }))}
@@ -1196,7 +1473,7 @@ export default function Dashboard() {
                             />
                             <button
                               className="btn btn-primary"
-                              style={{ padding: "0 20px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                              style={{ padding: "0 22px", borderRadius: "24px", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #10b981, #059669)", border: "none" }}
                               onClick={() => handleSendMessage(activeInq.id)}
                             >
                               Send
