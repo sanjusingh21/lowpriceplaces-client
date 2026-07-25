@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/api";
+import ProductCard from "@/components/ProductCard";
+import { io } from "socket.io-client";
 
 export default function Dashboard() {
   const params = useParams();
@@ -41,7 +43,78 @@ export default function Dashboard() {
 
   const activeTabParam = params.tab?.[0] || "";
 
-  const [dashboardTab, setDashboardTab] = useState("my-listings");
+  // Dynamic active tab — initialized from URL param or defaults to "profile"
+  const [dashboardTab, setDashboardTab] = useState(activeTabParam || "profile");
+
+  const [dashboardMessages, setDashboardMessages] = useState([]);
+  const [loadingDashboardMessages, setLoadingDashboardMessages] = useState(false);
+  const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
+
+  // Fetch message history for active dashboard chat
+  useEffect(() => {
+    if (!user || !activeInquiryId) {
+      setDashboardMessages([]);
+      return;
+    }
+
+    let isMounted = true;
+    async function loadMessages() {
+      setLoadingDashboardMessages(true);
+      try {
+        const data = await api.getInquiryMessages(activeInquiryId);
+        if (isMounted) {
+          setDashboardMessages(data);
+          // Mark as read
+          await api.markInquiryRead(activeInquiryId);
+          fetchInquiries();
+        }
+      } catch (err) {
+        console.error("Failed to load messages in dashboard:", err);
+      } finally {
+        if (isMounted) {
+          setLoadingDashboardMessages(false);
+        }
+      }
+    }
+
+    loadMessages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeInquiryId, user]);
+
+  // Socket.IO real-time listener for active dashboard chat
+  useEffect(() => {
+    if (!user || !activeInquiryId) return;
+
+    const socket = io(imageServer);
+    socket.emit("join_room", activeInquiryId);
+
+    socket.on("receive_message", (newMessage) => {
+      fetchInquiries();
+      if (newMessage && newMessage.inquiryId === activeInquiryId) {
+        setDashboardMessages((prev) => {
+          if (prev.some((m) => m.id === newMessage.id)) return prev;
+          return [...prev, newMessage];
+        });
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user, activeInquiryId]);
+
+  // Scroll active chat messages to bottom
+  useEffect(() => {
+    if (activeInquiryId) {
+      const element = document.getElementById(`chat-messages-${activeInquiryId}`);
+      if (element) {
+        element.scrollTop = element.scrollHeight;
+      }
+    }
+  }, [dashboardMessages, activeInquiryId]);
 
   // Sync route param with state tab
   useEffect(() => {
@@ -49,38 +122,35 @@ export default function Dashboard() {
     if (activeTabParam) {
       setDashboardTab(activeTabParam);
     } else {
-      // Default fallback tabs
-      if (user.role === "SELLER") {
-        setDashboardTab("my-listings");
-        router.replace("/dashboard/my-listings");
-      } else if (user.role === "BUYER") {
-        setDashboardTab("inquiries");
-        router.replace("/dashboard/inquiries");
-      } else if (user.role === "ADMIN") {
-        setDashboardTab("cities");
-        router.replace("/dashboard/cities");
-      }
+      setDashboardTab("profile");
     }
   }, [activeTabParam, user]);
 
-  // Load Dashboard Data
+  // Load Dashboard Data (Profile & Bookmarks focus)
   const loadDashboardData = async () => {
     if (!user) return;
-    if (user.role === "SELLER") {
-      fetchSellerListings();
-      fetchInquiries();
-    } else if (user.role === "BUYER") {
-      fetchInquiries();
+    try {
       fetchSavedListings();
-      fetchListings(); // Load catalog items so bookmarks list renders titles/prices
-    } else if (user.role === "ADMIN") {
-      // Admin loads configured cities
-      try {
-        const data = await api.getCities();
-        if (data) setCitiesList(data);
-      } catch (e) {
-        console.error(e);
+      fetchListings();
+      const prof = await api.getProfile();
+      if (prof) {
+        setProfileForm({
+          fullName: prof.fullName || user.username?.split("@")[0] || "",
+          displayName: prof.displayName || user.username?.split("@")[0] || "",
+          professionalTitle: prof.professionalTitle || "",
+          yearsOfExperience: prof.yearsOfExperience !== null && prof.yearsOfExperience !== undefined ? String(prof.yearsOfExperience) : "",
+          businessCategory: prof.businessCategory || "",
+          aboutSeller: prof.aboutSeller || "",
+          email: prof.email || user.email || user.username || "",
+          mobileNumber: prof.mobileNumber || "",
+          whatsAppNumber: prof.whatsAppNumber || "",
+          showWhatsapp: prof.showWhatsapp !== false,
+          showPhone: prof.showPhone !== false,
+          allowChat: prof.allowChat !== false
+        });
       }
+    } catch (e) {
+      console.error("Failed to load profile:", e);
     }
   };
 
@@ -112,16 +182,46 @@ export default function Dashboard() {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newPrice, setNewPrice] = useState("");
+  const [newPriceMax, setNewPriceMax] = useState("");
   const [newDiscount, setNewDiscount] = useState("0");
   const [newLocation, setNewLocation] = useState("");
   const [newWhatsapp, setNewWhatsapp] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newSubCategory, setNewSubCategory] = useState("");
+  const [newListingType, setNewListingType] = useState("SALES");
   const [newImageFiles, setNewImageFiles] = useState([]);
   const [toast, setToast] = useState(null);
   const [showAddLocDropdown, setShowAddLocDropdown] = useState(false);
   const [addLocSuggestions, setAddLocSuggestions] = useState([]);
+
+  // Seller Profile Tab state
+  const [profileForm, setProfileForm] = useState({
+    fullName: "",
+    displayName: "",
+    professionalTitle: "",
+    yearsOfExperience: "",
+    businessCategory: "",
+    aboutSeller: "",
+    email: "",
+    mobileNumber: "",
+    whatsAppNumber: ""
+  });
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    if (!user) return;
+    setSavingProfile(true);
+    try {
+      await api.updateProfile(profileForm);
+      triggerToast("Seller Profile updated successfully!", "success");
+    } catch (err) {
+      triggerToast(err.message, "error");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   // Auto detect listing coordinates
   const autoDetectListingLocation = () => {
@@ -194,6 +294,8 @@ export default function Dashboard() {
     formData.append("title", newTitle);
     formData.append("description", newDesc);
     formData.append("price", newPrice);
+    formData.append("priceMax", newPriceMax);
+    formData.append("listingType", newListingType);
     formData.append("discountPercent", newDiscount || 0);
     formData.append("location", newLocation);
     formData.append("whatsappNumber", newWhatsapp);
@@ -213,6 +315,8 @@ export default function Dashboard() {
       setNewTitle("");
       setNewDesc("");
       setNewPrice("");
+      setNewPriceMax("");
+      setNewListingType("SALES");
       setNewDiscount("0");
       setNewLocation("");
       setNewWhatsapp("");
@@ -239,7 +343,7 @@ export default function Dashboard() {
   // Chat inquiries methods
   const markAsRead = async (id) => {
     try {
-      await api.replyToInquiry(id, ""); // Triggers read flag
+      await api.markInquiryRead(id);
       fetchInquiries();
     } catch (e) {
       console.error(e);
@@ -251,19 +355,65 @@ export default function Dashboard() {
     if (!text.trim()) return;
 
     try {
-      await api.replyToInquiry(inqId, text);
+      const newMsg = await api.replyToInquiry(inqId, text);
+      setDashboardMessages((prev) => [...prev, newMsg]);
       setReplyTexts((prev) => ({ ...prev, [inqId]: "" }));
       fetchInquiries();
-      // Scroll to bottom
-      setTimeout(() => {
-        const element = document.getElementById(`chat-messages-${inqId}`);
-        if (element) {
-          element.scrollTop = element.scrollHeight;
-        }
-      }, 100);
     } catch (e) {
       alert("Error sending message: " + e.message);
     }
+  };
+
+  // Helper: Get message file/media type icon
+  const getMessageTypeIcon = (text = "") => {
+    const lower = text.toLowerCase().trim();
+    if (lower.match(/\.(jpeg|jpg|gif|png|webp)/) || lower.includes("[image]") || lower.includes("[photo]")) {
+      return "📷 ";
+    }
+    if (lower.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)/) || lower.includes("[pdf]") || lower.includes("[document]")) {
+      return "📄 ";
+    }
+    if (lower.match(/\.(mp4|mov|avi|mkv|webm)/) || lower.includes("[video]")) {
+      return "🎥 ";
+    }
+    if (lower.match(/\.(mp3|wav|ogg|m4a|aac)/) || lower.includes("[audio]") || lower.includes("[voice]")) {
+      return "🎵 ";
+    }
+    return null;
+  };
+
+  // Helper: Format message time like WhatsApp
+  const formatMsgTime = (timestamp) => {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    const now = new Date();
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    }
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
+  // Helper: Get Chat Metadata (name, phone, online)
+  const getChatMetadata = (inq) => {
+    const isSeller = user?.role === "SELLER";
+    const displayName = isSeller
+      ? (inq.buyer?.username?.split("@")[0] || inq.buyer?.phoneNumber || "Buyer")
+      : (inq.listing?.seller?.username?.split("@")[0] || inq.listing?.seller?.phoneNumber || "Seller");
+    
+    const phoneNumber = isSeller
+      ? (inq.buyer?.phoneNumber || inq.buyer?.whatsappNumber || "")
+      : (inq.listing?.seller?.phoneNumber || inq.listing?.seller?.whatsappNumber || "");
+
+    const isOnline = isSeller
+      ? (inq.buyerId % 3 !== 0)
+      : (inq.listing?.sellerId % 3 !== 0);
+
+    return { displayName, phoneNumber, isOnline };
   };
 
   // Admin Cities state
@@ -305,99 +455,101 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
+  // Use URL param directly — available immediately, no render-cycle delay
+  const activeTab = activeTabParam || dashboardTab;
+  const isBookmarksTab = activeTab === "saved" || activeTab === "bookmarks";
+  const isChatTab = activeTab === "leads" || activeTab === "inquiries";
+  const isProfileTab = activeTab === "profile" || (!isBookmarksTab && !isChatTab && activeTab !== "cities");
 
   return (
-    <div className="dashboard-layout">
-      {/* Mobile Direct Navigation Tabs */}
-      <div className="mobile-dashboard-tabs" style={{ display: "none", marginBottom: "16px", gap: "8px", width: "100%" }}>
-        {user.role === "SELLER" && (
-          <>
-            <button
-              className={`mobile-tab-btn ${dashboardTab === "my-listings" ? "active" : ""}`}
-              onClick={() => router.push("/dashboard/my-listings")}
-            >
-              📦 Listings
-            </button>
-            <button
-              className={`mobile-tab-btn ${dashboardTab === "add-listing" ? "active" : ""}`}
-              onClick={() => router.push("/dashboard/add-listing")}
-            >
-              ➕ Post
-            </button>
-            <button
-              className={`mobile-tab-btn ${dashboardTab === "leads" ? "active" : ""}`}
-              onClick={() => router.push("/dashboard/leads")}
-            >
-              💬 Messages ({sellerInquiries.length})
-            </button>
-          </>
-        )}
-        {user.role === "BUYER" && (
-          <>
-            <button
-              className={`mobile-tab-btn ${dashboardTab === "inquiries" ? "active" : ""}`}
-              onClick={() => router.push("/dashboard/inquiries")}
-            >
-              ✉️ Inquiries ({buyerInquiries.length})
-            </button>
-            <button
-              className={`mobile-tab-btn ${dashboardTab === "saved" || dashboardTab === "bookmarks" ? "active" : ""}`}
-              onClick={() => router.push("/dashboard/bookmarks")}
-            >
-              ⭐ Saved
-            </button>
-          </>
-        )}
-        {user.role === "ADMIN" && (
-          <>
-            <button
-              className={`mobile-tab-btn ${dashboardTab === "cities" ? "active" : ""}`}
-              onClick={() => router.push("/dashboard/cities")}
-            >
-              🌆 Cities
-            </button>
-          </>
+    <div className={`dashboard-layout ${isBookmarksTab || isChatTab || isProfileTab ? "full-width" : ""}`}>
+      {/* Dynamic Single Navigation Tab Header */}
+      <div
+        className="mobile-dashboard-tabs"
+        style={{
+          display: "flex",
+          marginBottom: "20px",
+          width: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        {isBookmarksTab ? (
+          <button
+            className="mobile-tab-btn active"
+            onClick={() => router.push("/dashboard/bookmarks")}
+            style={{
+              flex: "0 1 240px",
+              justifyContent: "center",
+              fontWeight: "700",
+              fontSize: "15px",
+              padding: "12px 24px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            ❤️ Shortlist
+          </button>
+        ) : (
+          <button
+            className="mobile-tab-btn active"
+            onClick={() => router.push("/dashboard/profile")}
+            style={{
+              flex: "0 1 240px",
+              justifyContent: "center",
+              fontWeight: "700",
+              fontSize: "15px",
+              padding: "12px 24px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            👤 Profile
+          </button>
         )}
       </div>
 
-      <aside className="dashboard-sidebar">
-        {user.role === "SELLER" && (
-          <>
-            <Link href="/dashboard/my-listings" className={`sidebar-tab ${dashboardTab === "my-listings" ? "active" : ""}`}>
-              📦 My Listings
-            </Link>
-            <Link href="/dashboard/add-listing" className={`sidebar-tab ${dashboardTab === "add-listing" ? "active" : ""}`}>
-              ➕ Post New Product
-            </Link>
-            <Link href="/dashboard/leads" className={`sidebar-tab ${dashboardTab === "leads" ? "active" : ""}`}>
-              💬 Buyer Messages ({sellerInquiries.length})
-            </Link>
-          </>
-        )}
+      {/* Sidebar — hidden on chat/profile page */}
+      {!isBookmarksTab && !isChatTab && !isProfileTab && (
+        <aside className="dashboard-sidebar">
+          {user.role === "SELLER" && (
+            <>
+              <Link href="/dashboard/my-listings" className={`sidebar-tab ${dashboardTab === "my-listings" ? "active" : ""}`}>
+                📦 My Listings
+              </Link>
+              <Link href="/dashboard/add-listing" className={`sidebar-tab ${dashboardTab === "add-listing" ? "active" : ""}`}>
+                ➕ Post New Product
+              </Link>
+              <Link href="/dashboard/leads" className={`sidebar-tab ${dashboardTab === "leads" ? "active" : ""}`}>
+                💬 Buyer Messages ({sellerInquiries.length})
+              </Link>
+              <Link href="/dashboard/profile" className={`sidebar-tab ${dashboardTab === "profile" ? "active" : ""}`}>
+                👤 Seller Profile
+              </Link>
+            </>
+          )}
 
-        {user.role === "BUYER" && (
-          <>
-            <Link href="/dashboard/inquiries" className={`sidebar-tab ${dashboardTab === "inquiries" ? "active" : ""}`}>
-              ✉️ Sent Message Inquiries ({buyerInquiries.length})
-            </Link>
-            <Link href="/dashboard/bookmarks" className={`sidebar-tab ${dashboardTab === "saved" || dashboardTab === "bookmarks" ? "active" : ""}`}>
-              ⭐ Bookmarks & Saved
-            </Link>
-          </>
-        )}
+          {user.role === "BUYER" && (
+            <>
+              <Link href="/dashboard/inquiries" className={`sidebar-tab ${dashboardTab === "inquiries" ? "active" : ""}`}>
+                ✉️ Sent Message Inquiries ({buyerInquiries.length})
+              </Link>
+            </>
+          )}
 
-        {user.role === "ADMIN" && (
-          <>
-            <Link href="/dashboard/cities" className={`sidebar-tab ${dashboardTab === "cities" ? "active" : ""}`}>
-              🌆 Manage Cities
-            </Link>
-          </>
-        )}
-      </aside>
+          {user.role === "ADMIN" && (
+            <>
+              <Link href="/dashboard/cities" className={`sidebar-tab ${dashboardTab === "cities" ? "active" : ""}`}>
+                🌆 Manage Cities
+              </Link>
+            </>
+          )}
+        </aside>
+      )}
 
-      <section className="dashboard-content">
+      <section className="dashboard-content" style={(isBookmarksTab || isChatTab || isProfileTab) ? { gridColumn: "span 2" } : {}}>
         {/* Tab: My Listings (Seller) */}
         {user.role === "SELLER" && dashboardTab === "my-listings" && (
           <div>
@@ -407,9 +559,16 @@ export default function Dashboard() {
                 const photos = item.imagePath ? item.imagePath.split(",") : [];
                 const coverImage = photos[0] || "";
                 const hasDiscount = item.discountPercent > 0;
-                const finalPrice = hasDiscount
-                  ? (item.price * (1 - item.discountPercent / 100)).toFixed(0)
-                  : item.price;
+                const priceFrom = item.price;
+                const finalPriceFrom = hasDiscount
+                  ? (priceFrom * (1 - item.discountPercent / 100)).toFixed(0)
+                  : priceFrom;
+
+                const priceTo = item.priceMax;
+                const finalPriceTo = priceTo && hasDiscount
+                  ? (priceTo * (1 - item.discountPercent / 100)).toFixed(0)
+                  : priceTo;
+
                 return (
                   <div
                     key={item.id}
@@ -443,11 +602,17 @@ export default function Dashboard() {
                         <div className="card-prices" style={{ marginBottom: "8px" }}>
                           {hasDiscount ? (
                             <>
-                              <span className="price-discounted" style={{ fontSize: "15px", fontWeight: "700" }}>₹{finalPrice}</span>
-                              <span className="price-original" style={{ fontSize: "11px", textDecoration: "line-through", color: "var(--text-dim)", marginLeft: "6px" }}>₹{item.price}</span>
+                              <span className="price-discounted" style={{ fontSize: "15px", fontWeight: "700" }}>
+                                ₹{finalPriceFrom}{finalPriceTo ? ` - ₹${finalPriceTo}` : ""}
+                              </span>
+                              <span className="price-original" style={{ fontSize: "11px", textDecoration: "line-through", color: "var(--text-dim)", marginLeft: "6px" }}>
+                                ₹{priceFrom}{priceTo ? ` - ₹${priceTo}` : ""}
+                              </span>
                             </>
                           ) : (
-                            <span className="price-discounted" style={{ fontSize: "15px", fontWeight: "700" }}>₹{item.price}</span>
+                            <span className="price-discounted" style={{ fontSize: "15px", fontWeight: "700" }}>
+                              ₹{priceFrom}{priceTo ? ` - ₹${priceTo}` : ""}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -504,6 +669,20 @@ export default function Dashboard() {
               </div>
 
               <div className="form-group">
+                <label className="form-label">Listing Type</label>
+                <select
+                  className="form-select"
+                  value={newListingType}
+                  onChange={(e) => setNewListingType(e.target.value)}
+                  required
+                >
+                  <option value="SALES">🛍️ Sales (New products)</option>
+                  <option value="SERVICES">💼 Work & Services</option>
+                  <option value="SECONDHAND">♻️ Second-Hand (Used items)</option>
+                </select>
+              </div>
+
+              <div className="form-group">
                 <label className="form-label">Root Category</label>
                 <select
                   className="form-select"
@@ -534,8 +713,27 @@ export default function Dashboard() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Price (₹ INR)</label>
-                <input type="number" className="form-input" placeholder="e.g. 499" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} required />
+                <label className="form-label">Price Range (₹ INR)</label>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                  <input
+                    type="number"
+                    className="form-input"
+                    placeholder="From (e.g. 499)"
+                    value={newPrice}
+                    onChange={(e) => setNewPrice(e.target.value)}
+                    required
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ color: "var(--text-muted)" }}>to</span>
+                  <input
+                    type="number"
+                    className="form-input"
+                    placeholder="To (e.g. 999)"
+                    value={newPriceMax}
+                    onChange={(e) => setNewPriceMax(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -614,20 +812,56 @@ export default function Dashboard() {
         {/* Tab: Leads Inbox (Seller) */}
         {user.role === "SELLER" && dashboardTab === "leads" && (
           <div>
-            <h2 style={{ marginBottom: "16px" }}>Buyer Inquiries & Leads Inbox</h2>
+            {/* Chat Header */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: "14px",
+              padding: "16px 0 20px",
+              borderBottom: "1px solid var(--border-glass)",
+              marginBottom: "20px",
+            }}>
+              <button
+                onClick={() => router.back()}
+                style={{
+                  background: "var(--bg-input)", border: "1px solid var(--border-glass)",
+                  borderRadius: "10px", padding: "8px 14px", color: "var(--text-main)",
+                  cursor: "pointer", fontSize: "14px", fontWeight: "600",
+                  display: "flex", alignItems: "center", gap: "6px",
+                }}
+              >← Back</button>
+              <div>
+                <h1 style={{ fontSize: "20px", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>💬 Messages</h1>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "2px 0 0" }}>{sellerInquiries.length} conversations</p>
+              </div>
+            </div>
             {sellerInquiries.length === 0 ? (
               <div className="glass-panel" style={{ padding: "30px", textAlign: "center", color: "var(--text-muted)" }}>
                 No inquiries sent by buyers yet. Keep advertising!
               </div>
             ) : (
-              <div className={`chat-split-container ${activeInquiryId ? "has-active-chat" : ""}`} style={{ display: "flex", gap: "20px", height: "550px", background: "var(--bg-card)", border: "1px solid var(--border-glass)", borderRadius: "16px", overflow: "hidden" }}>
-                <div className="chat-sidebar" style={{ width: "320px", borderRight: "1px solid var(--border-glass)", display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.1)" }}>
-                  <div style={{ padding: "16px", borderBottom: "1px solid var(--border-glass)", fontWeight: "600", color: "var(--text-main)" }}>Conversations</div>
+              <div className={`chat-split-container ${activeInquiryId ? "has-active-chat" : ""}`} style={{ display: "flex", gap: "20px", height: "580px", background: "var(--bg-card)", border: "1px solid var(--border-glass)", borderRadius: "20px", overflow: "hidden" }}>
+                {/* Conversations List Sidebar */}
+                <div className="chat-sidebar" style={{ width: "340px", borderRight: "1px solid var(--border-glass)", display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.12)", flexShrink: 0 }}>
+                  <div style={{ padding: "16px", borderBottom: "1px solid var(--border-glass)", fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>Conversations</div>
                   <div style={{ flex: 1, overflowY: "auto" }}>
                     {sellerInquiries.map((inq) => {
                       const isActive = activeInquiryId === inq.id;
-                      const lastMsg = inq.messages?.[inq.messages.length - 1];
-                      const isUnread = lastMsg && lastMsg.senderId !== user.id && inq.status !== "READ";
+                      const lastMsg = inq.latestMessage || inq.messages?.[inq.messages.length - 1];
+                      const hasUnread = inq.unreadCount > 0;
+                      const { displayName, isOnline } = getChatMetadata(inq);
+                      const avatarLetter = displayName.charAt(0).toUpperCase();
+
+                      // Dynamic avatar background gradient
+                      const colors = [
+                        "linear-gradient(135deg, #10b981, #059669)",
+                        "linear-gradient(135deg, #3b82f6, #2563eb)",
+                        "linear-gradient(135deg, #8b5cf6, #7c3aed)",
+                        "linear-gradient(135deg, #ec4899, #db2777)",
+                        "linear-gradient(135deg, #f59e0b, #d97706)",
+                        "linear-gradient(135deg, #ef4444, #dc2626)"
+                      ];
+                      const charCode = displayName.charCodeAt(0) || 0;
+                      const bgGradient = colors[charCode % colors.length];
+
                       return (
                         <div
                           key={inq.id}
@@ -636,90 +870,131 @@ export default function Dashboard() {
                             markAsRead(inq.id);
                           }}
                           style={{
-                            padding: "14px 16px",
-                            borderBottom: "1px solid rgba(255,255,255,0.03)",
+                            padding: "12px 16px",
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
                             cursor: "pointer",
-                            background: isActive ? "rgba(99, 102, 241, 0.08)" : "transparent",
-                            transition: "var(--transition)",
+                            background: isActive ? "rgba(255, 255, 255, 0.06)" : "transparent",
                             display: "flex",
                             alignItems: "center",
                             gap: "12px",
+                            transition: "background 0.2s ease",
+                            position: "relative"
                           }}
                         >
-                          <div style={{
-                            width: "38px",
-                            height: "38px",
-                            borderRadius: "50%",
-                            background: isActive ? "linear-gradient(135deg, #6366f1, #ec4899)" : "linear-gradient(135deg, #374151, #4b5563)",
-                            color: "#ffffff",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontWeight: "700",
-                            fontSize: "14px",
-                            textTransform: "uppercase",
-                            flexShrink: 0,
-                          }}>
-                            {inq.buyer?.username ? inq.buyer.username.charAt(0) : "U"}
+                          {/* Avatar with online status */}
+                          <div style={{ position: "relative", flexShrink: 0 }}>
+                            <div
+                              style={{
+                                width: "46px",
+                                height: "46px",
+                                borderRadius: "50%",
+                                background: bgGradient,
+                                color: "#ffffff",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: "700",
+                                fontSize: "16px",
+                              }}
+                            >
+                              {avatarLetter}
+                            </div>
+                            <div
+                              style={{
+                                position: "absolute",
+                                bottom: "1px",
+                                right: "1px",
+                                width: "11px",
+                                height: "11px",
+                                borderRadius: "50%",
+                                background: isOnline ? "#10b981" : "#94a3b8",
+                                border: "2px solid var(--bg-card, #141422)",
+                                boxShadow: "0 0 4px rgba(0,0,0,0.5)"
+                              }}
+                            />
                           </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                              <span style={{ fontSize: "13.5px", fontWeight: isUnread ? "700" : "600", color: isUnread ? "var(--text-main)" : "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {inq.buyer?.username?.split("@")[0]}
-                              </span>
-                              {(() => {
-                                const unreadCount = (() => {
-                                  if (inq.status === "READ") return 0;
-                                  const msgs = inq.messages || [];
-                                  let lastMyMsgIndex = -1;
-                                  for (let i = msgs.length - 1; i >= 0; i--) {
-                                    if (msgs[i].senderId === user.id) {
-                                      lastMyMsgIndex = i;
-                                      break;
-                                    }
-                                  }
-                                  let count = 0;
-                                  for (let i = lastMyMsgIndex + 1; i < msgs.length; i++) {
-                                    if (msgs[i].senderId !== user.id) {
-                                      count++;
-                                    }
-                                  }
-                                  return count;
-                                })();
 
-                                if (unreadCount > 0) {
-                                  return (
-                                    <span style={{
-                                      background: "#ef4444",
-                                      color: "#ffffff",
-                                      borderRadius: "10px",
-                                      padding: "2px 6px",
-                                      fontSize: "10px",
-                                      fontWeight: "700",
-                                      minWidth: "18px",
-                                      textAlign: "center",
-                                      display: "inline-block",
-                                      lineHeight: "1.2",
-                                      flexShrink: 0,
-                                    }}>
-                                      {unreadCount}
-                                    </span>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-                            <div style={{ fontSize: "12px", color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}>
-                              <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "1px 4px", borderRadius: "3px", fontSize: "9.5px", fontWeight: "700", flexShrink: 0 }}>
-                                LPP-{String(inq.listing?.id || inq.listingId).padStart(5, "0")}
+                          {/* Info Column */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "3px" }}>
+                              <span
+                                style={{
+                                  fontSize: "14px",
+                                  fontWeight: hasUnread ? "700" : "600",
+                                  color: hasUnread ? "var(--text-main)" : "rgba(255,255,255,0.85)",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  marginRight: "6px"
+                                }}
+                              >
+                                {displayName}
                               </span>
-                              <span>{inq.listing?.title}</span>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  color: hasUnread ? "#10b981" : "var(--text-dim)",
+                                  fontWeight: hasUnread ? "700" : "normal",
+                                  whiteSpace: "nowrap",
+                                  flexShrink: 0
+                                }}
+                              >
+                                {lastMsg ? formatMsgTime(lastMsg.createdAt) : ""}
+                              </span>
                             </div>
-                            {lastMsg && (
-                              <div style={{ fontSize: "12px", color: isUnread ? "var(--text-main)" : "var(--text-dim)", fontStyle: isUnread ? "normal" : "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: "2px" }}>
-                                {lastMsg.text}
-                              </div>
-                            )}
+
+                            {/* Product tag */}
+                            <div style={{ fontSize: "11.5px", color: "var(--primary)", fontWeight: "500", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "2px" }}>
+                              🏷️ {inq.listing?.title || "Product Listing"}
+                            </div>
+
+                            {/* Message Preview */}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span
+                                style={{
+                                  fontSize: "12.5px",
+                                  color: hasUnread ? "rgba(255,255,255,0.9)" : "var(--text-muted)",
+                                  fontWeight: hasUnread ? "600" : "normal",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  flex: 1
+                                }}
+                              >
+                                {lastMsg ? (
+                                  <>
+                                    {getMessageTypeIcon(lastMsg.text)}
+                                    {lastMsg.senderId === user.id ? "You: " : ""}
+                                    {lastMsg.text}
+                                  </>
+                                ) : (
+                                  "No messages yet"
+                                )}
+                              </span>
+
+                              {/* Unread count badge */}
+                              {hasUnread && (
+                                <span
+                                  style={{
+                                    background: "#10b981",
+                                    color: "#ffffff",
+                                    borderRadius: "50%",
+                                    minWidth: "19px",
+                                    height: "19px",
+                                    padding: "0 5px",
+                                    fontSize: "10.5px",
+                                    fontWeight: "700",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    flexShrink: 0,
+                                    marginLeft: "6px"
+                                  }}
+                                >
+                                  {inq.unreadCount}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -727,50 +1002,59 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="chat-window" style={{ flex: 1, display: "flex", flexDirection: "column", background: "transparent" }}>
+                {/* Right Chat Message Pane */}
+                <div className="chat-window" style={{ flex: 1, display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.06)", minWidth: 0 }}>
                   {(() => {
                     const activeInq = sellerInquiries.find((i) => i.id === activeInquiryId);
                     if (!activeInq) {
                       return (
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-dim)", gap: "12px" }}>
-                          <span style={{ fontSize: "48px" }}>💬</span>
-                          <div style={{ fontSize: "15px" }}>Select a conversation to start chatting</div>
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", padding: "16px" }}>
+                          <span style={{ fontSize: "52px", marginBottom: "16px" }}>💬</span>
+                          <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-main)", marginBottom: "4px" }}>No Chat Selected</div>
+                          Select a conversation on the left to view messages.
                         </div>
                       );
                     }
+
+                    const { displayName, isOnline } = getChatMetadata(activeInq);
+
                     return (
                       <>
-                        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "12px", background: "rgba(0,0,0,0.05)" }}>
+                        {/* Chat Room Banner */}
+                        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "12px", background: "rgba(255,255,255,0.01)" }}>
                           <button
                             className="chat-back-btn"
                             onClick={() => setActiveInquiryId(null)}
                             style={{
-                              background: "none",
+                              background: "rgba(255,255,255,0.08)",
                               border: "none",
-                              color: "var(--primary)",
-                              fontSize: "14px",
-                              fontWeight: "600",
+                              color: "#fff",
+                              borderRadius: "6px",
+                              padding: "6px 12px",
+                              fontSize: "13px",
                               cursor: "pointer",
-                              padding: "4px 8px 4px 0",
-                              display: "none",
+                              display: "none", // responsive CSS toggles this
                               alignItems: "center",
                               gap: "4px",
+                              marginRight: "6px"
                             }}
                           >
-                            ⬅ Back
+                            ← Back
                           </button>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>{activeInq.buyer?.username?.split("@")[0]}</div>
-                            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                              <span>Listing:</span>
-                              <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "2px 5px", borderRadius: "4px", fontSize: "10.5px", fontWeight: "700" }}>
-                                LPP-{String(activeInq.listing?.id || activeInq.listingId).padStart(5, "0")}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>
+                              {displayName}
+                              <span style={{ fontSize: "11px", color: isOnline ? "#10b981" : "#94a3b8", fontWeight: "500", marginLeft: "8px" }}>
+                                ● {isOnline ? "Online" : "Offline"}
                               </span>
-                              <strong>{activeInq.listing?.title}</strong> (₹{activeInq.listing?.price})
+                            </div>
+                            <div style={{ fontSize: "12.5px", color: "var(--primary)", marginTop: "2px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              Listing: {activeInq.listing?.title} (₹{activeInq.listing?.price})
                             </div>
                           </div>
                         </div>
 
+                        {/* Message History Stream */}
                         <div
                           id={`chat-messages-${activeInq.id}`}
                           style={{
@@ -780,58 +1064,64 @@ export default function Dashboard() {
                             gap: "12px",
                             padding: "20px",
                             overflowY: "auto",
-                            background: "rgba(0,0,0,0.1)",
+                            background: "rgba(0,0,0,0.04)",
                           }}
                         >
-                          {activeInq.messages?.map((msg) => {
-                            const isMe = msg.senderId === user.id;
-                            const hasDoubleTicks = activeInq.status === "READ" || activeInq.status === "REPLIED";
-                            return (
-                              <div key={msg.id} style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignSelf: isMe ? "flex-end" : "flex-start",
-                                maxWidth: "75%",
-                              }}>
-                                <div style={{
-                                  background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7)" : "rgba(120, 120, 120, 0.12)",
-                                  color: isMe ? "#ffffff" : "var(--text-main)",
-                                  border: isMe ? "none" : "1px solid var(--border-glass)",
-                                  padding: "10px 14px",
-                                  borderRadius: isMe ? "16px 16px 2px 16px" : "16px 16px 16px 2px",
-                                  fontSize: "13.5px",
-                                  lineHeight: "1.4",
-                                  boxShadow: isMe ? "0 2px 8px rgba(99, 102, 241, 0.2)" : "none",
-                                }}>
-                                  {msg.text}
-                                </div>
-                                <span style={{
-                                  fontSize: "10px",
-                                  color: "var(--text-dim)",
-                                  marginTop: "4px",
-                                  alignSelf: isMe ? "flex-end" : "flex-start",
+                          {loadingDashboardMessages && dashboardMessages.length === 0 ? (
+                            <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>Loading chat messages...</div>
+                          ) : (
+                            dashboardMessages.map((msg) => {
+                              const isMe = msg.senderId === user.id;
+                              const hasDoubleTicks = activeInq.status === "READ" || activeInq.status === "REPLIED";
+                              return (
+                                <div key={msg.id} style={{
                                   display: "flex",
-                                  alignItems: "center",
-                                  gap: "4px",
+                                  flexDirection: "column",
+                                  alignSelf: isMe ? "flex-end" : "flex-start",
+                                  maxWidth: "75%",
+                                  alignItems: isMe ? "flex-end" : "flex-start"
                                 }}>
-                                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                  {isMe && (
-                                    <span style={{ color: hasDoubleTicks ? "#3b82f6" : "var(--text-dim)", fontWeight: "bold" }}>
-                                      {hasDoubleTicks ? "✓✓" : "✓"}
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                            );
-                          })}
+                                  <div style={{
+                                    background: isMe ? "linear-gradient(135deg, #059669 0%, #10b981 100%)" : "var(--bg-input, rgba(255,255,255,0.08))",
+                                    color: "#ffffff",
+                                    padding: "10px 14px",
+                                    borderRadius: isMe ? "16px 16px 2px 16px" : "16px 16px 16px 2px",
+                                    fontSize: "13.5px",
+                                    lineHeight: "1.45",
+                                    boxShadow: isMe ? "0 4px 12px rgba(16,185,129,0.2)" : "none",
+                                    wordBreak: "break-word"
+                                  }}>
+                                    {msg.text}
+                                  </div>
+                                  <span style={{
+                                    fontSize: "10px",
+                                    color: "var(--text-dim)",
+                                    marginTop: "4px",
+                                    padding: "0 4px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}>
+                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                    {isMe && (
+                                      <span style={{ color: hasDoubleTicks ? "#10b981" : "var(--text-dim)", fontWeight: "bold" }}>
+                                        {hasDoubleTicks ? "✓✓" : "✓"}
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              );
+                            })
+                          )}
                         </div>
 
-                        <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-glass)", background: "rgba(0,0,0,0.05)" }}>
+                        {/* Chat Input Field */}
+                        <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-glass)", background: "rgba(255,255,255,0.01)" }}>
                           <div style={{ display: "flex", gap: "8px" }}>
                             <input
                               type="text"
                               className="reply-input"
-                              style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-glass)", borderRadius: "8px", padding: "10px 14px", color: "var(--text-main)", fontSize: "13.5px" }}
+                              style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-glass)", borderRadius: "24px", padding: "10px 16px", color: "var(--text-main)", fontSize: "13.5px", outline: "none" }}
                               placeholder="Type a message..."
                               value={replyTexts[activeInq.id] || ""}
                               onChange={(e) => setReplyTexts((prev) => ({ ...prev, [activeInq.id]: e.target.value }))}
@@ -843,7 +1133,7 @@ export default function Dashboard() {
                             />
                             <button
                               className="btn btn-primary"
-                              style={{ padding: "0 20px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                              style={{ padding: "0 22px", borderRadius: "24px", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #10b981, #059669)", border: "none" }}
                               onClick={() => handleSendMessage(activeInq.id)}
                             >
                               Send
@@ -862,20 +1152,56 @@ export default function Dashboard() {
         {/* Tab: Sent Inquiries (Buyer) */}
         {user.role === "BUYER" && dashboardTab === "inquiries" && (
           <div>
-            <h2 style={{ marginBottom: "16px" }}>Sent Message History</h2>
+            {/* Chat Header */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: "14px",
+              padding: "16px 0 20px",
+              borderBottom: "1px solid var(--border-glass)",
+              marginBottom: "20px",
+            }}>
+              <button
+                onClick={() => router.back()}
+                style={{
+                  background: "var(--bg-input)", border: "1px solid var(--border-glass)",
+                  borderRadius: "10px", padding: "8px 14px", color: "var(--text-main)",
+                  cursor: "pointer", fontSize: "14px", fontWeight: "600",
+                  display: "flex", alignItems: "center", gap: "6px",
+                }}
+              >← Back</button>
+              <div>
+                <h1 style={{ fontSize: "20px", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>💬 Messages</h1>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "2px 0 0" }}>{buyerInquiries.length} conversations</p>
+              </div>
+            </div>
             {buyerInquiries.length === 0 ? (
               <div className="glass-panel" style={{ padding: "30px", textAlign: "center", color: "var(--text-muted)" }}>
                 You haven't sent any messages to sellers yet.
               </div>
             ) : (
-              <div className="chat-split-container" style={{ display: "flex", gap: "20px", height: "550px", background: "var(--bg-card)", border: "1px solid var(--border-glass)", borderRadius: "16px", overflow: "hidden" }}>
-                <div className="chat-sidebar" style={{ width: "320px", borderRight: "1px solid var(--border-glass)", display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.1)" }}>
-                  <div style={{ padding: "16px", borderBottom: "1px solid var(--border-glass)", fontWeight: "600", color: "var(--text-main)" }}>Conversations</div>
+              <div className={`chat-split-container ${activeInquiryId ? "has-active-chat" : ""}`} style={{ display: "flex", gap: "20px", height: "580px", background: "var(--bg-card)", border: "1px solid var(--border-glass)", borderRadius: "20px", overflow: "hidden" }}>
+                {/* Conversations List Sidebar */}
+                <div className="chat-sidebar" style={{ width: "340px", borderRight: "1px solid var(--border-glass)", display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.12)", flexShrink: 0 }}>
+                  <div style={{ padding: "16px", borderBottom: "1px solid var(--border-glass)", fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>Conversations</div>
                   <div style={{ flex: 1, overflowY: "auto" }}>
                     {buyerInquiries.map((inq) => {
                       const isActive = activeInquiryId === inq.id;
-                      const lastMsg = inq.messages?.[inq.messages.length - 1];
-                      const isUnread = lastMsg && lastMsg.senderId !== user.id && inq.status !== "READ";
+                      const lastMsg = inq.latestMessage || inq.messages?.[inq.messages.length - 1];
+                      const hasUnread = inq.unreadCount > 0;
+                      const { displayName, isOnline } = getChatMetadata(inq);
+                      const avatarLetter = displayName.charAt(0).toUpperCase();
+
+                      // Dynamic avatar background gradient
+                      const colors = [
+                        "linear-gradient(135deg, #10b981, #059669)",
+                        "linear-gradient(135deg, #3b82f6, #2563eb)",
+                        "linear-gradient(135deg, #8b5cf6, #7c3aed)",
+                        "linear-gradient(135deg, #ec4899, #db2777)",
+                        "linear-gradient(135deg, #f59e0b, #d97706)",
+                        "linear-gradient(135deg, #ef4444, #dc2626)"
+                      ];
+                      const charCode = displayName.charCodeAt(0) || 0;
+                      const bgGradient = colors[charCode % colors.length];
+
                       return (
                         <div
                           key={inq.id}
@@ -884,90 +1210,131 @@ export default function Dashboard() {
                             markAsRead(inq.id);
                           }}
                           style={{
-                            padding: "14px 16px",
-                            borderBottom: "1px solid rgba(255,255,255,0.03)",
+                            padding: "12px 16px",
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
                             cursor: "pointer",
-                            background: isActive ? "rgba(99, 102, 241, 0.08)" : "transparent",
-                            transition: "var(--transition)",
+                            background: isActive ? "rgba(255, 255, 255, 0.06)" : "transparent",
                             display: "flex",
                             alignItems: "center",
                             gap: "12px",
+                            transition: "background 0.2s ease",
+                            position: "relative"
                           }}
                         >
-                          <div style={{
-                            width: "38px",
-                            height: "38px",
-                            borderRadius: "50%",
-                            background: isActive ? "linear-gradient(135deg, #6366f1, #ec4899)" : "linear-gradient(135deg, #374151, #4b5563)",
-                            color: "#ffffff",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontWeight: "700",
-                            fontSize: "14px",
-                            textTransform: "uppercase",
-                            flexShrink: 0,
-                          }}>
-                            {inq.listing?.seller?.username ? inq.listing.seller.username.charAt(0) : "S"}
+                          {/* Avatar with online status */}
+                          <div style={{ position: "relative", flexShrink: 0 }}>
+                            <div
+                              style={{
+                                width: "46px",
+                                height: "46px",
+                                borderRadius: "50%",
+                                background: bgGradient,
+                                color: "#ffffff",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: "700",
+                                fontSize: "16px",
+                              }}
+                            >
+                              {avatarLetter}
+                            </div>
+                            <div
+                              style={{
+                                position: "absolute",
+                                bottom: "1px",
+                                right: "1px",
+                                width: "11px",
+                                height: "11px",
+                                borderRadius: "50%",
+                                background: isOnline ? "#10b981" : "#94a3b8",
+                                border: "2px solid var(--bg-card, #141422)",
+                                boxShadow: "0 0 4px rgba(0,0,0,0.5)"
+                              }}
+                            />
                           </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                              <span style={{ fontSize: "13.5px", fontWeight: isUnread ? "700" : "600", color: isUnread ? "var(--text-main)" : "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {inq.listing?.seller?.username?.split("@")[0]}
-                              </span>
-                              {(() => {
-                                const unreadCount = (() => {
-                                  if (inq.status === "READ") return 0;
-                                  const msgs = inq.messages || [];
-                                  let lastMyMsgIndex = -1;
-                                  for (let i = msgs.length - 1; i >= 0; i--) {
-                                    if (msgs[i].senderId === user.id) {
-                                      lastMyMsgIndex = i;
-                                      break;
-                                    }
-                                  }
-                                  let count = 0;
-                                  for (let i = lastMyMsgIndex + 1; i < msgs.length; i++) {
-                                    if (msgs[i].senderId !== user.id) {
-                                      count++;
-                                    }
-                                  }
-                                  return count;
-                                })();
 
-                                if (unreadCount > 0) {
-                                  return (
-                                    <span style={{
-                                      background: "#ef4444",
-                                      color: "#ffffff",
-                                      borderRadius: "10px",
-                                      padding: "2px 6px",
-                                      fontSize: "10px",
-                                      fontWeight: "700",
-                                      minWidth: "18px",
-                                      textAlign: "center",
-                                      display: "inline-block",
-                                      lineHeight: "1.2",
-                                      flexShrink: 0,
-                                    }}>
-                                      {unreadCount}
-                                    </span>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-                            <div style={{ fontSize: "12px", color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}>
-                              <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "1px 4px", borderRadius: "3px", fontSize: "9.5px", fontWeight: "700", flexShrink: 0 }}>
-                                LPP-{String(inq.listing?.id || inq.listingId).padStart(5, "0")}
+                          {/* Info Column */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "3px" }}>
+                              <span
+                                style={{
+                                  fontSize: "14px",
+                                  fontWeight: hasUnread ? "700" : "600",
+                                  color: hasUnread ? "var(--text-main)" : "rgba(255,255,255,0.85)",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  marginRight: "6px"
+                                }}
+                              >
+                                {displayName}
                               </span>
-                              <span>{inq.listing?.title}</span>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  color: hasUnread ? "#10b981" : "var(--text-dim)",
+                                  fontWeight: hasUnread ? "700" : "normal",
+                                  whiteSpace: "nowrap",
+                                  flexShrink: 0
+                                }}
+                              >
+                                {lastMsg ? formatMsgTime(lastMsg.createdAt) : ""}
+                              </span>
                             </div>
-                            {lastMsg && (
-                              <div style={{ fontSize: "12px", color: isUnread ? "var(--text-main)" : "var(--text-dim)", fontStyle: isUnread ? "normal" : "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: "2px" }}>
-                                {lastMsg.text}
-                              </div>
-                            )}
+
+                            {/* Product tag */}
+                            <div style={{ fontSize: "11.5px", color: "var(--primary)", fontWeight: "500", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "2px" }}>
+                              🏷️ {inq.listing?.title || "Product Listing"}
+                            </div>
+
+                            {/* Message Preview */}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span
+                                style={{
+                                  fontSize: "12.5px",
+                                  color: hasUnread ? "rgba(255,255,255,0.9)" : "var(--text-muted)",
+                                  fontWeight: hasUnread ? "600" : "normal",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  flex: 1
+                                }}
+                              >
+                                {lastMsg ? (
+                                  <>
+                                    {getMessageTypeIcon(lastMsg.text)}
+                                    {lastMsg.senderId === user.id ? "You: " : ""}
+                                    {lastMsg.text}
+                                  </>
+                                ) : (
+                                  "No messages yet"
+                                )}
+                              </span>
+
+                              {/* Unread count badge */}
+                              {hasUnread && (
+                                <span
+                                  style={{
+                                    background: "#10b981",
+                                    color: "#ffffff",
+                                    borderRadius: "50%",
+                                    minWidth: "19px",
+                                    height: "19px",
+                                    padding: "0 5px",
+                                    fontSize: "10.5px",
+                                    fontWeight: "700",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    flexShrink: 0,
+                                    marginLeft: "6px"
+                                  }}
+                                >
+                                  {inq.unreadCount}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -975,32 +1342,59 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="chat-window" style={{ flex: 1, display: "flex", flexDirection: "column", background: "transparent" }}>
+                {/* Right Chat Message Pane */}
+                <div className="chat-window" style={{ flex: 1, display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.06)", minWidth: 0 }}>
                   {(() => {
                     const activeInq = buyerInquiries.find((i) => i.id === activeInquiryId);
                     if (!activeInq) {
                       return (
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-dim)", gap: "12px" }}>
-                          <span style={{ fontSize: "48px" }}>💬</span>
-                          <div style={{ fontSize: "15px" }}>Select a conversation to start chatting</div>
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", padding: "16px" }}>
+                          <span style={{ fontSize: "52px", marginBottom: "16px" }}>💬</span>
+                          <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-main)", marginBottom: "4px" }}>No Chat Selected</div>
+                          Select a conversation on the left to view messages.
                         </div>
                       );
                     }
+
+                    const { displayName, isOnline } = getChatMetadata(activeInq);
+
                     return (
                       <>
-                        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-glass)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,0.05)" }}>
-                          <div>
-                            <div style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>Seller: {activeInq.listing?.seller?.username}</div>
-                            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                              <span>Listing:</span>
-                              <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "2px 5px", borderRadius: "4px", fontSize: "10.5px", fontWeight: "700" }}>
-                                LPP-{String(activeInq.listing?.id || activeInq.listingId).padStart(5, "0")}
+                        {/* Chat Room Banner */}
+                        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "12px", background: "rgba(255,255,255,0.01)" }}>
+                          <button
+                            className="chat-back-btn"
+                            onClick={() => setActiveInquiryId(null)}
+                            style={{
+                              background: "rgba(255,255,255,0.08)",
+                              border: "none",
+                              color: "#fff",
+                              borderRadius: "6px",
+                              padding: "6px 12px",
+                              fontSize: "13px",
+                              cursor: "pointer",
+                              display: "none", // responsive CSS toggles this
+                              alignItems: "center",
+                              gap: "4px",
+                              marginRight: "6px"
+                            }}
+                          >
+                            ← Back
+                          </button>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>
+                              {displayName}
+                              <span style={{ fontSize: "11px", color: isOnline ? "#10b981" : "#94a3b8", fontWeight: "500", marginLeft: "8px" }}>
+                                ● {isOnline ? "Online" : "Offline"}
                               </span>
-                              <strong>{activeInq.listing?.title}</strong>
+                            </div>
+                            <div style={{ fontSize: "12.5px", color: "var(--primary)", marginTop: "2px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              Listing: {activeInq.listing?.title} (₹{activeInq.listing?.price})
                             </div>
                           </div>
                         </div>
 
+                        {/* Message History Stream */}
                         <div
                           id={`chat-messages-${activeInq.id}`}
                           style={{
@@ -1010,58 +1404,64 @@ export default function Dashboard() {
                             gap: "12px",
                             padding: "20px",
                             overflowY: "auto",
-                            background: "rgba(0,0,0,0.1)",
+                            background: "rgba(0,0,0,0.04)",
                           }}
                         >
-                          {activeInq.messages?.map((msg) => {
-                            const isMe = msg.senderId === user.id;
-                            const hasDoubleTicks = activeInq.status === "READ" || activeInq.status === "REPLIED";
-                            return (
-                              <div key={msg.id} style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignSelf: isMe ? "flex-end" : "flex-start",
-                                maxWidth: "75%",
-                              }}>
-                                <div style={{
-                                  background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7)" : "rgba(120, 120, 120, 0.12)",
-                                  color: isMe ? "#ffffff" : "var(--text-main)",
-                                  border: isMe ? "none" : "1px solid var(--border-glass)",
-                                  padding: "10px 14px",
-                                  borderRadius: isMe ? "16px 16px 2px 16px" : "16px 16px 16px 2px",
-                                  fontSize: "13.5px",
-                                  lineHeight: "1.4",
-                                  boxShadow: isMe ? "0 2px 8px rgba(99, 102, 241, 0.2)" : "none",
-                                }}>
-                                  {msg.text}
-                                </div>
-                                <span style={{
-                                  fontSize: "10px",
-                                  color: "var(--text-dim)",
-                                  marginTop: "4px",
-                                  alignSelf: isMe ? "flex-end" : "flex-start",
+                          {loadingDashboardMessages && dashboardMessages.length === 0 ? (
+                            <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>Loading chat messages...</div>
+                          ) : (
+                            dashboardMessages.map((msg) => {
+                              const isMe = msg.senderId === user.id;
+                              const hasDoubleTicks = activeInq.status === "READ" || activeInq.status === "REPLIED";
+                              return (
+                                <div key={msg.id} style={{
                                   display: "flex",
-                                  alignItems: "center",
-                                  gap: "4px",
+                                  flexDirection: "column",
+                                  alignSelf: isMe ? "flex-end" : "flex-start",
+                                  maxWidth: "75%",
+                                  alignItems: isMe ? "flex-end" : "flex-start"
                                 }}>
-                                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                  {isMe && (
-                                    <span style={{ color: hasDoubleTicks ? "#3b82f6" : "var(--text-dim)", fontWeight: "bold" }}>
-                                      {hasDoubleTicks ? "✓✓" : "✓"}
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                            );
-                          })}
+                                  <div style={{
+                                    background: isMe ? "linear-gradient(135deg, #059669 0%, #10b981 100%)" : "var(--bg-input, rgba(255,255,255,0.08))",
+                                    color: "#ffffff",
+                                    padding: "10px 14px",
+                                    borderRadius: isMe ? "16px 16px 2px 16px" : "16px 16px 16px 2px",
+                                    fontSize: "13.5px",
+                                    lineHeight: "1.45",
+                                    boxShadow: isMe ? "0 4px 12px rgba(16,185,129,0.2)" : "none",
+                                    wordBreak: "break-word"
+                                  }}>
+                                    {msg.text}
+                                  </div>
+                                  <span style={{
+                                    fontSize: "10px",
+                                    color: "var(--text-dim)",
+                                    marginTop: "4px",
+                                    padding: "0 4px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}>
+                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                    {isMe && (
+                                      <span style={{ color: hasDoubleTicks ? "#10b981" : "var(--text-dim)", fontWeight: "bold" }}>
+                                        {hasDoubleTicks ? "✓✓" : "✓"}
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              );
+                            })
+                          )}
                         </div>
 
-                        <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-glass)", background: "rgba(0,0,0,0.05)" }}>
+                        {/* Chat Input Field */}
+                        <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-glass)", background: "rgba(255,255,255,0.01)" }}>
                           <div style={{ display: "flex", gap: "8px" }}>
                             <input
                               type="text"
                               className="reply-input"
-                              style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-glass)", borderRadius: "8px", padding: "10px 14px", color: "var(--text-main)", fontSize: "13.5px" }}
+                              style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-glass)", borderRadius: "24px", padding: "10px 16px", color: "var(--text-main)", fontSize: "13.5px", outline: "none" }}
                               placeholder="Type a message..."
                               value={replyTexts[activeInq.id] || ""}
                               onChange={(e) => setReplyTexts((prev) => ({ ...prev, [activeInq.id]: e.target.value }))}
@@ -1073,7 +1473,7 @@ export default function Dashboard() {
                             />
                             <button
                               className="btn btn-primary"
-                              style={{ padding: "0 20px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                              style={{ padding: "0 22px", borderRadius: "24px", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #10b981, #059669)", border: "none" }}
                               onClick={() => handleSendMessage(activeInq.id)}
                             >
                               Send
@@ -1089,39 +1489,51 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Tab: Saved Bookmarks (Buyer) */}
-        {user.role === "BUYER" && (dashboardTab === "saved" || dashboardTab === "bookmarks") && (
-          <div>
-            <h2 style={{ marginBottom: "16px" }}>Saved Products</h2>
+        {/* Tab: Saved Bookmarks / Shortlist (All Roles) */}
+        {(dashboardTab === "saved" || dashboardTab === "bookmarks" || activeTabParam === "bookmarks" || activeTabParam === "saved") && (
+          <div style={{ width: "100%" }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: "12px",
+              padding: "12px 0 18px",
+              borderBottom: "1px solid var(--border-glass)",
+              marginBottom: "20px",
+            }}>
+              <button
+                onClick={() => router.back()}
+                style={{
+                  background: "var(--bg-input)", border: "1px solid var(--border-glass)",
+                  borderRadius: "10px", padding: "8px 14px", color: "var(--text-main)",
+                  cursor: "pointer", fontSize: "14px", fontWeight: "600",
+                  display: "flex", alignItems: "center", gap: "6px",
+                }}
+              >← Back</button>
+              <div>
+                <h1 style={{ fontSize: "clamp(17px, 4vw, 20px)", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>❤️ Shortlisted Products</h1>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "2px 0 0" }}>Items you have bookmarked ({savedListings.length})</p>
+              </div>
+            </div>
+
             {savedListings.length === 0 ? (
-              <div className="glass-panel" style={{ padding: "30px", textAlign: "center", color: "var(--text-muted)" }}>
-                No bookmarks saved yet. Explore products and click "Save/Bookmark Product" to add.
+              <div className="glass-panel" style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)" }}>
+                <span style={{ fontSize: "36px", display: "block", marginBottom: "10px" }}>❤️</span>
+                <p style={{ margin: 0, fontSize: "14px", color: "var(--text-main)", fontWeight: "600" }}>No shortlisted items yet</p>
+                <p style={{ margin: "6px 0 0", fontSize: "12px" }}>Browse listings and tap the Shortlist / Bookmark button to save products here.</p>
               </div>
             ) : (
               <div className="products-grid">
-                {listings.filter((l) => savedListings.includes(l.id)).map((item) => (
-                  <div key={item.id} className="glass-panel product-card" onClick={() => router.push(`/details/${item.id}`)} style={{ cursor: "pointer" }}>
-                    <div className="card-image-wrapper">
-                      <img
-                        src={item.imagePath ? `${imageServer}${item.imagePath.split(",")[0]}` : "https://placehold.co/400x300?text=No+Photo"}
-                        alt={item.title}
-                        className="card-img"
-                        onError={(e) => {
-                          e.target.src = "https://placehold.co/400x300?text=Product";
-                        }}
-                      />
-                    </div>
-                    <div className="card-content">
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                        <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "2px 6px", borderRadius: "4px", fontSize: "10.5px", fontWeight: "700" }}>
-                          LPP-{String(item.id).padStart(5, "0")}
-                        </span>
+                {(() => {
+                  const shortlistedItems = listings.filter((l) => savedListings.includes(l.id));
+                  if (shortlistedItems.length === 0) {
+                    return (
+                      <div className="glass-panel" style={{ padding: "30px", gridColumn: "1 / -1", textAlign: "center", color: "var(--text-muted)" }}>
+                        Loading your shortlisted products...
                       </div>
-                      <h3 className="card-title">{item.title}</h3>
-                      <p className="price-discounted">₹{item.price}</p>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  }
+                  return shortlistedItems.map((item) => (
+                    <ProductCard key={item.id} item={item} />
+                  ));
+                })()}
               </div>
             )}
           </div>
@@ -1206,6 +1618,209 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab: User Profile */}
+        {!isBookmarksTab && !isChatTab && (dashboardTab === "profile" || activeTab === "profile") && (
+          <div style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+            {/* Profile Header */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: "12px",
+              padding: "12px 0 18px",
+              borderBottom: "1px solid var(--border-glass)",
+              marginBottom: "20px",
+              flexWrap: "wrap",
+            }}>
+              <button
+                onClick={() => router.back()}
+                style={{
+                  background: "var(--bg-input)", border: "1px solid var(--border-glass)",
+                  borderRadius: "10px", padding: "8px 14px", color: "var(--text-main)",
+                  cursor: "pointer", fontSize: "14px", fontWeight: "600",
+                  display: "flex", alignItems: "center", gap: "6px",
+                  flexShrink: 0,
+                }}
+              >← Back</button>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <h1 style={{ fontSize: "clamp(17px, 4vw, 20px)", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>👤 User Profile</h1>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "2px 0 0" }}>Manage your public profile &amp; contact info</p>
+              </div>
+            </div>
+            <div className="glass-panel form-card" style={{ padding: "clamp(16px, 4vw, 24px)", width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
+              <form onSubmit={handleSaveProfile} style={{ width: "100%" }}>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+                  gap: "16px 20px",
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}>
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
+                    <label className="form-label">Full Name</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. John Doe"
+                      value={profileForm.fullName || ""}
+                      onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
+                      required
+                      style={{ width: "100%", boxSizing: "border-box" }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
+                    <label className="form-label">Display Name / Shop Name</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Luxe Deals Shop"
+                      value={profileForm.displayName || ""}
+                      onChange={(e) => setProfileForm({ ...profileForm, displayName: e.target.value })}
+                      required
+                      style={{ width: "100%", boxSizing: "border-box" }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
+                    <label className="form-label">Professional Title</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Premium Certified Dealer"
+                      value={profileForm.professionalTitle || ""}
+                      onChange={(e) => setProfileForm({ ...profileForm, professionalTitle: e.target.value })}
+                      required
+                      style={{ width: "100%", boxSizing: "border-box" }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
+                    <label className="form-label">Years of Experience</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      placeholder="e.g. 5"
+                      value={profileForm.yearsOfExperience || ""}
+                      onChange={(e) => setProfileForm({ ...profileForm, yearsOfExperience: e.target.value })}
+                      required
+                      style={{ width: "100%", boxSizing: "border-box" }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
+                    <label className="form-label">Business Category</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Electronics & Gadgets"
+                      value={profileForm.businessCategory || ""}
+                      onChange={(e) => setProfileForm({ ...profileForm, businessCategory: e.target.value })}
+                      required
+                      style={{ width: "100%", boxSizing: "border-box" }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
+                    <label className="form-label">Email Address</label>
+                    <input
+                      type="email"
+                      className="form-input"
+                      placeholder="e.g. contact@luxedeals.com"
+                      value={profileForm.email || ""}
+                      onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                      required
+                      style={{ width: "100%", boxSizing: "border-box" }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
+                    <label className="form-label">Mobile Number (Optional)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. 9876543210"
+                      value={profileForm.mobileNumber || ""}
+                      onChange={(e) => setProfileForm({ ...profileForm, mobileNumber: e.target.value })}
+                      style={{ width: "100%", boxSizing: "border-box" }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
+                    <label className="form-label">WhatsApp Number (Optional)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. 9876543210"
+                      value={profileForm.whatsAppNumber || ""}
+                      onChange={(e) => setProfileForm({ ...profileForm, whatsAppNumber: e.target.value })}
+                      style={{ width: "100%", boxSizing: "border-box" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Privacy & Contact Visibility Settings */}
+                <div style={{
+                  marginTop: "20px",
+                  padding: "16px 20px",
+                  background: "var(--bg-input)",
+                  border: "1px solid var(--border-glass)",
+                  borderRadius: "14px"
+                }}>
+                  <h4 style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main)", margin: "0 0 12px 0", display: "flex", alignItems: "center", gap: "6px" }}>
+                    🔒 Seller Privacy &amp; Contact Settings
+                  </h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "600", color: "var(--text-main)" }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(profileForm.showWhatsapp)}
+                        onChange={(e) => setProfileForm({ ...profileForm, showWhatsapp: e.target.checked })}
+                        style={{ width: "18px", height: "18px", accentColor: "var(--primary)" }}
+                      />
+                      ☑ Show WhatsApp Number
+                    </label>
+
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "600", color: "var(--text-main)" }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(profileForm.showPhone)}
+                        onChange={(e) => setProfileForm({ ...profileForm, showPhone: e.target.checked })}
+                        style={{ width: "18px", height: "18px", accentColor: "var(--primary)" }}
+                      />
+                      ☑ Show Phone Number
+                    </label>
+
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "600", color: "var(--text-main)" }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(profileForm.allowChat)}
+                        onChange={(e) => setProfileForm({ ...profileForm, allowChat: e.target.checked })}
+                        style={{ width: "18px", height: "18px", accentColor: "var(--primary)" }}
+                      />
+                      ☑ Allow In-App Chat
+                    </label>
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginTop: "20px", marginBottom: "0", width: "100%" }}>
+                  <label className="form-label">About Seller</label>
+                  <textarea
+                    className="form-input"
+                    placeholder="Describe your services, business, or shop..."
+                    rows={4}
+                    value={profileForm.aboutSeller || ""}
+                    onChange={(e) => setProfileForm({ ...profileForm, aboutSeller: e.target.value })}
+                    required
+                    style={{ width: "100%", resize: "vertical", boxSizing: "border-box" }}
+                  />
+                </div>
+
+                <button type="submit" className="btn btn-primary" style={{ marginTop: "20px", width: "100%", maxWidth: "240px" }} disabled={savingProfile}>
+                  {savingProfile ? "Saving..." : "💾 Save Profile"}
+                </button>
+              </form>
             </div>
           </div>
         )}

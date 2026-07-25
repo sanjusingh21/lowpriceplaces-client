@@ -1,4 +1,14 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "/api";
+const getApiBase = () => {
+  if (process.env.NEXT_PUBLIC_API_BASE) {
+    return process.env.NEXT_PUBLIC_API_BASE;
+  }
+  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+    return "http://localhost:5000/api";
+  }
+  return "/api";
+};
+
+const API_BASE = getApiBase();
 
 export function getAuthToken() {
   if (typeof window !== 'undefined') {
@@ -36,34 +46,44 @@ export function setCurrentUser(user) {
 }
 
 // Request Helper
-async function request(endpoint, options = {}) {
-  const headers = {};
+async function request(endpoint, options = {}, isRetry = false) {
   const token = getAuthToken();
+  const headers = {
+    ...options.headers
+  };
+
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  // Handle standard JSON objects vs Multipart Forms
   if (!(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
-    if (options.body) {
+    if (options.body && typeof options.body === "object") {
       options.body = JSON.stringify(options.body);
     }
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      ...headers,
-      ...options.headers
-    }
-  });
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers
+    });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || "Network error occurred.");
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "Network error occurred.");
+    }
+    return data;
+  } catch (err) {
+    if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
+      if (!isRetry) {
+        await new Promise((r) => setTimeout(r, 500));
+        return request(endpoint, options, true);
+      }
+      throw new Error("Unable to connect to the backend server (http://localhost:5000). Please ensure the backend server is running.");
+    }
+    throw err;
   }
-  return data;
 }
 
 export const api = {
@@ -126,6 +146,16 @@ export const api = {
       this.logout();
       return null;
     }
+  },
+
+  async switchRole(role) {
+    const data = await request("/auth/switch-role", {
+      method: "PUT",
+      body: { role }
+    });
+    setAuthToken(data.token);
+    setCurrentUser(data.user);
+    return data.user;
   },
 
   // Categories
@@ -206,10 +236,38 @@ export const api = {
     return request("/inquiries/buyer");
   },
 
-  async replyToInquiry(id, replyMessage) {
-    return request(`/inquiries/${id}/reply`, {
+  async getAllChats() {
+    return request("/chats/all");
+  },
+
+  async startDirectChat(listingId, initialMessage) {
+    return request("/chats/start", {
       method: "POST",
-      body: { replyMessage }
+      body: { listingId, initialMessage }
+    });
+  },
+
+  async sendChatMessage(inquiryId, text) {
+    return request(`/inquiries/${inquiryId}/messages`, {
+      method: "POST",
+      body: { text }
+    });
+  },
+
+  async replyToInquiry(id, text) {
+    return request(`/inquiries/${id}/messages`, {
+      method: "POST",
+      body: { text }
+    });
+  },
+
+  async getInquiryMessages(id) {
+    return request(`/inquiries/${id}/messages`);
+  },
+
+  async markInquiryRead(id) {
+    return request(`/inquiries/${id}/read`, {
+      method: "POST"
     });
   },
 
@@ -223,6 +281,18 @@ export const api = {
     return request("/cities");
   },
 
+  // Seller Profile
+  async getProfile() {
+    return request("/profile");
+  },
+
+  async updateProfile(profileData) {
+    return request("/profile", {
+      method: "PUT",
+      body: profileData
+    });
+  },
+
   async addCity(name, emoji) {
     return request("/cities", {
       method: "POST",
@@ -233,6 +303,73 @@ export const api = {
   async deleteCity(id) {
     return request(`/cities/${id}`, {
       method: "DELETE"
+    });
+  },
+
+  // Stores and Services
+  async getStores(params = {}) {
+    const query = {};
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== "") {
+        query[key] = params[key];
+      }
+    });
+    const queryString = Object.keys(query).length > 0
+      ? "?" + new URLSearchParams(query).toString()
+      : "";
+    return request(`/stores${queryString}`);
+  },
+
+  async getServices(params = {}) {
+    const query = {};
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== "") {
+        query[key] = params[key];
+      }
+    });
+    const queryString = Object.keys(query).length > 0
+      ? "?" + new URLSearchParams(query).toString()
+      : "";
+    return request(`/services${queryString}`);
+  },
+
+  async getStoreById(id, params = {}) {
+    const query = {};
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== "") {
+        query[key] = params[key];
+      }
+    });
+    const queryString = Object.keys(query).length > 0
+      ? "?" + new URLSearchParams(query).toString()
+      : "";
+    return request(`/stores/${id}${queryString}`);
+  },
+
+  async getServiceById(id, params = {}) {
+    const query = {};
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== "") {
+        query[key] = params[key];
+      }
+    });
+    const queryString = Object.keys(query).length > 0
+      ? "?" + new URLSearchParams(query).toString()
+      : "";
+    return request(`/services/${id}${queryString}`);
+  },
+
+  async addStoreReview(id, rating, comment) {
+    return request(`/stores/${id}/reviews`, {
+      method: "POST",
+      body: { rating, comment }
+    });
+  },
+
+  async addServiceReview(id, rating, comment) {
+    return request(`/services/${id}/reviews`, {
+      method: "POST",
+      body: { rating, comment }
     });
   }
 };
