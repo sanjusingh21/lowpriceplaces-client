@@ -297,7 +297,7 @@ export default function DetailsClient({ id }) {
                 </>
               )}
             </div>
-            <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "4px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "700" }}>
+            <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "4px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "var(--font-weight-bold)" }}>
               Listing ID: LPP-{String(listingDetails.id).padStart(5, "0")}
             </span>
           </div>
@@ -328,10 +328,10 @@ export default function DetailsClient({ id }) {
                   : null;
                 return (
                   <>
-                    <span className="price-discounted" style={{ fontSize: "36px" }}>
+                    <span className="price-discounted" style={{ fontSize: "var(--font-h1)" }}>
                       ₹{finalFrom}{finalTo ? ` - ₹${finalTo}` : ""}
                     </span>
-                    <span className="price-original" style={{ fontSize: "20px" }}>
+                    <span className="price-original" style={{ fontSize: "var(--font-h4)" }}>
                       ₹{listingDetails.price}{listingDetails.priceMax ? ` - ₹${listingDetails.priceMax}` : ""}
                     </span>
                     <span className="card-badge" style={{ position: "static" }}>
@@ -341,7 +341,7 @@ export default function DetailsClient({ id }) {
                 );
               })()
             ) : (
-              <span className="price-discounted" style={{ fontSize: "36px" }}>
+              <span className="price-discounted" style={{ fontSize: "var(--font-h1)" }}>
                 ₹{listingDetails.price}{listingDetails.priceMax ? ` - ₹${listingDetails.priceMax}` : ""}
               </span>
             )}
@@ -366,8 +366,8 @@ export default function DetailsClient({ id }) {
                 padding: "10px 14px",
                 borderRadius: "10px",
                 border: "none",
-                fontSize: "13px",
-                fontWeight: "700",
+                fontSize: "var(--font-helper)",
+                fontWeight: "var(--font-weight-bold)",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
                 background: activeTab === "description" ? "var(--primary)" : "transparent",
@@ -383,8 +383,8 @@ export default function DetailsClient({ id }) {
                 padding: "10px 14px",
                 borderRadius: "10px",
                 border: "none",
-                fontSize: "13px",
-                fontWeight: "700",
+                fontSize: "var(--font-helper)",
+                fontWeight: "var(--font-weight-bold)",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
                 background: activeTab === "chat" ? "var(--primary)" : "transparent",
@@ -400,8 +400,8 @@ export default function DetailsClient({ id }) {
                 padding: "10px 14px",
                 borderRadius: "10px",
                 border: "none",
-                fontSize: "13px",
-                fontWeight: "700",
+                fontSize: "var(--font-helper)",
+                fontWeight: "var(--font-weight-bold)",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
                 background: activeTab === "reviews" ? "var(--primary)" : "transparent",
@@ -416,7 +416,7 @@ export default function DetailsClient({ id }) {
           {activeTab === "description" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               <div className="glass-panel" style={{ padding: "20px" }}>
-                <h3 style={{ marginBottom: "12px", fontSize: "17px", fontWeight: "700", color: "var(--text-main)" }}>Description</h3>
+                <h3 style={{ marginBottom: "12px", fontSize: "17px", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>Description</h3>
                 <p className="detail-desc">{listingDetails.description}</p>
               </div>
 
@@ -428,17 +428,17 @@ export default function DetailsClient({ id }) {
                   </h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                     <div>
-                      <h4 style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-main)" }}>
+                      <h4 style={{ fontSize: "var(--font-body-lg)", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)" }}>
                         {listingDetails.seller.sellerProfile.displayName || listingDetails.seller.sellerProfile.fullName}
                       </h4>
                       {listingDetails.seller.sellerProfile.professionalTitle && (
-                        <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: "2px 0 0 0" }}>
+                        <p style={{ fontSize: "var(--font-helper)", color: "var(--text-muted)", margin: "2px 0 0 0" }}>
                           {listingDetails.seller.sellerProfile.professionalTitle}
                         </p>
                       )}
                     </div>
 
-                    <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "13px", color: "var(--text-dim)" }}>
+                    <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "var(--font-helper)", color: "var(--text-dim)" }}>
                       {listingDetails.seller.sellerProfile.yearsOfExperience !== undefined && listingDetails.seller.sellerProfile.yearsOfExperience !== null && (
                         <span>⭐ Experience: <strong>{listingDetails.seller.sellerProfile.yearsOfExperience} Years</strong></span>
                       )}
@@ -448,7 +448,7 @@ export default function DetailsClient({ id }) {
                     </div>
 
                     {listingDetails.seller.sellerProfile.aboutSeller && (
-                      <div style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.5" }}>
+                      <div style={{ fontSize: "var(--font-helper)", color: "var(--text-muted)", marginTop: "4px", lineHeight: "var(--line-height-normal)" }}>
                         <div
                           style={{
                             display: "-webkit-box",
@@ -467,8 +467,8 @@ export default function DetailsClient({ id }) {
                               border: "none",
                               color: "var(--primary)",
                               padding: 0,
-                              fontSize: "12px",
-                              fontWeight: "600",
+                              fontSize: "var(--font-caption)",
+                              fontWeight: "var(--font-weight-semibold)",
                               cursor: "pointer",
                               marginTop: "4px",
                             }}
@@ -479,7 +479,7 @@ export default function DetailsClient({ id }) {
                       </div>
                     )}
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px", borderTop: "1px solid var(--border-glass)", paddingTop: "10px", marginTop: "4px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "var(--font-helper)", borderTop: "1px solid var(--border-glass)", paddingTop: "10px", marginTop: "4px" }}>
                       {listingDetails.seller.sellerProfile.email && (
                         <div>📧 Email: <a href={`mailto:${listingDetails.seller.sellerProfile.email}`} style={{ color: "var(--primary)", textDecoration: "none" }}>{listingDetails.seller.sellerProfile.email}</a></div>
                       )}
@@ -496,7 +496,7 @@ export default function DetailsClient({ id }) {
 
               {/* Contact and Call Buttons */}
               <div className="glass-panel contact-card">
-                <h3 className="contact-title" style={{ fontSize: "16px", fontWeight: "700", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+                <h3 className="contact-title" style={{ fontSize: "var(--font-body-lg)", fontWeight: "var(--font-weight-bold)", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
                   📞 Call or WhatsApp Seller
                 </h3>
 
@@ -539,7 +539,7 @@ export default function DetailsClient({ id }) {
                           <button
                             className="btn btn-secondary"
                             onClick={() => router.push("/login")}
-                            style={{ width: "100%", fontSize: "13px" }}
+                            style={{ width: "100%", fontSize: "var(--font-helper)" }}
                           >
                             🔒 Log in to view Phone / WhatsApp
                           </button>
@@ -571,45 +571,45 @@ export default function DetailsClient({ id }) {
             <div className="glass-panel" style={{ padding: "24px", borderRadius: "16px", minHeight: "360px", display: "flex", flexDirection: "column", gap: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border-glass)", paddingBottom: "12px" }}>
                 <div>
-                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-main)", margin: 0 }}>
+                  <h3 style={{ fontSize: "var(--font-body-lg)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0 }}>
                     💬 Direct In-App Live Chat
                   </h3>
                   <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0 0" }}>
                     Your contact details (phone, WhatsApp, email) are kept 100% private.
                   </p>
                 </div>
-                <span className="badge-id" style={{ background: "rgba(16, 185, 129, 0.1)", color: "var(--emerald)", padding: "3px 8px", borderRadius: "4px", fontSize: "10px", fontWeight: "700" }}>
+                <span className="badge-id" style={{ background: "rgba(16, 185, 129, 0.1)", color: "var(--emerald)", padding: "3px 8px", borderRadius: "4px", fontSize: "10px", fontWeight: "var(--font-weight-bold)" }}>
                   🟢 Connected
                 </span>
               </div>
 
               {!user ? (
                 <div style={{ textAlign: "center", padding: "40px 16px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "12px" }}>
-                  <span style={{ fontSize: "40px" }}>🔒</span>
-                  <p style={{ fontSize: "14px", color: "var(--text-muted)", margin: 0 }}>
+                  <span style={{ fontSize: "var(--font-display-md)" }}>🔒</span>
+                  <p style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", margin: 0 }}>
                     Please log in to start a secure chat with the seller.
                   </p>
-                  <button className="btn btn-primary" onClick={() => router.push("/login")} style={{ padding: "10px 24px", borderRadius: "30px", fontSize: "13px" }}>
+                  <button className="btn btn-primary" onClick={() => router.push("/login")} style={{ padding: "10px 24px", borderRadius: "30px", fontSize: "var(--font-helper)" }}>
                     Log In / Register
                   </button>
                 </div>
               ) : user.id === listingDetails.sellerId ? (
                 <div style={{ textAlign: "center", padding: "40px 16px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "12px" }}>
-                  <span style={{ fontSize: "40px" }}>🏪</span>
-                  <p style={{ fontSize: "14px", color: "var(--text-muted)", margin: 0 }}>
+                  <span style={{ fontSize: "var(--font-display-md)" }}>🏪</span>
+                  <p style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", margin: 0 }}>
                     This is your own listing item.
                   </p>
-                  <p style={{ fontSize: "12px", color: "var(--text-dim)", margin: 0, maxWidth: "340px" }}>
+                  <p style={{ fontSize: "var(--font-caption)", color: "var(--text-dim)", margin: 0, maxWidth: "340px" }}>
                     Go to your leads dashboard to reply to messages sent by potential buyers.
                   </p>
-                  <Link href="/dashboard/leads" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontSize: "13px", textDecoration: "none" }}>
+                  <Link href="/dashboard/leads" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontSize: "var(--font-helper)", textDecoration: "none" }}>
                     Go to Leads Inbox
                   </Link>
                 </div>
               ) : chatLoading ? (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: "10px", padding: "40px 0" }}>
                   <div className="spinner"></div>
-                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Initializing live chat room...</span>
+                  <span style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)" }}>Initializing live chat room...</span>
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", flex: 1, height: "350px" }}>
@@ -630,8 +630,8 @@ export default function DetailsClient({ id }) {
                   >
                     {chatMessages.length === 0 ? (
                       <div style={{ margin: "auto", textAlign: "center", color: "var(--text-dim)", padding: "20px" }}>
-                        <span style={{ fontSize: "28px", display: "block", marginBottom: "8px" }}>👋</span>
-                        <p style={{ fontSize: "13px", margin: 0, fontWeight: "600" }}>No messages yet</p>
+                        <span style={{ fontSize: "var(--font-h2)", display: "block", marginBottom: "8px" }}>👋</span>
+                        <p style={{ fontSize: "var(--font-helper)", margin: 0, fontWeight: "var(--font-weight-semibold)" }}>No messages yet</p>
                         <p style={{ fontSize: "11px", margin: "4px 0 0 0" }}>Send a message to ask about price, availability or location.</p>
                       </div>
                     ) : (
@@ -653,7 +653,7 @@ export default function DetailsClient({ id }) {
                                 color: "#ffffff",
                                 padding: "8px 14px",
                                 borderRadius: isMe ? "14px 14px 2px 14px" : "14px 14px 14px 2px",
-                                fontSize: "13px",
+                                fontSize: "var(--font-helper)",
                                 lineHeight: "1.4",
                                 boxShadow: isMe ? "0 2px 8px rgba(99, 102, 241, 0.2)" : "none"
                               }}
@@ -684,14 +684,14 @@ export default function DetailsClient({ id }) {
                         borderRadius: "10px", 
                         padding: "10px 14px", 
                         color: "var(--text-main)", 
-                        fontSize: "13px" 
+                        fontSize: "var(--font-helper)" 
                       }} 
                     />
                     <button 
                       type="submit" 
                       className="btn btn-primary" 
                       disabled={chatSending}
-                      style={{ padding: "0 20px", borderRadius: "10px", fontWeight: "700", fontSize: "13px" }}
+                      style={{ padding: "0 20px", borderRadius: "10px", fontWeight: "var(--font-weight-bold)", fontSize: "var(--font-helper)" }}
                     >
                       {chatSending ? "Sending..." : "Send"}
                     </button>
@@ -707,8 +707,8 @@ export default function DetailsClient({ id }) {
               <div className="reviews-header" style={{ marginBottom: "20px" }}>
                 <h2>Product Reviews &amp; Ratings</h2>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "20px", color: "#fbbf24" }}>★</span>
-                  <span style={{ fontSize: "20px", fontWeight: "700" }}>
+                  <span style={{ fontSize: "var(--font-h4)", color: "#fbbf24" }}>★</span>
+                  <span style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)" }}>
                     {listingDetails.averageRating || "N/A"}
                   </span>
                   <span style={{ color: "var(--text-muted)" }}>
@@ -720,7 +720,7 @@ export default function DetailsClient({ id }) {
               {/* Add New Review Composer */}
               {user ? (
                 <form onSubmit={submitReview} className="glass-panel" style={{ padding: "24px", marginBottom: "20px" }}>
-                  <h3 style={{ marginBottom: "16px", fontSize: "18px" }}>Write a Review</h3>
+                  <h3 style={{ marginBottom: "16px", fontSize: "var(--font-h5)" }}>Write a Review</h3>
 
                   {reviewSuccess && <div className="alert-banner alert-success">{reviewSuccess}</div>}
                   {reviewError && <div className="alert-banner alert-error">{reviewError}</div>}
@@ -858,7 +858,7 @@ export default function DetailsClient({ id }) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-whatsapp"
-                    style={{ flex: 1, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", gap: "6px", height: "44px", padding: 0 }}
+                    style={{ flex: 1, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-small)", gap: "6px", height: "44px", padding: 0 }}
                   >
                     💬 WhatsApp
                   </a>
@@ -867,7 +867,7 @@ export default function DetailsClient({ id }) {
                   <a
                     href={`tel:${displayCall}`}
                     className="btn btn-secondary"
-                    style={{ flex: 1, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", gap: "6px", height: "44px", padding: 0 }}
+                    style={{ flex: 1, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-small)", gap: "6px", height: "44px", padding: 0 }}
                   >
                     📞 Call Owner
                   </a>
@@ -880,7 +880,7 @@ export default function DetailsClient({ id }) {
             <button
               className="btn btn-primary"
               onClick={() => router.push("/login")}
-              style={{ width: "100%", height: "44px", fontSize: "14px", padding: 0 }}
+              style={{ width: "100%", height: "44px", fontSize: "var(--font-small)", padding: 0 }}
             >
               🔑 Log In to Contact Seller
             </button>

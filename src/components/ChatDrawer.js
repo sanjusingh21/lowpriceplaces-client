@@ -194,12 +194,12 @@ export default function ChatDrawer() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "22px" }}>💬</span>
+            <span style={{ fontSize: "var(--font-h4)" }}>💬</span>
             <div>
-              <h2 style={{ fontSize: "17px", fontWeight: "700", margin: 0, color: "var(--text-main, #fff)" }}>
+              <h2 style={{ fontSize: "17px", fontWeight: "var(--font-weight-bold)", margin: 0, color: "var(--text-main, #fff)" }}>
                 Chats
               </h2>
-              <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)" }}>
+              <span style={{ fontSize: "var(--font-caption)", color: "var(--text-muted, #94a3b8)" }}>
                 Classifieds Conversations
               </span>
             </div>
@@ -213,7 +213,7 @@ export default function ChatDrawer() {
               borderRadius: "50%",
               width: "34px",
               height: "34px",
-              fontSize: "16px",
+              fontSize: "var(--font-body-lg)",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -243,7 +243,7 @@ export default function ChatDrawer() {
             }}
           >
             {allChats.length === 0 ? (
-              <div style={{ padding: "40px 24px", textAlign: "center", fontSize: "13px", color: "var(--text-muted)" }}>
+              <div style={{ padding: "40px 24px", textAlign: "center", fontSize: "var(--font-helper)", color: "var(--text-muted)" }}>
                 No active conversations yet. Click "Chat Now" on listings to message sellers!
               </div>
             ) : (
@@ -304,7 +304,7 @@ export default function ChatDrawer() {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontWeight: "700",
+                            fontWeight: "var(--font-weight-bold)",
                             fontSize: "17px",
                           }}
                         >
@@ -356,7 +356,7 @@ export default function ChatDrawer() {
                         </div>
 
                         {/* Product listing tag */}
-                        <div style={{ fontSize: "11.5px", color: "var(--primary, #6366f1)", fontWeight: "500", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "3px" }}>
+                        <div style={{ fontSize: "11.5px", color: "var(--primary, #6366f1)", fontWeight: "var(--font-weight-medium)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "3px" }}>
                           🏷️ {chat.listing?.title || "Product Listing"}
                         </div>
 
@@ -395,7 +395,7 @@ export default function ChatDrawer() {
                                 height: "20px",
                                 padding: "0 6px",
                                 fontSize: "11px",
-                                fontWeight: "700",
+                                fontWeight: "var(--font-weight-bold)",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
@@ -449,7 +449,7 @@ export default function ChatDrawer() {
                       color: "#fff",
                       borderRadius: "6px",
                       padding: "6px 12px",
-                      fontSize: "13px",
+                      fontSize: "var(--font-helper)",
                       cursor: "pointer",
                       display: "none", // Display set to block in responsive CSS
                       alignItems: "center",
@@ -469,17 +469,17 @@ export default function ChatDrawer() {
                       onError={(e) => { e.target.style.display = 'none'; }}
                     />
                   ) : (
-                    <div style={{ width: "40px", height: "40px", borderRadius: "8px", background: "rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>🛍️</div>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "8px", background: "rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-h5)" }}>🛍️</div>
                   )}
 
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main, #fff)" }}>
+                    <div style={{ fontSize: "var(--font-small)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main, #fff)" }}>
                       {activeChat.otherUser?.name || "User"}
-                      <span style={{ fontSize: "11px", color: activeChat.otherUser?.isOnline ? "#10b981" : "#94a3b8", fontWeight: "500", marginLeft: "8px" }}>
+                      <span style={{ fontSize: "11px", color: activeChat.otherUser?.isOnline ? "#10b981" : "#94a3b8", fontWeight: "var(--font-weight-medium)", marginLeft: "8px" }}>
                         ● {activeChat.otherUser?.isOnline ? "Online" : "Offline"}
                       </span>
                     </div>
-                    <div style={{ fontSize: "12px", color: "var(--primary, #6366f1)", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div style={{ fontSize: "var(--font-caption)", color: "var(--primary, #6366f1)", fontWeight: "var(--font-weight-semibold)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       Item: {activeChat.listing?.title} (₹{activeChat.listing?.price})
                     </div>
                   </div>
@@ -497,7 +497,7 @@ export default function ChatDrawer() {
                   }}
                 >
                   {loadingMessages && activeChatMessages.length === 0 ? (
-                    <div style={{ textAlign: "center", color: "var(--text-muted)", marginTop: "40px", fontSize: "13px" }}>
+                    <div style={{ textAlign: "center", color: "var(--text-muted)", marginTop: "40px", fontSize: "var(--font-helper)" }}>
                       Loading messages...
                     </div>
                   ) : activeChatMessages.length > 0 ? (
@@ -506,6 +506,7 @@ export default function ChatDrawer() {
 
                       return (
                         <div
+                          key={msg.id || idx}
                           style={{
                             alignSelf: isMe ? "flex-end" : "flex-start",
                             maxWidth: "75%",
@@ -544,7 +545,7 @@ export default function ChatDrawer() {
                       );
                     })
                   ) : (
-                    <div style={{ textAlign: "center", color: "var(--text-muted)", marginTop: "40px", fontSize: "13px" }}>
+                    <div style={{ textAlign: "center", color: "var(--text-muted)", marginTop: "40px", fontSize: "var(--font-helper)" }}>
                       Send your first message to start the conversation!
                     </div>
                   )}
@@ -588,7 +589,7 @@ export default function ChatDrawer() {
                       color: "#fff",
                       borderRadius: "24px",
                       padding: "10px 20px",
-                      fontWeight: "600",
+                      fontWeight: "var(--font-weight-semibold)",
                       fontSize: "13.5px",
                       cursor: messageInput.trim() && !sending ? "pointer" : "not-allowed",
                       opacity: messageInput.trim() && !sending ? 1 : 0.5,
@@ -605,7 +606,7 @@ export default function ChatDrawer() {
             ) : (
               <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", padding: "16px" }}>
                 <span style={{ fontSize: "52px", marginBottom: "16px" }}>💬</span>
-                <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-main)", marginBottom: "4px" }}>No Chat Selected</div>
+                <div style={{ fontSize: "var(--font-body-lg)", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)", marginBottom: "4px" }}>No Chat Selected</div>
                 Select a conversation on the left to start messaging.
               </div>
             )}

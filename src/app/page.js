@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useApp } from "@/context/AppContext";
 import ProductCard from "@/components/ProductCard";
 import { api } from "@/api";
+import { io } from "socket.io-client";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getImageSrcSet } from "@/utils/image";
@@ -69,6 +70,9 @@ function HomeContent() {
 
   const [nearbyStores, setNearbyStores] = useState([]);
   const [nearbyServices, setNearbyServices] = useState([]);
+  const [wholesaleDeals, setWholesaleDeals] = useState([]);
+  const [wholesaleLoading, setWholesaleLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [activeSegmentTab, setActiveSegmentTab] = useState("SALES");
   const [subViewVisible, setSubViewVisible] = useState(false); // for fade animation
   const [showAllCitiesModal, setShowAllCitiesModal] = useState(false);
@@ -81,6 +85,7 @@ function HomeContent() {
   const subcategoryScrollRef = useRef(null);
   const cityScrollRef = useRef(null);
   const storesScrollRef = useRef(null);
+  const wholesaleScrollRef = useRef(null);
   const dealsScrollRef = useRef(null);
   const secondHandScrollRef = useRef(null);
   const jobsScrollRef = useRef(null);
@@ -96,6 +101,9 @@ function HomeContent() {
 
   const [showLeftStores, setShowLeftStores] = useState(false);
   const [showRightStores, setShowRightStores] = useState(true);
+
+  const [showLeftWholesale, setShowLeftWholesale] = useState(false);
+  const [showRightWholesale, setShowRightWholesale] = useState(true);
 
   const [showLeftDeals, setShowLeftDeals] = useState(false);
   const [showRightDeals, setShowRightDeals] = useState(true);
@@ -380,6 +388,34 @@ function HomeContent() {
     });
   };
 
+  const getMOQ = (description) => {
+    if (!description) return "10 units";
+    const moqMatch = description.match(/(?:moq|minimum\s+order\s+quantity|min\s+order|min\s+qty)[:\s\-]+(\d+[\s\w]*)/i);
+    return moqMatch ? moqMatch[1].trim() : "10 units";
+  };
+
+  const fetchWholesaleDeals = async () => {
+    setWholesaleLoading(true);
+    try {
+      const data = await api.getListings({ categoryId: 55, status: "ACTIVE", sortBy: "date_desc" });
+      setWholesaleDeals(data || []);
+    } catch (e) {
+      console.error("Wholesale Deals fetch error:", e);
+    } finally {
+      setWholesaleLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const socket = io(imageServer);
+    socket.on("listings_update", (update) => {
+      fetchWholesaleDeals();
+    });
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
   const filteredListings = getFilteredListingsForGrid(listings, activeSegmentTab);
   const filteredNearbyListings = getFilteredListingsForGrid(nearbyListings, activeSegmentTab);
 
@@ -390,25 +426,21 @@ function HomeContent() {
 
   useEffect(() => {
     async function loadStoresAndServices() {
+      setDataLoading(true);
       try {
-        const storesData = await api.getStores({
-          lat: userCoords?.lat,
-          lng: userCoords?.lng
-        });
+        const storesData = await api.getStores(userCoords ? { lat: userCoords.lat, lng: userCoords.lng } : {});
         setNearbyStores(storesData);
 
-        const servicesData = await api.getServices({
-          lat: userCoords?.lat,
-          lng: userCoords?.lng
-        });
+        const servicesData = await api.getServices(userCoords ? { lat: userCoords.lat, lng: userCoords.lng } : {});
         setNearbyServices(servicesData);
       } catch (err) {
         console.error("Failed to load stores/services:", err);
+      } finally {
+        setDataLoading(false);
       }
     }
-    if (userCoords) {
-      loadStoresAndServices();
-    }
+    loadStoresAndServices();
+    fetchWholesaleDeals();
   }, [userCoords]);
 
   const handleSecondHandClick = (catName) => {
@@ -499,13 +531,13 @@ function HomeContent() {
     return (
       <>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--border-glass)", paddingBottom: "10px" }}>
-          <span style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-main)" }}>Filters</span>
+          <span style={{ fontSize: "var(--font-body)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>Filters</span>
           <span
             onClick={() => {
               handleClearAllFilters();
               if (isMobile) setMobileFiltersOpen(false);
             }}
-            style={{ fontSize: "12px", color: "var(--primary)", cursor: "pointer", fontWeight: "600" }}
+            style={{ fontSize: "var(--font-caption)", color: "var(--primary)", cursor: "pointer", fontWeight: "var(--font-weight-semibold)" }}
           >
             Clear All
           </span>
@@ -515,7 +547,7 @@ function HomeContent() {
           <div className="filter-title">Sort By</div>
           <select
             className="form-select"
-            style={{ width: "100%", background: "rgba(255,255,255,0.05)", color: "var(--text-main)", border: "1px solid var(--border-glass)", borderRadius: "8px", padding: "8px", fontSize: "13px" }}
+            style={{ width: "100%", background: "rgba(255,255,255,0.05)", color: "var(--text-main)", border: "1px solid var(--border-glass)", borderRadius: "8px", padding: "8px", fontSize: "var(--font-helper)" }}
             value={selectedSortBy}
             onChange={(e) => setSelectedSortBy(e.target.value)}
           >
@@ -529,7 +561,7 @@ function HomeContent() {
         <div className="filter-group">
           <div className="filter-title">Posted Date</div>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)", color: "var(--text-muted)", cursor: "pointer" }}>
               <input
                 type="radio"
                 name={isMobile ? "mobileDateFilter" : "dateFilter"}
@@ -538,7 +570,7 @@ function HomeContent() {
               />
               All Time
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)", color: "var(--text-muted)", cursor: "pointer" }}>
               <input
                 type="radio"
                 name={isMobile ? "mobileDateFilter" : "dateFilter"}
@@ -547,7 +579,7 @@ function HomeContent() {
               />
               Today
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)", color: "var(--text-muted)", cursor: "pointer" }}>
               <input
                 type="radio"
                 name={isMobile ? "mobileDateFilter" : "dateFilter"}
@@ -556,7 +588,7 @@ function HomeContent() {
               />
               Yesterday
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)", color: "var(--text-muted)", cursor: "pointer" }}>
               <input
                 type="radio"
                 name={isMobile ? "mobileDateFilter" : "dateFilter"}
@@ -580,7 +612,7 @@ function HomeContent() {
                   border: "1px solid var(--border-glass)",
                   borderRadius: "8px",
                   padding: "6px 8px",
-                  fontSize: "12px",
+                  fontSize: "var(--font-caption)",
                   marginTop: "4px",
                 }}
                 value={customDateInput}
@@ -623,7 +655,7 @@ function HomeContent() {
             onChange={(e) => setDiscountOnly(e.target.checked)}
             style={{ cursor: "pointer" }}
           />
-          <label htmlFor={isMobile ? "mobile-discount-check" : "discount-check"} style={{ fontSize: "14px", color: "var(--text-muted)", cursor: "pointer" }}>
+          <label htmlFor={isMobile ? "mobile-discount-check" : "discount-check"} style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", cursor: "pointer" }}>
             Discounted Deals Only
           </label>
         </div>
@@ -644,6 +676,87 @@ function HomeContent() {
 
   return (
     <div className="home-content-container">
+      <style>{`
+        .services-responsive-layout {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+          gap: 16px;
+          width: 100%;
+        }
+        @media (min-width: 1200px) {
+          .services-responsive-layout {
+            grid-template-columns: repeat(8, 1fr);
+          }
+        }
+        @media (min-width: 992px) and (max-width: 1199px) {
+          .services-responsive-layout {
+            grid-template-columns: repeat(6, 1fr);
+          }
+        }
+        @media (min-width: 600px) and (max-width: 991px) {
+          .services-responsive-layout {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+        @media (max-width: 599px) {
+          .services-responsive-layout {
+            display: flex;
+            overflow-x: auto;
+            gap: 12px;
+            padding-bottom: 8px;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+          }
+          .services-responsive-layout::-webkit-scrollbar {
+            display: none;
+          }
+          .services-card-item {
+            flex: 0 0 130px;
+            scroll-snap-align: start;
+          }
+        }
+
+        .secondhand-responsive-layout {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 16px;
+          width: 100%;
+        }
+        
+        @media (min-width: 992px) and (max-width: 1199px) {
+          .secondhand-responsive-layout {
+            grid-template-columns: repeat(6, 1fr);
+          }
+        }
+        @media (min-width: 600px) and (max-width: 991px) {
+          .secondhand-responsive-layout {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+        @media (max-width: 599px) {
+          .secondhand-responsive-layout {
+            display: flex;
+            overflow-x: auto;
+            gap: 12px;
+            padding-bottom: 8px;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+          }
+          .secondhand-responsive-layout::-webkit-scrollbar {
+            display: none;
+          }
+          .secondhand-card-item {
+            flex: 0 0 200px;
+            scroll-snap-align: start;
+          }
+        }
+
+        @keyframes pulse {
+          0% { opacity: 0.4; }
+          50% { opacity: 0.8; }
+          100% { opacity: 0.4; }
+        }
+      `}</style>
 
       {/* ========== FOCUSED SUBCATEGORY VIEW ========== */}
       {subCategoryView && (
@@ -683,8 +796,8 @@ function HomeContent() {
                 padding: "8px 14px",
                 color: "var(--text-main)",
                 cursor: "pointer",
-                fontSize: "14px",
-                fontWeight: "600",
+                fontSize: "var(--font-small)",
+                fontWeight: "var(--font-weight-semibold)",
                 display: "flex",
                 alignItems: "center",
                 gap: "6px",
@@ -696,17 +809,17 @@ function HomeContent() {
 
             {/* Breadcrumb */}
             <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0, overflow: "hidden" }}>
-              <span style={{ fontSize: "13px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: "var(--font-helper)", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
                 {subCategoryView.category?.name}
               </span>
-              <span style={{ color: "var(--text-dim)", fontSize: "12px" }}>›</span>
+              <span style={{ color: "var(--text-dim)", fontSize: "var(--font-caption)" }}>›</span>
               <span
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "6px",
-                  fontSize: "13px",
-                  fontWeight: "700",
+                  fontSize: "var(--font-helper)",
+                  fontWeight: "var(--font-weight-bold)",
                   color: "var(--accent-primary)",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
@@ -734,7 +847,7 @@ function HomeContent() {
             <h1
               style={{
                 fontSize: "clamp(20px, 5vw, 28px)",
-                fontWeight: "800",
+                fontWeight: "var(--font-weight-bold)",
                 color: "var(--text-main)",
                 marginBottom: "6px",
                 display: "flex",
@@ -754,10 +867,10 @@ function HomeContent() {
               )}
               {subCategoryView.subcategory?.name}
             </h1>
-            <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "28px" }}>
+            <p style={{ fontSize: "var(--font-helper)", color: "var(--text-muted)", marginBottom: "28px" }}>
               in <strong style={{ color: "var(--text-main)" }}>{subCategoryView.category?.name}</strong>
               {subCategoryView.listings.length > 0 && (
-                <> &nbsp;·&nbsp; <span style={{ color: "var(--accent-primary)", fontWeight: "600" }}>{subCategoryView.listings.length} listings found</span></>
+                <> &nbsp;·&nbsp; <span style={{ color: "var(--accent-primary)", fontWeight: "var(--font-weight-semibold)" }}>{subCategoryView.listings.length} listings found</span></>
               )}
             </p>
 
@@ -795,10 +908,10 @@ function HomeContent() {
                 }}
               >
                 <div style={{ fontSize: "56px", marginBottom: "16px" }}>🔍</div>
-                <h2 style={{ fontSize: "20px", fontWeight: "700", color: "var(--text-main)", marginBottom: "8px" }}>
+                <h2 style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "8px" }}>
                   No products found
                 </h2>
-                <p style={{ fontSize: "14px", color: "var(--text-muted)", marginBottom: "24px" }}>
+                <p style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", marginBottom: "24px" }}>
                   There are no listings in <strong>{subCategoryView.subcategory?.name}</strong> yet.
                   <br />Be the first to post one!
                 </p>
@@ -829,6 +942,11 @@ function HomeContent() {
       )}
 
       {/* ========== HOMEPAGE (hidden behind subcategory view) ========== */}
+      {user && (
+        <div style={{ marginBottom: "20px", fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>
+          Hello, {user.fullName || user.username?.split("@")[0] || "User"} 👋
+        </div>
+      )}
 
       {/* 🔄 Account Mode Switcher Tab Bar */}
       <div 
@@ -843,13 +961,13 @@ function HomeContent() {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
           <div>
-            <h2 style={{ fontSize: "clamp(15px, 4vw, 18px)", fontWeight: "800", color: "var(--text-main)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-              {userMode === "SELLER" ? "🏪 Seller Account Mode" : "🛒 Buyer Account Mode"}
+            <h2 style={{ fontSize: "clamp(15px, 4vw, 18px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+              {userMode === "SELLER" ? "🏪 Merchant Console" : "🛒 Customer Console"}
             </h2>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "3px 0 0 0" }}>
+            <p style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", margin: "3px 0 0 0" }}>
               {userMode === "SELLER" 
-                ? "You are viewing lowpriceplaces as a seller. Post ads, view leads & manage inquiries."
-                : "You are viewing lowpriceplaces as a buyer. Browse ads, search items & chat with sellers."}
+                ? "You are in publishing mode. Post ads, view inquiries & manage listings."
+                : "You are in browsing mode. Find deals, search products & contact store owners."}
             </p>
           </div>
 
@@ -861,7 +979,7 @@ function HomeContent() {
                 borderRadius: "32px",
                 border: "none",
                 fontSize: "13.5px",
-                fontWeight: "700",
+                fontWeight: "var(--font-weight-bold)",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
                 background: userMode === "BUYER" ? "linear-gradient(135deg, #4f46e5, #6366f1)" : "transparent",
@@ -869,7 +987,7 @@ function HomeContent() {
                 boxShadow: userMode === "BUYER" ? "0 2px 8px rgba(99, 102, 241, 0.3)" : "none"
               }}
             >
-              🛒 Buyer Mode
+              🛒 Customer Mode
             </button>
             <button
               onClick={() => switchUserMode("SELLER")}
@@ -878,7 +996,7 @@ function HomeContent() {
                 borderRadius: "32px",
                 border: "none",
                 fontSize: "13.5px",
-                fontWeight: "700",
+                fontWeight: "var(--font-weight-bold)",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
                 background: userMode === "SELLER" ? "linear-gradient(135deg, #059669, #10b981)" : "transparent",
@@ -886,7 +1004,7 @@ function HomeContent() {
                 boxShadow: userMode === "SELLER" ? "0 2px 8px rgba(16, 185, 129, 0.3)" : "none"
               }}
             >
-              🏪 Seller Mode
+              🏪 Business Mode
             </button>
           </div>
         </div>
@@ -907,24 +1025,24 @@ function HomeContent() {
             }}
           >
             <div style={{ position: "absolute", top: "-10px", right: "-10px", fontSize: "120px", opacity: 0.08, userSelect: "none" }}>🏪</div>
-            <h2 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: "800", color: "var(--text-main)", marginBottom: "8px" }}>
-              Welcome back, {user?.username ? user.username.split('@')[0] : "Seller"}! 👋
+            <h2 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "8px" }}>
+              Welcome back, {user?.username ? user.username.split('@')[0] : "User"}! 👋
             </h2>
-            <p style={{ fontSize: "14px", color: "var(--text-muted)", maxWidth: "600px", margin: "0 0 24px 0", lineHeight: "1.6" }}>
+            <p style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", maxWidth: "600px", margin: "0 0 24px 0", lineHeight: "1.6" }}>
               Advertise new items, manage active inquiries, edit contact settings, or track statistics for your shop. Everything you need is right at your fingertips.
             </p>
 
             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-              <Link href="/dashboard/add-listing" className="btn btn-primary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "700", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <Link href="/dashboard/add-listing" className="btn btn-primary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "var(--font-weight-bold)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                 ➕ Post New Product
               </Link>
-              <Link href="/dashboard/my-listings" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "700", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <Link href="/dashboard/my-listings" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "var(--font-weight-bold)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                 📦 Manage My Listings
               </Link>
-              <Link href="/dashboard/leads" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "700", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                💬 Buyer Messages ({sellerInquiries.length})
+              <Link href="/dashboard/leads" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "var(--font-weight-bold)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                💬 Messages ({sellerInquiries.length})
               </Link>
-              <Link href="/dashboard/profile" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "700", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <Link href="/dashboard/profile" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "var(--font-weight-bold)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                 🔒 Privacy & Profile Settings
               </Link>
             </div>
@@ -933,37 +1051,37 @@ function HomeContent() {
           {/* Stats Summary Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px" }}>
             <div className="glass-panel" style={{ padding: "20px 24px", borderRadius: "16px", border: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "16px" }}>
-              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px" }}>📦</div>
+              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-h3)" }}>📦</div>
               <div>
-                <span style={{ display: "block", fontSize: "12px", color: "var(--text-dim)", fontWeight: "600" }}>Total Listings</span>
-                <span style={{ fontSize: "22px", fontWeight: "800", color: "var(--text-main)" }}>{sellerListings.length}</span>
+                <span style={{ display: "block", fontSize: "var(--font-caption)", color: "var(--text-dim)", fontWeight: "var(--font-weight-semibold)" }}>Total Listings</span>
+                <span style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>{sellerListings.length}</span>
               </div>
             </div>
             <div className="glass-panel" style={{ padding: "20px 24px", borderRadius: "16px", border: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "16px" }}>
-              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(99, 102, 241, 0.15)", color: "#6366f1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px" }}>💬</div>
+              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(99, 102, 241, 0.15)", color: "#6366f1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-h3)" }}>💬</div>
               <div>
-                <span style={{ display: "block", fontSize: "12px", color: "var(--text-dim)", fontWeight: "600" }}>Buyer Leads</span>
-                <span style={{ fontSize: "22px", fontWeight: "800", color: "var(--text-main)" }}>{sellerInquiries.length}</span>
+                <span style={{ display: "block", fontSize: "var(--font-caption)", color: "var(--text-dim)", fontWeight: "var(--font-weight-semibold)" }}>Leads</span>
+                <span style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>{sellerInquiries.length}</span>
               </div>
             </div>
             <div className="glass-panel" style={{ padding: "20px 24px", borderRadius: "16px", border: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "16px" }}>
-              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px" }}>⭐</div>
+              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-h3)" }}>⭐</div>
               <div>
-                <span style={{ display: "block", fontSize: "12px", color: "var(--text-dim)", fontWeight: "600" }}>Shop Rating</span>
-                <span style={{ fontSize: "22px", fontWeight: "800", color: "var(--text-main)" }}>5.0 ★</span>
+                <span style={{ display: "block", fontSize: "var(--font-caption)", color: "var(--text-dim)", fontWeight: "var(--font-weight-semibold)" }}>Shop Rating</span>
+                <span style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>5.0 ★</span>
               </div>
             </div>
           </div>
 
           {/* Seller listings section */}
           <div className="glass-panel" style={{ padding: "24px", borderRadius: "16px", border: "1px solid var(--border-glass)" }}>
-            <h3 style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-main)", margin: "0 0 16px 0", display: "flex", alignItems: "center", gap: "6px" }}>
+            <h3 style={{ fontSize: "var(--font-h5)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: "0 0 16px 0", display: "flex", alignItems: "center", gap: "6px" }}>
               📂 My Current Listings ({sellerListings.length})
             </h3>
             {sellerListings.length === 0 ? (
               <div style={{ padding: "40px 16px", textAlign: "center", color: "var(--text-muted)" }}>
-                <p style={{ margin: "0 0 16px 0", fontSize: "14px" }}>You have not posted any advertising listings yet.</p>
-                <Link href="/dashboard/add-listing" className="btn btn-primary" style={{ padding: "8px 20px", borderRadius: "30px", textDecoration: "none", fontSize: "13px" }}>
+                <p style={{ margin: "0 0 16px 0", fontSize: "var(--font-small)" }}>You have not posted any advertising listings yet.</p>
+                <Link href="/dashboard/add-listing" className="btn btn-primary" style={{ padding: "8px 20px", borderRadius: "30px", textDecoration: "none", fontSize: "var(--font-helper)" }}>
                   Create Your First Listing
                 </Link>
               </div>
@@ -986,15 +1104,15 @@ function HomeContent() {
                           style={{ width: "100%", height: "100%", objectFit: "cover" }}
                           onError={(e) => { e.target.src = "https://placehold.co/400x300?text=Product"; }}
                         />
-                        <span style={{ position: "absolute", top: "10px", right: "10px", padding: "4px 8px", fontSize: "10px", fontWeight: "700", borderRadius: "4px", background: item.status === "ACTIVE" ? "var(--emerald-glow)" : "rgba(245, 158, 11, 0.15)", color: item.status === "ACTIVE" ? "var(--emerald)" : "#fbbf24" }}>
+                        <span style={{ position: "absolute", top: "10px", right: "10px", padding: "4px 8px", fontSize: "10px", fontWeight: "var(--font-weight-bold)", borderRadius: "4px", background: item.status === "ACTIVE" ? "var(--emerald-glow)" : "rgba(245, 158, 11, 0.15)", color: item.status === "ACTIVE" ? "var(--emerald)" : "#fbbf24" }}>
                           {item.status}
                         </span>
                       </div>
                       <div style={{ padding: "12px", display: "flex", flexDirection: "column", flex: 1 }}>
-                        <h4 style={{ margin: "0 0 6px 0", fontSize: "14px", fontWeight: "700", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <h4 style={{ margin: "0 0 6px 0", fontSize: "var(--font-small)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {item.title}
                         </h4>
-                        <span style={{ fontSize: "15px", fontWeight: "800", color: "var(--text-main)", marginBottom: "12px" }}>
+                        <span style={{ fontSize: "var(--font-body)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "12px" }}>
                           ₹{item.price}{item.priceMax ? ` - ₹${item.priceMax}` : ""}
                         </span>
                         <div style={{ marginTop: "auto", display: "flex", gap: "6px" }}>
@@ -1032,7 +1150,7 @@ function HomeContent() {
           {/* Top Categories Grid Bar */}
           <div className="glass-panel mobile-flat-panel" style={{ padding: "24px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "700", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0 }}>
+              <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0 }}>
                 📁 Browse Categories
               </h2>
           <Link
@@ -1040,7 +1158,7 @@ function HomeContent() {
             className="btn btn-secondary"
             style={{
               padding: "6px 12px",
-              fontSize: "12px",
+              fontSize: "var(--font-caption)",
               borderRadius: "6px",
               display: "inline-flex",
               alignItems: "center",
@@ -1191,14 +1309,14 @@ function HomeContent() {
       {/* Explore by City Grid Bar */}
       <div className="glass-panel mobile-flat-panel" style={{ padding: "20px 24px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "700", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0 }}>
+          <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0 }}>
             📍 Explore by City
           </h2>
           <button
             className="btn btn-secondary"
             style={{
               padding: "6px 12px",
-              fontSize: "12px",
+              fontSize: "var(--font-caption)",
               borderRadius: "6px",
               display: "inline-flex",
               alignItems: "center",
@@ -1237,9 +1355,9 @@ function HomeContent() {
               }}
             >
               <div className={`category-bar-icon-box ${!locationFilter || locationFilter.toLowerCase() === "india" ? "active" : ""}`} style={{ width: "48px", height: "48px", borderRadius: "12px" }}>
-                <span className="category-bar-emoji" style={{ fontSize: "18px" }}>🇮🇳</span>
+                <span className="category-bar-emoji" style={{ fontSize: "var(--font-h5)" }}>🇮🇳</span>
               </div>
-              <span className="category-bar-label" style={{ fontSize: "12px" }}>All India</span>
+              <span className="category-bar-label" style={{ fontSize: "var(--font-caption)" }}>All India</span>
             </div>
 
             {citiesList.map((c) => {
@@ -1271,11 +1389,11 @@ function HomeContent() {
                         }}
                       />
                     ) : null}
-                    <span className="category-bar-emoji" style={{ display: c.imagePath ? "none" : "inline", fontSize: "20px" }}>
+                    <span className="category-bar-emoji" style={{ display: c.imagePath ? "none" : "inline", fontSize: "var(--font-h4)" }}>
                       {c.emoji || "📍"}
                     </span>
                   </div>
-                  <span className="category-bar-label" style={{ fontSize: "12px" }}>{c.name}</span>
+                  <span className="category-bar-label" style={{ fontSize: "var(--font-caption)" }}>{c.name}</span>
                 </div>
               );
             })}
@@ -1295,7 +1413,7 @@ function HomeContent() {
           {/* Nearby Stores Section */}
           <div className="homepage-section-wrapper" style={{ marginBottom: "32px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", gap: "12px", flexWrap: "nowrap" }}>
-              <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "700", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0, whiteSpace: "nowrap", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+              <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0, whiteSpace: "nowrap", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
                 🏪 Nearby Stores
               </h2>
               <Link 
@@ -1303,7 +1421,7 @@ function HomeContent() {
                 className="btn btn-secondary" 
                 style={{ 
                   padding: "6px 12px", 
-                  fontSize: "12px", 
+                  fontSize: "var(--font-caption)", 
                   borderRadius: "6px", 
                   display: "inline-flex", 
                   alignItems: "center", 
@@ -1317,7 +1435,7 @@ function HomeContent() {
             </div>
             
             {nearbyStores.length === 0 ? (
-              <div style={{ padding: "20px", color: "var(--text-muted)", fontSize: "13px" }}>No stores found nearby.</div>
+              <div style={{ padding: "20px", color: "var(--text-muted)", fontSize: "var(--font-helper)" }}>No stores found nearby.</div>
             ) :             (
               <div className="scroll-arrow-wrapper">
                 {showLeftStores && (
@@ -1374,19 +1492,19 @@ function HomeContent() {
                             style={{ width: "100%", height: "100%", objectFit: "cover" }}
                           />
                         )}
-                        <span style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(13,14,21,0.85)", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "600", color: "#fbbf24", border: "1px solid rgba(255,255,255,0.05)" }}>
+                        <span style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(13,14,21,0.85)", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "var(--font-weight-semibold)", color: "#fbbf24", border: "1px solid rgba(255,255,255,0.05)" }}>
                           ⭐ {store.rating.toFixed(1)}
                         </span>
                       </div>
                       <div style={{ padding: "10px", display: "flex", flexDirection: "column", flex: 1 }}>
-                        <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: "var(--font-helper)", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {store.name}
                         </span>
                         <span style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
                           {store.category}
                         </span>
                         <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "8px" }}>
-                          <span style={{ fontSize: "11px", color: "var(--text-main)", fontWeight: "500" }}>
+                          <span style={{ fontSize: "11px", color: "var(--text-main)", fontWeight: "var(--font-weight-medium)" }}>
                             📍 {store.distance !== null ? `${store.distance} km` : store.location}
                           </span>
                         </div>
@@ -1401,18 +1519,18 @@ function HomeContent() {
             )}
           </div>
 
-          {/* Best Services Near You Section */}
+          {/* Wholesale Deals Section */}
           <div className="homepage-section-wrapper" style={{ marginBottom: "32px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", gap: "12px", flexWrap: "nowrap" }}>
-              <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "700", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0, whiteSpace: "nowrap", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-                🛠️ Best Services Near You
+              <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0, whiteSpace: "nowrap", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                🏷️ Wholesale Deals
               </h2>
               <Link 
-                href="/services" 
+                href="/wholesale" 
                 className="btn btn-secondary" 
                 style={{ 
                   padding: "6px 12px", 
-                  fontSize: "12px", 
+                  fontSize: "var(--font-caption)", 
                   borderRadius: "6px", 
                   display: "inline-flex", 
                   alignItems: "center", 
@@ -1424,27 +1542,215 @@ function HomeContent() {
                 View All →
               </Link>
             </div>
-            {nearbyServices.length === 0 ? (
-              <div style={{ padding: "20px", color: "var(--text-muted)", fontSize: "13px" }}>No services found nearby.</div>
-            ) : (
-              <Splide
-                options={{
-                  autoWidth: true,
-                  gap: '12px',
-                  arrows: true,
-                  pagination: false,
-                  drag: 'free',
-                  snap: true,
+            
+            {wholesaleLoading ? (
+              <div style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "12px" }}>
+                {[...Array(6)].map((_, idx) => (
+                  <div
+                    key={idx}
+                    className="glass-panel"
+                    style={{
+                      width: "180px",
+                      height: "210px",
+                      borderRadius: "12px",
+                      background: "var(--bg-card)",
+                      border: "1px solid var(--border-glass)",
+                      animation: "pulse 1.5s infinite ease-in-out",
+                      display: "flex",
+                      flexDirection: "column",
+                      overflow: "hidden"
+                    }}
+                  >
+                    <div style={{ height: "100px", background: "rgba(255,255,255,0.08)" }}></div>
+                    <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
+                      <div style={{ width: "120px", height: "12px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <div style={{ width: "40px", height: "12px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
+                        <div style={{ width: "60px", height: "10px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
+                      </div>
+                      <div style={{ borderTop: "1px solid var(--border-glass)", paddingTop: "6px", display: "flex", flexDirection: "column", gap: "4px", marginTop: "auto" }}>
+                        <div style={{ width: "80px", height: "8px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
+                        <div style={{ width: "60px", height: "8px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : wholesaleDeals.length === 0 ? (
+              <div 
+                className="glass-panel" 
+                style={{ 
+                  padding: "40px 20px", 
+                  textAlign: "center", 
+                  color: "var(--text-muted)",
+                  borderRadius: "12px",
+                  border: "1px solid var(--border-glass)",
+                  background: "var(--bg-card)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "12px"
                 }}
               >
-                {nearbyServices.map((service) => (
-                  <SplideSlide key={service.id}>
+                <div style={{ fontSize: "36px" }}>🏷️</div>
+                <div style={{ fontSize: "var(--font-body)", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)" }}>
+                  No Wholesale Deals Available
+                </div>
+                <div style={{ fontSize: "var(--font-caption)", color: "var(--text-dim)" }}>
+                  Check back later for bulk purchase offers and merchant deals.
+                </div>
+              </div>
+            ) : (
+              <div className="scroll-arrow-wrapper">
+                {showLeftWholesale && (
+                  <button className="scroll-arrow-btn left" onClick={() => scrollLeft(wholesaleScrollRef)}>◀</button>
+                )}
+                <div
+                  ref={wholesaleScrollRef}
+                  className="grab-scroll-container"
+                  onMouseDown={handleDragScroll}
+                  onMouseLeave={handleDragScrollLeaveOrUp}
+                  onMouseUp={handleDragScrollLeaveOrUp}
+                  onMouseMove={handleDragScrollMove}
+                  onScroll={() => updateArrowVisibility(wholesaleScrollRef, setShowLeftWholesale, setShowRightWholesale)}
+                  style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "12px", scrollBehavior: "smooth" }}
+                >
+                  {wholesaleDeals.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={`/details/${item.id}`}
+                      className="glass-panel"
+                      style={{
+                        width: "180px",
+                        flexShrink: 0,
+                        borderRadius: "12px",
+                        overflow: "hidden",
+                        border: "1px solid var(--border-glass)",
+                        background: "var(--bg-card)",
+                        display: "flex",
+                        flexDirection: "column",
+                        transition: "transform 0.2s ease",
+                        cursor: "pointer",
+                        textDecoration: "none"
+                      }}
+                    >
+                      <div style={{ height: "100px", width: "100%", position: "relative", background: "rgba(255,255,255,0.02)" }}>
+                        {item.imagePath ? (
+                          <img
+                            src={item.imagePath.startsWith("http") ? item.imagePath.split(',')[0] : `${imageServer}${item.imagePath.split(',')[0]}`}
+                            srcSet={getImageSrcSet(item.imagePath.split(',')[0], imageServer) || undefined}
+                            sizes="200px"
+                            alt={item.title}
+                            loading="lazy"
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            onError={(e) => { 
+                              e.target.src = "https://placehold.co/400x300?text=Product"; 
+                              e.target.srcSet = "";
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src="https://placehold.co/400x300?text=Product"
+                            alt={item.title}
+                            loading="lazy"
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        )}
+                        <span style={{ position: "absolute", top: "8px", left: "8px", background: "var(--primary)", padding: "2px 6px", borderRadius: "4px", fontSize: "9px", fontWeight: "var(--font-weight-bold)", color: "#ffffff", boxShadow: "0 2px 4px rgba(0,0,0,0.3)" }}>
+                          Wholesale
+                        </span>
+                        {item.averageRating !== undefined && item.averageRating !== null && item.averageRating > 0 && (
+                          <span style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(13,14,21,0.85)", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "var(--font-weight-semibold)", color: "#fbbf24", border: "1px solid rgba(255,255,255,0.05)" }}>
+                            ⭐ {Number(item.averageRating).toFixed(1)}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ padding: "10px", display: "flex", flexDirection: "column", flex: 1, gap: "4px" }}>
+                        <span style={{ fontSize: "var(--font-helper)", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {item.title}
+                        </span>
+                        
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                          <span style={{ fontSize: "13px", fontWeight: "var(--font-weight-bold)", color: "var(--primary)" }}>
+                            ₹{item.price}
+                          </span>
+                          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: "var(--font-weight-semibold)" }}>
+                            MOQ: {getMOQ(item.description)}
+                          </span>
+                        </div>
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px", borderTop: "1px solid var(--border-glass)", paddingTop: "6px", marginTop: "4px" }}>
+                          <span style={{ fontSize: "10px", color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={item.seller?.fullName || item.seller?.username}>
+                            👤 {item.seller?.fullName || item.seller?.username?.split("@")[0] || "User"}
+                          </span>
+                          <span style={{ fontSize: "10px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            📍 {item.location}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                {showRightWholesale && (
+                  <button className="scroll-arrow-btn right" onClick={() => scrollRight(wholesaleScrollRef)}>▶</button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Best Services Near You Section */}
+          <div className="homepage-section-wrapper" style={{ marginBottom: "32px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", gap: "12px", flexWrap: "nowrap" }}>
+              <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0, whiteSpace: "nowrap", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                🛠️ Best Services Near You
+              </h2>
+              <Link 
+                href="/services" 
+                className="btn btn-secondary" 
+                style={{ 
+                  padding: "6px 12px", 
+                  fontSize: "var(--font-caption)", 
+                  borderRadius: "6px", 
+                  display: "inline-flex", 
+                  alignItems: "center", 
+                  flexShrink: 0, 
+                  whiteSpace: "nowrap",
+                  textDecoration: "none"
+                }}
+              >
+                View All →
+              </Link>
+            </div>
+            {dataLoading ? (
+              <div className="services-responsive-layout">
+                {[...Array(8)].map((_, idx) => (
+                  <div key={idx} className="services-card-item">
+                    <div className="glass-panel" style={{
+                      width: "130px", height: "140px", borderRadius: "12px", padding: "12px",
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
+                      background: "var(--bg-card)", border: "1px solid var(--border-glass)",
+                      animation: "pulse 1.5s infinite ease-in-out"
+                    }}>
+                      <div style={{ width: "50px", height: "50px", borderRadius: "50%", background: "rgba(255,255,255,0.08)" }}></div>
+                      <div style={{ width: "80px", height: "12px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
+                      <div style={{ width: "50px", height: "8px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : nearbyServices.length === 0 ? (
+              <div style={{ padding: "20px", color: "var(--text-muted)", fontSize: "var(--font-helper)" }}>No services available yet.</div>
+            ) : (
+              <div className="services-responsive-layout">
+                {nearbyServices.slice(0, 10).map((service) => (
+                  <div key={service.id} className="services-card-item">
                     <Link
                       href={`/services/${service.id}`}
                       className="glass-panel"
                       style={{
                         width: "130px",
-                        flexShrink: 0,
+                        height: "155px",
                         borderRadius: "12px",
                         padding: "12px",
                         border: "1px solid var(--border-glass)",
@@ -1454,7 +1760,8 @@ function HomeContent() {
                         flexDirection: "column",
                         alignItems: "center",
                         cursor: "pointer",
-                        textDecoration: "none"
+                        textDecoration: "none",
+                        position: "relative"
                       }}
                     >
                       <div
@@ -1464,7 +1771,7 @@ function HomeContent() {
                           borderRadius: "50%",
                           position: "relative",
                           overflow: "hidden",
-                          marginBottom: "10px",
+                          marginBottom: "8px",
                           border: "1px solid rgba(255, 255, 255, 0.05)"
                         }}
                       >
@@ -1490,19 +1797,27 @@ function HomeContent() {
                           />
                         )}
                       </div>
-                      <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-main)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", height: "36px", lineHeight: "18px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", height: "30px", lineHeight: "15px" }}>
                         {service.name}
+                        {service.verified && (
+                          <span style={{ color: "#3b82f6", marginLeft: "4px", fontSize: "10px" }} title="Verified Seller">✓</span>
+                        )}
                       </span>
-                      <span style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px" }}>
+                      <span style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
                         {service.serviceType}
                       </span>
-                      <span style={{ fontSize: "10px", color: "var(--primary-indigo)", fontWeight: "600", marginTop: "6px" }}>
-                        📍 {service.distance !== null ? `${service.distance} km` : service.location}
+                      {service.price && (
+                        <span style={{ fontSize: "10px", color: "var(--text-main)", fontWeight: "var(--font-weight-semibold)", marginTop: "2px" }}>
+                          ₹{service.price}
+                        </span>
+                      )}
+                      <span style={{ fontSize: "9px", color: "var(--primary-indigo)", fontWeight: "var(--font-weight-semibold)", marginTop: "auto" }}>
+                        📍 {service.distance !== null ? `${service.distance.toFixed(1)} km` : (service.location?.split(',')[0] || "Local")}
                       </span>
                     </Link>
-                  </SplideSlide>
+                  </div>
                 ))}
-              </Splide>
+              </div>
             )}
           </div>
 
@@ -1514,15 +1829,15 @@ function HomeContent() {
               {/* Second-Hand Items Section */}
               <div className="homepage-section-wrapper" style={{ marginBottom: "36px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", gap: "12px", flexWrap: "nowrap" }}>
-                  <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "700", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0, whiteSpace: "nowrap", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0, whiteSpace: "nowrap", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
                     ♻️ Second-Hand Items
                   </h2>
                   <Link 
-                    href="/marketplace" 
+                    href="/second-hand" 
                     className="btn btn-secondary" 
                     style={{ 
                       padding: "6px 12px", 
-                      fontSize: "12px", 
+                      fontSize: "var(--font-caption)", 
                       borderRadius: "6px", 
                       display: "inline-flex", 
                       alignItems: "center", 
@@ -1534,32 +1849,32 @@ function HomeContent() {
                     View All →
                   </Link>
                 </div>
-                {secondhandListings.length === 0 ? (
-                  <div style={{ padding: "20px", color: "var(--text-muted)", fontSize: "13px" }}>No items found matching current filters.</div>
-                ) : (
-                  <div className="scroll-arrow-wrapper">
-                    {showLeftSecondHand && (
-                      <button className="scroll-arrow-btn left" onClick={() => scrollLeft(secondHandScrollRef)}>◀</button>
-                    )}
-                    <div
-                      ref={secondHandScrollRef}
-                      className="grab-scroll-container"
-                      onMouseDown={handleDragScroll}
-                      onMouseLeave={handleDragScrollLeaveOrUp}
-                      onMouseUp={handleDragScrollLeaveOrUp}
-                      onMouseMove={handleDragScrollMove}
-                      onScroll={() => updateArrowVisibility(secondHandScrollRef, setShowLeftSecondHand, setShowRightSecondHand)}
-                      style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "12px", scrollBehavior: "smooth" }}
-                    >
-                      {secondhandListings.map((item) => (
-                        <div key={item.id} style={{ width: "220px", flexShrink: 0 }}>
-                          <ProductCard item={item} />
+                {loading ? (
+                  <div className="secondhand-responsive-layout">
+                    {[...Array(8)].map((_, idx) => (
+                      <div key={idx} className="secondhand-card-item">
+                        <div className="glass-panel" style={{
+                          width: "200px", height: "280px", borderRadius: "16px", padding: "12px",
+                          display: "flex", flexDirection: "column", gap: "12px",
+                          background: "var(--bg-card)", border: "1px solid var(--border-glass)",
+                          animation: "pulse 1.5s infinite ease-in-out"
+                        }}>
+                          <div style={{ width: "100%", height: "120px", borderRadius: "8px", background: "rgba(255,255,255,0.08)" }}></div>
+                          <div style={{ width: "80px", height: "10px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
+                          <div style={{ width: "140px", height: "14px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
                         </div>
-                      ))}
-                    </div>
-                    {showRightSecondHand && (
-                      <button className="scroll-arrow-btn right" onClick={() => scrollRight(secondHandScrollRef)}>▶</button>
-                    )}
+                      </div>
+                    ))}
+                  </div>
+                ) : secondhandListings.length === 0 ? (
+                  <div style={{ padding: "20px", color: "var(--text-muted)", fontSize: "var(--font-helper)" }}>No second-hand items available yet.</div>
+                ) : (
+                  <div className="secondhand-responsive-layout">
+                    {secondhandListings.slice(0, 10).map((item) => (
+                      <div key={item.id} className="secondhand-card-item" style={{ minWidth: 0 }}>
+                        <ProductCard item={item} href={`/second-hand/${item.id}`} />
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1589,10 +1904,10 @@ function HomeContent() {
 
               <div className="section-header" style={{ marginTop: "24px" }}>
                 <div>
-                  <h2 style={{ fontSize: "22px" }}>
+                  <h2 style={{ fontSize: "var(--font-h4)" }}>
                     {selectedSubCatFilter ? selectedSubCatFilter.name : selectedCatFilter ? selectedCatFilter.name : "Featured Listings Grid"}
                   </h2>
-                  <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>
+                  <p style={{ fontSize: "var(--font-helper)", color: "var(--text-muted)", marginTop: "4px" }}>
                     {filteredListings.length} exact match(es) found
                   </p>
                 </div>
@@ -1600,14 +1915,14 @@ function HomeContent() {
 
               {filteredListings.length === 0 && filteredNearbyListings.length === 0 ? (
                 <div className="glass-panel" style={{ padding: "40px 24px", textAlign: "center", color: "var(--text-muted)", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
-                  <div style={{ fontSize: "15px" }}>
+                  <div style={{ fontSize: "var(--font-body)" }}>
                     No active listings found in this category. Try switching tabs or broadening your keywords.
                   </div>
                   {isAnyFilterApplied && (
                     <button
                       className="btn btn-primary"
                       onClick={handleClearAllFilters}
-                      style={{ padding: "8px 16px", fontSize: "13px", borderRadius: "8px" }}
+                      style={{ padding: "8px 16px", fontSize: "var(--font-helper)", borderRadius: "8px" }}
                     >
                       Reset & Clear All Filters
                     </button>
@@ -1628,7 +1943,7 @@ function HomeContent() {
                         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "24px" }}>
                           <button
                             className="btn btn-secondary"
-                            style={{ padding: "6px 12px", fontSize: "13px" }}
+                            style={{ padding: "6px 12px", fontSize: "var(--font-helper)" }}
                             disabled={currentPage === 1}
                             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                           >
@@ -1638,7 +1953,7 @@ function HomeContent() {
                             <button
                               key={i}
                               className={`btn ${currentPage === i + 1 ? "btn-primary" : "btn-secondary"}`}
-                              style={{ padding: "6px 12px", fontSize: "13px", minWidth: "32px" }}
+                              style={{ padding: "6px 12px", fontSize: "var(--font-helper)", minWidth: "32px" }}
                               onClick={() => setCurrentPage(i + 1)}
                             >
                               {i + 1}
@@ -1646,7 +1961,7 @@ function HomeContent() {
                           ))}
                           <button
                             className="btn btn-secondary"
-                            style={{ padding: "6px 12px", fontSize: "13px" }}
+                            style={{ padding: "6px 12px", fontSize: "var(--font-helper)" }}
                             disabled={currentPage === Math.ceil(filteredListings.length / ITEMS_PER_PAGE)}
                             onClick={() => setCurrentPage((prev) => Math.min(prev + 1, Math.ceil(filteredListings.length / ITEMS_PER_PAGE)))}
                           >
@@ -1666,7 +1981,7 @@ function HomeContent() {
                   {/* Nearby City-Wide Matches Fallback */}
                   {filteredNearbyListings.length > 0 && (
                     <div style={{ borderTop: "1px solid var(--border-glass)", paddingTop: "24px" }}>
-                      <h2 style={{ fontSize: "20px", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px", color: "var(--primary)" }}>
+                      <h2 style={{ fontSize: "var(--font-h4)", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px", color: "var(--primary)" }}>
                         🗺️ Nearby {activeSegmentTab === "SALES" ? "Sales" : activeSegmentTab === "SERVICES" ? "Services" : "Second-Hand"} Listings in {extractParentCity(locationFilter)}
                       </h2>
                       <div className="products-grid">
@@ -1679,7 +1994,7 @@ function HomeContent() {
                         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "24px" }}>
                           <button
                             className="btn btn-secondary"
-                            style={{ padding: "6px 12px", fontSize: "13px" }}
+                            style={{ padding: "6px 12px", fontSize: "var(--font-helper)" }}
                             disabled={currentNearbyPage === 1}
                             onClick={() => setCurrentNearbyPage((prev) => Math.max(prev - 1, 1))}
                           >
@@ -1689,7 +2004,7 @@ function HomeContent() {
                             <button
                               key={i}
                               className={`btn ${currentNearbyPage === i + 1 ? "btn-primary" : "btn-secondary"}`}
-                              style={{ padding: "6px 12px", fontSize: "13px", minWidth: "32px" }}
+                              style={{ padding: "6px 12px", fontSize: "var(--font-helper)", minWidth: "32px" }}
                               onClick={() => setCurrentNearbyPage(i + 1)}
                             >
                               {i + 1}
@@ -1697,7 +2012,7 @@ function HomeContent() {
                           ))}
                           <button
                             className="btn btn-secondary"
-                            style={{ padding: "6px 12px", fontSize: "13px" }}
+                            style={{ padding: "6px 12px", fontSize: "var(--font-helper)" }}
                             disabled={currentNearbyPage === Math.ceil(filteredNearbyListings.length / ITEMS_PER_PAGE)}
                             onClick={() => setCurrentNearbyPage((prev) => Math.min(prev + 1, Math.ceil(filteredNearbyListings.length / ITEMS_PER_PAGE)))}
                           >
@@ -1719,7 +2034,7 @@ function HomeContent() {
       <div className={`mobile-filter-drawer-overlay ${mobileFiltersOpen ? "open" : ""}`} onClick={() => setMobileFiltersOpen(false)}>
         <div className="mobile-filter-drawer" onClick={(e) => e.stopPropagation()}>
           <div className="drawer-header">
-            <span style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-main)" }}>Filter Listings</span>
+            <span style={{ fontSize: "var(--font-body-lg)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>Filter Listings</span>
             <button className="drawer-close-btn" onClick={() => setMobileFiltersOpen(false)}>✖</button>
           </div>
           <div className="drawer-body" style={{ maxHeight: "70vh", overflowY: "auto", padding: "16px" }}>
@@ -1772,10 +2087,10 @@ function HomeContent() {
             {/* Modal Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <h3 style={{ fontSize: "18px", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>
+                <h3 style={{ fontSize: "var(--font-h5)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0 }}>
                   📍 Select Your City / Location
                 </h3>
-                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "4px 0 0 0" }}>
+                <p style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", margin: "4px 0 0 0" }}>
                   Choose a location to discover deals near you
                 </p>
               </div>
@@ -1788,7 +2103,7 @@ function HomeContent() {
                   width: "32px",
                   height: "32px",
                   color: "#ffffff",
-                  fontSize: "14px",
+                  fontSize: "var(--font-small)",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -1813,11 +2128,11 @@ function HomeContent() {
                   borderRadius: "12px",
                   padding: "12px 16px 12px 40px",
                   color: "var(--text-main)",
-                  fontSize: "14px",
+                  fontSize: "var(--font-small)",
                   outline: "none"
                 }}
               />
-              <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", fontSize: "16px", color: "var(--text-dim)" }}>
+              <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", fontSize: "var(--font-body-lg)", color: "var(--text-dim)" }}>
                 🔍
               </span>
             </div>
@@ -1843,8 +2158,8 @@ function HomeContent() {
                     transition: "var(--transition)"
                   }}
                 >
-                  <span style={{ fontSize: "28px", display: "block", marginBottom: "8px" }}>🇮🇳</span>
-                  <span style={{ fontSize: "12px", fontWeight: "700", color: "#ffffff" }}>All India</span>
+                  <span style={{ fontSize: "var(--font-h2)", display: "block", marginBottom: "8px" }}>🇮🇳</span>
+                  <span style={{ fontSize: "var(--font-caption)", fontWeight: "var(--font-weight-bold)", color: "#ffffff" }}>All India</span>
                 </div>
 
                 {citiesList
@@ -1887,11 +2202,11 @@ function HomeContent() {
                             }}
                           />
                         ) : (
-                          <span style={{ fontSize: "28px", display: "block", marginBottom: "8px" }}>
+                          <span style={{ fontSize: "var(--font-h2)", display: "block", marginBottom: "8px" }}>
                             {c.emoji || "📍"}
                           </span>
                         )}
-                        <span style={{ fontSize: "12px", fontWeight: "700", color: "#ffffff", wordBreak: "break-word" }}>
+                        <span style={{ fontSize: "var(--font-caption)", fontWeight: "var(--font-weight-bold)", color: "#ffffff", wordBreak: "break-word" }}>
                           {c.name}
                         </span>
                       </div>

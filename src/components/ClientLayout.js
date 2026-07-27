@@ -54,6 +54,7 @@ export default function ClientLayout({ children }) {
 
   // Unread chat/inquiry count
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   useEffect(() => {
     if (!user) { setUnreadCount(0); return; }
@@ -121,6 +122,9 @@ export default function ClientLayout({ children }) {
     const handleOutsideClick = (e) => {
       if (!e.target.closest('.location-search-box') && !e.target.closest('.form-group')) {
         setShowEditLocDropdown(false);
+      }
+      if (!e.target.closest('.user-profile-dropdown-wrapper')) {
+        setShowUserDropdown(false);
       }
     };
     document.addEventListener('click', handleOutsideClick);
@@ -230,7 +234,7 @@ export default function ClientLayout({ children }) {
                   </div>
                 ))
               ) : (
-                <div style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-dim)' }}>
+                <div style={{ padding: '10px 16px', fontSize: "var(--font-helper)", color: 'var(--text-dim)' }}>
                   No matches found
                 </div>
               )}
@@ -239,7 +243,7 @@ export default function ClientLayout({ children }) {
         </div>
 
         <div className="keyword-search-box" style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-          <span style={{ fontSize: '14px', marginLeft: '12px', color: 'var(--text-dim)', userSelect: 'none' }}>🔍</span>
+          <span style={{ fontSize: "var(--font-small)", marginLeft: '12px', color: 'var(--text-dim)', userSelect: 'none' }}>🔍</span>
           <input
             type="text"
             className="keyword-input"
@@ -309,7 +313,7 @@ export default function ClientLayout({ children }) {
               background: 'none',
               border: 'none',
               color: 'var(--text-main)',
-              fontSize: '24px',
+              fontSize: "var(--font-h3)",
               cursor: 'pointer',
               padding: '0 8px',
             }}
@@ -350,7 +354,7 @@ export default function ClientLayout({ children }) {
             </svg>
             <span style={{ display: 'flex', alignItems: 'baseline' }}>
               <span style={{ color: 'var(--logo-blue)' }}>low</span>
-              <span style={{ color: 'var(--logo-green)', fontWeight: 'bold' }}>p</span>
+              <span style={{ color: 'var(--logo-green)', fontWeight: "var(--font-weight-bold)" }}>p</span>
               <span style={{ color: 'var(--logo-blue)' }}>riceplaces</span>
               <span style={{ color: 'var(--logo-gray)', fontSize: '0.75em', marginLeft: '1px' }}>.com</span>
             </span>
@@ -366,7 +370,7 @@ export default function ClientLayout({ children }) {
             {pathname !== '/' && (
               <button
                 className="btn btn-secondary"
-                style={{ padding: '6px 10px', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ padding: '6px 10px', fontSize: "var(--font-body)", display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 onClick={() => {
                   router.push('/');
                   setTimeout(() => {
@@ -383,7 +387,7 @@ export default function ClientLayout({ children }) {
             )}
             <button
               className="btn btn-secondary"
-              style={{ padding: '6px 10px', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ padding: '6px 10px', fontSize: "var(--font-body)", display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
               title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
             >
@@ -395,7 +399,7 @@ export default function ClientLayout({ children }) {
             {pathname !== '/' && (
               <button
                 className="btn btn-secondary"
-                style={{ padding: '6px 10px', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ padding: '6px 10px', fontSize: "var(--font-body)", display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 onClick={() => {
                   router.push('/');
                   setTimeout(() => {
@@ -412,82 +416,156 @@ export default function ClientLayout({ children }) {
             )}
             <button
               className="btn btn-secondary"
-              style={{ padding: '6px 10px', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ padding: '6px 10px', fontSize: "var(--font-body)", display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
               title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
             >
               {theme === 'light' ? '🌙' : '☀️'}
             </button>
             {user ? (
-              <>
-                <button
-                  className="btn"
-                  onClick={() => switchUserMode(userMode === "BUYER" ? "SELLER" : "BUYER")}
-                  style={{
-                    background: userMode === "SELLER" ? "rgba(16, 185, 129, 0.15)" : "rgba(99, 102, 241, 0.15)",
-                    border: userMode === "SELLER" ? "1px solid rgba(16, 185, 129, 0.4)" : "1px solid rgba(99, 102, 241, 0.4)",
-                    color: userMode === "SELLER" ? "#10b981" : "#6366f1",
-                    fontWeight: "700",
-                    fontSize: "12px",
-                    padding: "6px 12px",
-                    borderRadius: "20px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    cursor: "pointer"
-                  }}
-                  title="Click to switch account mode"
-                >
-                  {userMode === "SELLER" ? "🏪 Seller Mode" : "🛒 Buyer Mode"}
-                </button>
-
-                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  Hello, <strong style={{ color: 'var(--text-main)' }}>{user.username ? user.username.split('@')[0] : ''}</strong>
-                </span>
-
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 {(user.role === 'SELLER' || user.role === 'BUYER' || user.role === 'ADMIN') && (
-                  <>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => {
-                        if (!user) {
-                          router.push('/login');
-                        } else {
-                          fetchUserChats();
-                          setIsChatOpen(true);
-                        }
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
-                      title="Open 1-on-1 Messages & Chat"
-                    >
-                      💬 Messages
-                    </button>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => router.push('/dashboard/bookmarks')}
-                      style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
-                    >
-                      ❤️ Shortlist
-                    </button>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => {
-                        if (user.role === 'ADMIN') {
-                          window.location.href = 'https://admin2.lowpriceplaces.com';
-                        } else {
-                          router.push('/dashboard/profile');
-                        }
-                      }}
-                    >
-                      {user.role === 'ADMIN' ? 'Admin Dashboard' : 'Profile'}
-                    </button>
-                  </>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      if (!user) {
+                        router.push('/login');
+                      } else {
+                        fetchUserChats();
+                        setIsChatOpen(true);
+                      }
+                    }}
+                    style={{
+                      position: "relative",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "50%",
+                      padding: 0,
+                      background: "var(--bg-input)",
+                      border: "1px solid var(--border-glass)"
+                    }}
+                    title="Open 1-on-1 Messages & Chat"
+                  >
+                    <span style={{ fontSize: "18px" }}>💬</span>
+                    {unreadCount > 0 && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: "-5px",
+                          right: "-5px",
+                          background: "#ef4444",
+                          color: "#ffffff",
+                          fontSize: "10px",
+                          fontWeight: "bold",
+                          borderRadius: "50%",
+                          minWidth: "18px",
+                          height: "18px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: "0 4px",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                          border: "2.5px solid var(--bg-card-solid)"
+                        }}
+                      >
+                        {unreadCount}
+                      </span>
+                    )}
+                  </button>
                 )}
 
-                <button className="btn btn-primary" onClick={logout}>
-                  Log Out
-                </button>
-              </>
+                {/* Avatar Profile Dropdown */}
+                <div className="user-profile-dropdown-wrapper" style={{ position: "relative" }}>
+                  <button
+                    onClick={() => setShowUserDropdown(!showUserDropdown)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      cursor: "pointer",
+                      padding: "4px 8px",
+                      borderRadius: "20px",
+                      transition: "var(--transition)"
+                    }}
+                  >
+                    <img
+                      src={user.profilePicture || "https://placehold.co/100x100?text=User"}
+                      alt={user.fullName || user.username}
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "50%",
+                        objectFit: "cover",
+                        border: "1px solid var(--border-glass)"
+                      }}
+                      onError={(e) => {
+                        e.target.src = "https://placehold.co/100x100?text=U";
+                      }}
+                    />
+                    <span style={{ fontSize: "var(--font-caption)", color: "var(--text-main)" }}>▼</span>
+                  </button>
+
+                  {showUserDropdown && (
+                    <div
+                      className="glass-panel"
+                      style={{
+                        position: "absolute",
+                        top: "45px",
+                        right: 0,
+                        zIndex: 100,
+                        width: "220px",
+                        padding: "16px",
+                        background: "var(--bg-card-solid)",
+                        border: "1px solid var(--border-glass)",
+                        boxShadow: "var(--shadow-glow)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "12px",
+                        borderRadius: "12px"
+                      }}
+                    >
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <strong style={{ fontSize: "var(--font-small)", color: "var(--text-main)" }}>
+                          {user.fullName || (user.username ? user.username.split('@')[0] : 'User')}
+                        </strong>
+                        <span style={{ fontSize: "var(--font-caption)", color: "var(--text-dim)", wordBreak: "break-all" }}>
+                          {user.email || user.username}
+                        </span>
+                      </div>
+                      <hr style={{ border: "none", borderTop: "1px solid var(--border-glass)", margin: 0 }} />
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setShowUserDropdown(false);
+                          if (user.role === 'ADMIN') {
+                            window.location.href = 'https://admin2.lowpriceplaces.com';
+                          } else {
+                            router.push('/dashboard/profile');
+                          }
+                        }}
+                        style={{ width: "100%", textAlign: "left", padding: "8px 12px", fontSize: "var(--font-caption)" }}
+                      >
+                        👤 {user.role === 'ADMIN' ? 'Admin Dashboard' : 'Profile Settings'}
+                      </button>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => {
+                          setShowUserDropdown(false);
+                          logout();
+                        }}
+                        style={{ width: "100%", justifyContent: "center", padding: "8px 12px", fontSize: "var(--font-caption)" }}
+                      >
+                        🚪 Log Out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : (
               <>
                 <button className="btn btn-secondary" onClick={() => router.push('/login')}>Sign In</button>
@@ -510,15 +588,15 @@ export default function ClientLayout({ children }) {
 
       <footer className="app-footer" style={{ marginTop: 'auto', borderTop: '1px solid var(--border-glass)', padding: '24px 0', background: 'var(--bg-card)', backdropFilter: 'var(--glass-blur)' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-dim)' }}>
+          <span style={{ fontSize: "var(--font-helper)", color: 'var(--text-dim)' }}>
             © 2026 lowpriceplaces Classifieds. Local advertisements and connections for budget deals.
           </span>
-          <span style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: "var(--font-helper)", display: 'flex', alignItems: 'center', gap: '6px' }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--primary)', flexShrink: 0 }}>
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
               <polyline points="22,6 12,13 2,6"></polyline>
             </svg>
-            <a href="mailto:support@lowpriceplaces.com" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: '600' }}>support@lowpriceplaces.com</a>
+            <a href="mailto:support@lowpriceplaces.com" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: "var(--font-weight-semibold)" }}>support@lowpriceplaces.com</a>
           </span>
         </div>
       </footer>
@@ -528,7 +606,7 @@ export default function ClientLayout({ children }) {
         <div className="modal-overlay">
           <div className="modal-content glass-panel" style={{ width: '90%', maxWidth: '600px', background: 'var(--bg-card)', backdropFilter: 'var(--glass-blur)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '12px' }}>
-              <h2 style={{ fontSize: '20px' }}>Edit Product: LPP-{String(editingListing.id).padStart(5, '0')}</h2>
+              <h2 style={{ fontSize: "var(--font-h4)" }}>Edit Product: LPP-{String(editingListing.id).padStart(5, '0')}</h2>
               <button className="btn btn-secondary" onClick={() => setEditingListing(null)}>✖</button>
             </div>
 
@@ -604,7 +682,7 @@ export default function ClientLayout({ children }) {
                         });
                       }
                     }}
-                    style={{ fontSize: '11px', color: 'var(--primary)', cursor: 'pointer', fontWeight: '600' }}
+                    style={{ fontSize: '11px', color: 'var(--primary)', cursor: 'pointer', fontWeight: "var(--font-weight-semibold)" }}
                   >
                     📍 Auto-fill GPS
                   </span>
@@ -701,7 +779,7 @@ export default function ClientLayout({ children }) {
       <div className={`mobile-drawer-overlay ${mobileMenuOpen ? 'open' : ''}`} onClick={() => setMobileMenuOpen(false)}>
         <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
           <div className="drawer-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <div className="brand-logo" style={{ fontSize: '20px' }} onClick={() => {
+            <div className="brand-logo" style={{ fontSize: "var(--font-h4)" }} onClick={() => {
               setMobileMenuOpen(false);
               setSelectedCatFilter(null);
               setSelectedSubCatFilter(null);
@@ -712,10 +790,10 @@ export default function ClientLayout({ children }) {
               router.push('/');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}>
-              <span style={{ fontSize: '18px' }}>🛍️</span>
+              <span style={{ fontSize: "var(--font-h5)" }}>🛍️</span>
               <span style={{ display: 'flex', alignItems: 'baseline' }}>
                 <span style={{ color: 'var(--logo-blue)' }}>low</span>
-                <span style={{ color: 'var(--logo-green)', fontWeight: 'bold' }}>p</span>
+                <span style={{ color: 'var(--logo-green)', fontWeight: "var(--font-weight-bold)" }}>p</span>
                 <span style={{ color: 'var(--logo-blue)' }}>riceplaces</span>
                 <span style={{ color: 'var(--logo-gray)', fontSize: '0.75em', marginLeft: '1px' }}>.com</span>
               </span>

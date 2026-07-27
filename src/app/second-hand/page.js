@@ -6,7 +6,7 @@ import { api } from "@/api";
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
 
-export default function MarketplacePage() {
+export default function SecondHandPage() {
   const { userCoords, locationFilter, categories } = useApp();
 
   const [listings, setListings] = useState([]);
@@ -15,7 +15,7 @@ export default function MarketplacePage() {
   const [selectedCatId, setSelectedCatId] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
-  const [sortBy, setSortBy] = useState("date_desc"); // date_desc, price_asc, price_desc, distance_asc
+  const [sortBy, setSortBy] = useState("date_desc");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
@@ -58,14 +58,14 @@ export default function MarketplacePage() {
           setHasMore(false);
         }
       } catch (err) {
-        console.error("Error loading marketplace listings:", err);
+        console.error("Error loading second-hand listings:", err);
       } finally {
         setLoading(false);
       }
     }
     const delayDebounce = setTimeout(() => {
       loadListings();
-    }, 300); // 300ms debounce for typing search/prices
+    }, 300);
 
     return () => clearTimeout(delayDebounce);
   }, [userCoords, selectedCatId, minPrice, maxPrice, sortBy, searchQuery, page]);
@@ -78,7 +78,7 @@ export default function MarketplacePage() {
           <Link href="/" className="btn btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)", padding: "8px 16px", borderRadius: "8px", marginBottom: "16px" }}>
             ← Back to Home
           </Link>
-          <h1 style={{ fontSize: "var(--font-h2)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>🛍️ Second-Hand Marketplace</h1>
+          <h1 style={{ fontSize: "var(--font-h2)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>🛍️ Second-Hand Items</h1>
           <p style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", marginTop: "4px" }}>
             Find the best second-hand deals in <strong style={{ color: "var(--text-main)" }}>{locationFilter || "your area"}</strong>
           </p>
@@ -169,7 +169,7 @@ export default function MarketplacePage() {
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "24px", marginBottom: "40px" }}>
             {listings.map((item) => (
-              <ProductCard key={item.id} item={item} />
+              <ProductCard key={item.id} item={item} href={`/second-hand/${item.id}`} />
             ))}
           </div>
 

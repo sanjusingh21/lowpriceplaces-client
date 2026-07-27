@@ -36,7 +36,7 @@ export default function ForgotPassword() {
     <div style={{ display: "flex", justifyContent: "center", margin: "40px 0" }}>
       <div className="glass-panel form-card" style={{ width: "400px" }}>
         <h2 className="form-title">Forgot Password</h2>
-        <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "16px", lineHeight: "1.4" }}>
+        <p style={{ fontSize: "var(--font-helper)", color: "var(--text-muted)", marginBottom: "16px", lineHeight: "1.4" }}>
           Enter the email address associated with your account and we will generate a password reset link.
         </p>
         
@@ -53,9 +53,9 @@ export default function ForgotPassword() {
           </button>
         </form>
 
-        <p style={{ marginTop: "16px", fontSize: "13px", color: "var(--text-muted)", textAlign: "center" }}>
+        <p style={{ marginTop: "16px", fontSize: "var(--font-helper)", color: "var(--text-muted)", textAlign: "center" }}>
           Back to{" "}
-          <Link href="/login" style={{ color: "var(--primary)", cursor: "pointer", fontWeight: "600" }}>
+          <Link href="/login" style={{ color: "var(--primary)", cursor: "pointer", fontWeight: "var(--font-weight-semibold)" }}>
             Sign In
           </Link>
         </p>

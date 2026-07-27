@@ -140,13 +140,18 @@ export default function Dashboard() {
           professionalTitle: prof.professionalTitle || "",
           yearsOfExperience: prof.yearsOfExperience !== null && prof.yearsOfExperience !== undefined ? String(prof.yearsOfExperience) : "",
           businessCategory: prof.businessCategory || "",
+          businessType: prof.businessType || "",
           aboutSeller: prof.aboutSeller || "",
           email: prof.email || user.email || user.username || "",
           mobileNumber: prof.mobileNumber || "",
           whatsAppNumber: prof.whatsAppNumber || "",
           showWhatsapp: prof.showWhatsapp !== false,
           showPhone: prof.showPhone !== false,
-          allowChat: prof.allowChat !== false
+          allowChat: prof.allowChat !== false,
+          location: prof.location || "",
+          latitude: prof.latitude !== null && prof.latitude !== undefined ? String(prof.latitude) : "",
+          longitude: prof.longitude !== null && prof.longitude !== undefined ? String(prof.longitude) : "",
+          imagePath: prof.imagePath || ""
         });
       }
     } catch (e) {
@@ -202,19 +207,43 @@ export default function Dashboard() {
     professionalTitle: "",
     yearsOfExperience: "",
     businessCategory: "",
+    businessType: "",
     aboutSeller: "",
     email: "",
     mobileNumber: "",
-    whatsAppNumber: ""
+    whatsAppNumber: "",
+    location: "",
+    latitude: "",
+    longitude: "",
+    imagePath: ""
   });
   const [savingProfile, setSavingProfile] = useState(false);
+  const [profileLogoFile, setProfileLogoFile] = useState(null);
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (!user) return;
     setSavingProfile(true);
     try {
-      await api.updateProfile(profileForm);
+      const formData = new FormData();
+      Object.keys(profileForm).forEach(key => {
+        if (profileForm[key] !== null && profileForm[key] !== undefined) {
+          formData.append(key, profileForm[key]);
+        }
+      });
+      if (profileLogoFile) {
+        formData.append("image", profileLogoFile);
+      }
+      
+      const updatedProfile = await api.updateProfile(formData);
+      setProfileForm(prev => ({
+        ...prev,
+        ...updatedProfile,
+        yearsOfExperience: updatedProfile.yearsOfExperience !== null ? String(updatedProfile.yearsOfExperience) : "",
+        latitude: updatedProfile.latitude !== null ? String(updatedProfile.latitude) : "",
+        longitude: updatedProfile.longitude !== null ? String(updatedProfile.longitude) : ""
+      }));
+      setProfileLogoFile(null);
       triggerToast("Seller Profile updated successfully!", "success");
     } catch (err) {
       triggerToast(err.message, "error");
@@ -462,7 +491,7 @@ export default function Dashboard() {
   const isProfileTab = activeTab === "profile" || (!isBookmarksTab && !isChatTab && activeTab !== "cities");
 
   return (
-    <div className={`dashboard-layout ${isBookmarksTab || isChatTab || isProfileTab ? "full-width" : ""}`}>
+    <div className={`dashboard-layout ${isChatTab ? "full-width" : ""}`}>
       {/* Dynamic Single Navigation Tab Header */}
       <div
         className="mobile-dashboard-tabs"
@@ -481,8 +510,8 @@ export default function Dashboard() {
             style={{
               flex: "0 1 240px",
               justifyContent: "center",
-              fontWeight: "700",
-              fontSize: "15px",
+              fontWeight: "var(--font-weight-bold)",
+              fontSize: "var(--font-body)",
               padding: "12px 24px",
               display: "flex",
               alignItems: "center",
@@ -498,8 +527,8 @@ export default function Dashboard() {
             style={{
               flex: "0 1 240px",
               justifyContent: "center",
-              fontWeight: "700",
-              fontSize: "15px",
+              fontWeight: "var(--font-weight-bold)",
+              fontSize: "var(--font-body)",
               padding: "12px 24px",
               display: "flex",
               alignItems: "center",
@@ -511,8 +540,8 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Sidebar — hidden on chat/profile page */}
-      {!isBookmarksTab && !isChatTab && !isProfileTab && (
+      {/* Sidebar — hidden on chat page */}
+      {!isChatTab && (
         <aside className="dashboard-sidebar">
           {user.role === "SELLER" && (
             <>
@@ -525,6 +554,9 @@ export default function Dashboard() {
               <Link href="/dashboard/leads" className={`sidebar-tab ${dashboardTab === "leads" ? "active" : ""}`}>
                 💬 Buyer Messages ({sellerInquiries.length})
               </Link>
+              <Link href="/dashboard/bookmarks" className={`sidebar-tab ${dashboardTab === "bookmarks" || dashboardTab === "saved" ? "active" : ""}`}>
+                ❤️ Shortlist ({savedListings.length})
+              </Link>
               <Link href="/dashboard/profile" className={`sidebar-tab ${dashboardTab === "profile" ? "active" : ""}`}>
                 👤 Seller Profile
               </Link>
@@ -536,6 +568,12 @@ export default function Dashboard() {
               <Link href="/dashboard/inquiries" className={`sidebar-tab ${dashboardTab === "inquiries" ? "active" : ""}`}>
                 ✉️ Sent Message Inquiries ({buyerInquiries.length})
               </Link>
+              <Link href="/dashboard/bookmarks" className={`sidebar-tab ${dashboardTab === "bookmarks" || dashboardTab === "saved" ? "active" : ""}`}>
+                ❤️ Shortlist ({savedListings.length})
+              </Link>
+              <Link href="/dashboard/profile" className={`sidebar-tab ${dashboardTab === "profile" ? "active" : ""}`}>
+                👤 Profile Settings
+              </Link>
             </>
           )}
 
@@ -544,12 +582,18 @@ export default function Dashboard() {
               <Link href="/dashboard/cities" className={`sidebar-tab ${dashboardTab === "cities" ? "active" : ""}`}>
                 🌆 Manage Cities
               </Link>
+              <Link href="/dashboard/bookmarks" className={`sidebar-tab ${dashboardTab === "bookmarks" || dashboardTab === "saved" ? "active" : ""}`}>
+                ❤️ Shortlist ({savedListings.length})
+              </Link>
+              <Link href="/dashboard/profile" className={`sidebar-tab ${dashboardTab === "profile" ? "active" : ""}`}>
+                👤 Profile Settings
+              </Link>
             </>
           )}
         </aside>
       )}
 
-      <section className="dashboard-content" style={(isBookmarksTab || isChatTab || isProfileTab) ? { gridColumn: "span 2" } : {}}>
+      <section className="dashboard-content" style={isChatTab ? { gridColumn: "span 2" } : {}}>
         {/* Tab: My Listings (Seller) */}
         {user.role === "SELLER" && dashboardTab === "my-listings" && (
           <div>
@@ -595,14 +639,14 @@ export default function Dashboard() {
                         />
                       </div>
                       <div className="card-content" style={{ padding: "12px", display: "flex", flexDirection: "column", flex: 1 }}>
-                        <h3 style={{ fontSize: "15px", marginBottom: "4px" }}>{item.title}</h3>
-                        <p className="card-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                        <h3 style={{ fontSize: "var(--font-body)", marginBottom: "4px" }}>{item.title}</h3>
+                        <p className="card-desc" style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", marginBottom: "8px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                           {item.description}
                         </p>
                         <div className="card-prices" style={{ marginBottom: "8px" }}>
                           {hasDiscount ? (
                             <>
-                              <span className="price-discounted" style={{ fontSize: "15px", fontWeight: "700" }}>
+                              <span className="price-discounted" style={{ fontSize: "var(--font-body)", fontWeight: "var(--font-weight-bold)" }}>
                                 ₹{finalPriceFrom}{finalPriceTo ? ` - ₹${finalPriceTo}` : ""}
                               </span>
                               <span className="price-original" style={{ fontSize: "11px", textDecoration: "line-through", color: "var(--text-dim)", marginLeft: "6px" }}>
@@ -610,7 +654,7 @@ export default function Dashboard() {
                               </span>
                             </>
                           ) : (
-                            <span className="price-discounted" style={{ fontSize: "15px", fontWeight: "700" }}>
+                            <span className="price-discounted" style={{ fontSize: "var(--font-body)", fontWeight: "var(--font-weight-bold)" }}>
                               ₹{priceFrom}{priceTo ? ` - ₹${priceTo}` : ""}
                             </span>
                           )}
@@ -625,7 +669,7 @@ export default function Dashboard() {
                         </div>
                       )}
                       <div className="dashboard-card-badges" style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
-                        <span className="badge-id" style={{ padding: "4px 8px", fontSize: "11px", background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", borderRadius: "4px", fontWeight: "700" }}>
+                        <span className="badge-id" style={{ padding: "4px 8px", fontSize: "11px", background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", borderRadius: "4px", fontWeight: "var(--font-weight-bold)" }}>
                           LPP-{String(item.id).padStart(5, "0")}
                         </span>
                         <span className="alert-banner" style={{ padding: "4px 8px", fontSize: "11px", margin: 0, background: item.status === "ACTIVE" ? "var(--emerald-glow)" : (item.status === "REJECTED" ? "rgba(244, 63, 94, 0.15)" : (item.status === "INACTIVE" ? "rgba(156, 163, 175, 0.1)" : "rgba(245, 158, 11, 0.1)")), color: item.status === "ACTIVE" ? "var(--emerald)" : (item.status === "REJECTED" ? "#f43f5e" : (item.status === "INACTIVE" ? "#9ca3af" : "#fbbf24")), border: "1px solid rgba(255,255,255,0.05)" }}>
@@ -746,7 +790,7 @@ export default function Dashboard() {
                   <label className="form-label" style={{ margin: 0 }}>Location (Area, City, State)</label>
                   <span
                     onClick={autoDetectListingLocation}
-                    style={{ fontSize: "12px", color: "var(--primary)", cursor: "pointer", fontWeight: "600", display: "flex", alignItems: "center", gap: "3px" }}
+                    style={{ fontSize: "var(--font-caption)", color: "var(--primary)", cursor: "pointer", fontWeight: "var(--font-weight-semibold)", display: "flex", alignItems: "center", gap: "3px" }}
                     title="Click to automatically detect your current location"
                   >
                     📍 Detect My Location
@@ -824,13 +868,13 @@ export default function Dashboard() {
                 style={{
                   background: "var(--bg-input)", border: "1px solid var(--border-glass)",
                   borderRadius: "10px", padding: "8px 14px", color: "var(--text-main)",
-                  cursor: "pointer", fontSize: "14px", fontWeight: "600",
+                  cursor: "pointer", fontSize: "var(--font-small)", fontWeight: "var(--font-weight-semibold)",
                   display: "flex", alignItems: "center", gap: "6px",
                 }}
               >← Back</button>
               <div>
-                <h1 style={{ fontSize: "20px", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>💬 Messages</h1>
-                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "2px 0 0" }}>{sellerInquiries.length} conversations</p>
+                <h1 style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0 }}>💬 Messages</h1>
+                <p style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", margin: "2px 0 0" }}>{sellerInquiries.length} conversations</p>
               </div>
             </div>
             {sellerInquiries.length === 0 ? (
@@ -841,7 +885,7 @@ export default function Dashboard() {
               <div className={`chat-split-container ${activeInquiryId ? "has-active-chat" : ""}`} style={{ display: "flex", gap: "20px", height: "580px", background: "var(--bg-card)", border: "1px solid var(--border-glass)", borderRadius: "20px", overflow: "hidden" }}>
                 {/* Conversations List Sidebar */}
                 <div className="chat-sidebar" style={{ width: "340px", borderRight: "1px solid var(--border-glass)", display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.12)", flexShrink: 0 }}>
-                  <div style={{ padding: "16px", borderBottom: "1px solid var(--border-glass)", fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>Conversations</div>
+                  <div style={{ padding: "16px", borderBottom: "1px solid var(--border-glass)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", fontSize: "var(--font-body)" }}>Conversations</div>
                   <div style={{ flex: 1, overflowY: "auto" }}>
                     {sellerInquiries.map((inq) => {
                       const isActive = activeInquiryId === inq.id;
@@ -893,8 +937,8 @@ export default function Dashboard() {
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                fontWeight: "700",
-                                fontSize: "16px",
+                                fontWeight: "var(--font-weight-bold)",
+                                fontSize: "var(--font-body-lg)",
                               }}
                             >
                               {avatarLetter}
@@ -919,7 +963,7 @@ export default function Dashboard() {
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "3px" }}>
                               <span
                                 style={{
-                                  fontSize: "14px",
+                                  fontSize: "var(--font-small)",
                                   fontWeight: hasUnread ? "700" : "600",
                                   color: hasUnread ? "var(--text-main)" : "rgba(255,255,255,0.85)",
                                   overflow: "hidden",
@@ -944,7 +988,7 @@ export default function Dashboard() {
                             </div>
 
                             {/* Product tag */}
-                            <div style={{ fontSize: "11.5px", color: "var(--primary)", fontWeight: "500", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "2px" }}>
+                            <div style={{ fontSize: "11.5px", color: "var(--primary)", fontWeight: "var(--font-weight-medium)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "2px" }}>
                               🏷️ {inq.listing?.title || "Product Listing"}
                             </div>
 
@@ -983,7 +1027,7 @@ export default function Dashboard() {
                                     height: "19px",
                                     padding: "0 5px",
                                     fontSize: "10.5px",
-                                    fontWeight: "700",
+                                    fontWeight: "var(--font-weight-bold)",
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
@@ -1010,7 +1054,7 @@ export default function Dashboard() {
                       return (
                         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", padding: "16px" }}>
                           <span style={{ fontSize: "52px", marginBottom: "16px" }}>💬</span>
-                          <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-main)", marginBottom: "4px" }}>No Chat Selected</div>
+                          <div style={{ fontSize: "var(--font-body-lg)", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)", marginBottom: "4px" }}>No Chat Selected</div>
                           Select a conversation on the left to view messages.
                         </div>
                       );
@@ -1031,7 +1075,7 @@ export default function Dashboard() {
                               color: "#fff",
                               borderRadius: "6px",
                               padding: "6px 12px",
-                              fontSize: "13px",
+                              fontSize: "var(--font-helper)",
                               cursor: "pointer",
                               display: "none", // responsive CSS toggles this
                               alignItems: "center",
@@ -1042,13 +1086,13 @@ export default function Dashboard() {
                             ← Back
                           </button>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>
+                            <div style={{ fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", fontSize: "var(--font-body)" }}>
                               {displayName}
-                              <span style={{ fontSize: "11px", color: isOnline ? "#10b981" : "#94a3b8", fontWeight: "500", marginLeft: "8px" }}>
+                              <span style={{ fontSize: "11px", color: isOnline ? "#10b981" : "#94a3b8", fontWeight: "var(--font-weight-medium)", marginLeft: "8px" }}>
                                 ● {isOnline ? "Online" : "Offline"}
                               </span>
                             </div>
-                            <div style={{ fontSize: "12.5px", color: "var(--primary)", marginTop: "2px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            <div style={{ fontSize: "12.5px", color: "var(--primary)", marginTop: "2px", fontWeight: "var(--font-weight-semibold)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               Listing: {activeInq.listing?.title} (₹{activeInq.listing?.price})
                             </div>
                           </div>
@@ -1068,7 +1112,7 @@ export default function Dashboard() {
                           }}
                         >
                           {loadingDashboardMessages && dashboardMessages.length === 0 ? (
-                            <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>Loading chat messages...</div>
+                            <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "var(--font-helper)" }}>Loading chat messages...</div>
                           ) : (
                             dashboardMessages.map((msg) => {
                               const isMe = msg.senderId === user.id;
@@ -1104,7 +1148,7 @@ export default function Dashboard() {
                                   }}>
                                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                     {isMe && (
-                                      <span style={{ color: hasDoubleTicks ? "#10b981" : "var(--text-dim)", fontWeight: "bold" }}>
+                                      <span style={{ color: hasDoubleTicks ? "#10b981" : "var(--text-dim)", fontWeight: "var(--font-weight-bold)" }}>
                                         {hasDoubleTicks ? "✓✓" : "✓"}
                                       </span>
                                     )}
@@ -1164,13 +1208,13 @@ export default function Dashboard() {
                 style={{
                   background: "var(--bg-input)", border: "1px solid var(--border-glass)",
                   borderRadius: "10px", padding: "8px 14px", color: "var(--text-main)",
-                  cursor: "pointer", fontSize: "14px", fontWeight: "600",
+                  cursor: "pointer", fontSize: "var(--font-small)", fontWeight: "var(--font-weight-semibold)",
                   display: "flex", alignItems: "center", gap: "6px",
                 }}
               >← Back</button>
               <div>
-                <h1 style={{ fontSize: "20px", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>💬 Messages</h1>
-                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "2px 0 0" }}>{buyerInquiries.length} conversations</p>
+                <h1 style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0 }}>💬 Messages</h1>
+                <p style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", margin: "2px 0 0" }}>{buyerInquiries.length} conversations</p>
               </div>
             </div>
             {buyerInquiries.length === 0 ? (
@@ -1181,7 +1225,7 @@ export default function Dashboard() {
               <div className={`chat-split-container ${activeInquiryId ? "has-active-chat" : ""}`} style={{ display: "flex", gap: "20px", height: "580px", background: "var(--bg-card)", border: "1px solid var(--border-glass)", borderRadius: "20px", overflow: "hidden" }}>
                 {/* Conversations List Sidebar */}
                 <div className="chat-sidebar" style={{ width: "340px", borderRight: "1px solid var(--border-glass)", display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.12)", flexShrink: 0 }}>
-                  <div style={{ padding: "16px", borderBottom: "1px solid var(--border-glass)", fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>Conversations</div>
+                  <div style={{ padding: "16px", borderBottom: "1px solid var(--border-glass)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", fontSize: "var(--font-body)" }}>Conversations</div>
                   <div style={{ flex: 1, overflowY: "auto" }}>
                     {buyerInquiries.map((inq) => {
                       const isActive = activeInquiryId === inq.id;
@@ -1233,8 +1277,8 @@ export default function Dashboard() {
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                fontWeight: "700",
-                                fontSize: "16px",
+                                fontWeight: "var(--font-weight-bold)",
+                                fontSize: "var(--font-body-lg)",
                               }}
                             >
                               {avatarLetter}
@@ -1259,7 +1303,7 @@ export default function Dashboard() {
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "3px" }}>
                               <span
                                 style={{
-                                  fontSize: "14px",
+                                  fontSize: "var(--font-small)",
                                   fontWeight: hasUnread ? "700" : "600",
                                   color: hasUnread ? "var(--text-main)" : "rgba(255,255,255,0.85)",
                                   overflow: "hidden",
@@ -1284,7 +1328,7 @@ export default function Dashboard() {
                             </div>
 
                             {/* Product tag */}
-                            <div style={{ fontSize: "11.5px", color: "var(--primary)", fontWeight: "500", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "2px" }}>
+                            <div style={{ fontSize: "11.5px", color: "var(--primary)", fontWeight: "var(--font-weight-medium)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "2px" }}>
                               🏷️ {inq.listing?.title || "Product Listing"}
                             </div>
 
@@ -1323,7 +1367,7 @@ export default function Dashboard() {
                                     height: "19px",
                                     padding: "0 5px",
                                     fontSize: "10.5px",
-                                    fontWeight: "700",
+                                    fontWeight: "var(--font-weight-bold)",
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
@@ -1350,7 +1394,7 @@ export default function Dashboard() {
                       return (
                         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", padding: "16px" }}>
                           <span style={{ fontSize: "52px", marginBottom: "16px" }}>💬</span>
-                          <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-main)", marginBottom: "4px" }}>No Chat Selected</div>
+                          <div style={{ fontSize: "var(--font-body-lg)", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)", marginBottom: "4px" }}>No Chat Selected</div>
                           Select a conversation on the left to view messages.
                         </div>
                       );
@@ -1371,7 +1415,7 @@ export default function Dashboard() {
                               color: "#fff",
                               borderRadius: "6px",
                               padding: "6px 12px",
-                              fontSize: "13px",
+                              fontSize: "var(--font-helper)",
                               cursor: "pointer",
                               display: "none", // responsive CSS toggles this
                               alignItems: "center",
@@ -1382,13 +1426,13 @@ export default function Dashboard() {
                             ← Back
                           </button>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "15px" }}>
+                            <div style={{ fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", fontSize: "var(--font-body)" }}>
                               {displayName}
-                              <span style={{ fontSize: "11px", color: isOnline ? "#10b981" : "#94a3b8", fontWeight: "500", marginLeft: "8px" }}>
+                              <span style={{ fontSize: "11px", color: isOnline ? "#10b981" : "#94a3b8", fontWeight: "var(--font-weight-medium)", marginLeft: "8px" }}>
                                 ● {isOnline ? "Online" : "Offline"}
                               </span>
                             </div>
-                            <div style={{ fontSize: "12.5px", color: "var(--primary)", marginTop: "2px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            <div style={{ fontSize: "12.5px", color: "var(--primary)", marginTop: "2px", fontWeight: "var(--font-weight-semibold)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               Listing: {activeInq.listing?.title} (₹{activeInq.listing?.price})
                             </div>
                           </div>
@@ -1408,7 +1452,7 @@ export default function Dashboard() {
                           }}
                         >
                           {loadingDashboardMessages && dashboardMessages.length === 0 ? (
-                            <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>Loading chat messages...</div>
+                            <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "var(--font-helper)" }}>Loading chat messages...</div>
                           ) : (
                             dashboardMessages.map((msg) => {
                               const isMe = msg.senderId === user.id;
@@ -1444,7 +1488,7 @@ export default function Dashboard() {
                                   }}>
                                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                     {isMe && (
-                                      <span style={{ color: hasDoubleTicks ? "#10b981" : "var(--text-dim)", fontWeight: "bold" }}>
+                                      <span style={{ color: hasDoubleTicks ? "#10b981" : "var(--text-dim)", fontWeight: "var(--font-weight-bold)" }}>
                                         {hasDoubleTicks ? "✓✓" : "✓"}
                                       </span>
                                     )}
@@ -1503,21 +1547,21 @@ export default function Dashboard() {
                 style={{
                   background: "var(--bg-input)", border: "1px solid var(--border-glass)",
                   borderRadius: "10px", padding: "8px 14px", color: "var(--text-main)",
-                  cursor: "pointer", fontSize: "14px", fontWeight: "600",
+                  cursor: "pointer", fontSize: "var(--font-small)", fontWeight: "var(--font-weight-semibold)",
                   display: "flex", alignItems: "center", gap: "6px",
                 }}
               >← Back</button>
               <div>
-                <h1 style={{ fontSize: "clamp(17px, 4vw, 20px)", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>❤️ Shortlisted Products</h1>
-                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "2px 0 0" }}>Items you have bookmarked ({savedListings.length})</p>
+                <h1 style={{ fontSize: "clamp(17px, 4vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0 }}>❤️ Shortlisted Products</h1>
+                <p style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", margin: "2px 0 0" }}>Items you have bookmarked ({savedListings.length})</p>
               </div>
             </div>
 
             {savedListings.length === 0 ? (
               <div className="glass-panel" style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)" }}>
-                <span style={{ fontSize: "36px", display: "block", marginBottom: "10px" }}>❤️</span>
-                <p style={{ margin: 0, fontSize: "14px", color: "var(--text-main)", fontWeight: "600" }}>No shortlisted items yet</p>
-                <p style={{ margin: "6px 0 0", fontSize: "12px" }}>Browse listings and tap the Shortlist / Bookmark button to save products here.</p>
+                <span style={{ fontSize: "var(--font-h1)", display: "block", marginBottom: "10px" }}>❤️</span>
+                <p style={{ margin: 0, fontSize: "var(--font-small)", color: "var(--text-main)", fontWeight: "var(--font-weight-semibold)" }}>No shortlisted items yet</p>
+                <p style={{ margin: "6px 0 0", fontSize: "var(--font-caption)" }}>Browse listings and tap the Shortlist / Bookmark button to save products here.</p>
               </div>
             ) : (
               <div className="products-grid">
@@ -1547,11 +1591,11 @@ export default function Dashboard() {
             {adminCityError && <div className="alert-banner alert-error" style={{ marginBottom: "16px" }}>{adminCityError}</div>}
 
             <div className="glass-panel form-card" style={{ padding: "24px", marginBottom: "24px" }}>
-              <h3 style={{ marginBottom: "16px", fontSize: "18px", fontWeight: "600" }}>Add New City</h3>
+              <h3 style={{ marginBottom: "16px", fontSize: "var(--font-h5)", fontWeight: "var(--font-weight-semibold)" }}>Add New City</h3>
 
               <form onSubmit={handleAddCity} style={{ display: "flex", gap: "16px", alignItems: "flex-end", flexWrap: "wrap" }}>
                 <div className="form-group" style={{ flex: 2, minWidth: "200px", marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: "12px" }}>City Name</label>
+                  <label className="form-label" style={{ fontSize: "var(--font-caption)" }}>City Name</label>
                   <input
                     type="text"
                     className="form-input"
@@ -1564,7 +1608,7 @@ export default function Dashboard() {
                 </div>
 
                 <div className="form-group" style={{ flex: 1, minWidth: "100px", marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: "12px" }}>Choose Icon / Emoji</label>
+                  <label className="form-label" style={{ fontSize: "var(--font-caption)" }}>Choose Icon / Emoji</label>
                   <input
                     type="text"
                     className="form-input"
@@ -1572,7 +1616,7 @@ export default function Dashboard() {
                     value={cityEmojiInput}
                     onChange={(e) => setCityEmojiInput(e.target.value)}
                     required
-                    style={{ width: "100%", textAlign: "center", fontSize: "18px" }}
+                    style={{ width: "100%", textAlign: "center", fontSize: "var(--font-h5)" }}
                   />
                 </div>
 
@@ -1582,7 +1626,7 @@ export default function Dashboard() {
               </form>
             </div>
 
-            <h3 style={{ marginBottom: "16px", fontSize: "18px", fontWeight: "600" }}>Configured Cities</h3>
+            <h3 style={{ marginBottom: "16px", fontSize: "var(--font-h5)", fontWeight: "var(--font-weight-semibold)" }}>Configured Cities</h3>
             <div className="glass-panel" style={{ padding: "20px" }}>
               {citiesList.length === 0 ? (
                 <p style={{ color: "var(--text-muted)", textAlign: "center" }}>No cities configured yet.</p>
@@ -1604,8 +1648,8 @@ export default function Dashboard() {
                       className="city-manage-card"
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <span style={{ fontSize: "24px" }}>{city.emoji}</span>
-                        <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-main)" }}>{city.name}</span>
+                        <span style={{ fontSize: "var(--font-h3)" }}>{city.emoji}</span>
+                        <span style={{ fontSize: "var(--font-body)", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)" }}>{city.name}</span>
                       </div>
                       <button
                         className="btn btn-accent"
@@ -1638,14 +1682,14 @@ export default function Dashboard() {
                 style={{
                   background: "var(--bg-input)", border: "1px solid var(--border-glass)",
                   borderRadius: "10px", padding: "8px 14px", color: "var(--text-main)",
-                  cursor: "pointer", fontSize: "14px", fontWeight: "600",
+                  cursor: "pointer", fontSize: "var(--font-small)", fontWeight: "var(--font-weight-semibold)",
                   display: "flex", alignItems: "center", gap: "6px",
                   flexShrink: 0,
                 }}
               >← Back</button>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <h1 style={{ fontSize: "clamp(17px, 4vw, 20px)", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>👤 User Profile</h1>
-                <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "2px 0 0" }}>Manage your public profile &amp; contact info</p>
+                <h1 style={{ fontSize: "clamp(17px, 4vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0 }}>👤 User Profile</h1>
+                <p style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", margin: "2px 0 0" }}>Manage your public profile &amp; contact info</p>
               </div>
             </div>
             <div className="glass-panel form-card" style={{ padding: "clamp(16px, 4vw, 24px)", width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
@@ -1711,15 +1755,61 @@ export default function Dashboard() {
 
                   <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
                     <label className="form-label">Business Category</label>
-                    <input
-                      type="text"
+                    <select
                       className="form-input"
-                      placeholder="e.g. Electronics & Gadgets"
                       value={profileForm.businessCategory || ""}
                       onChange={(e) => setProfileForm({ ...profileForm, businessCategory: e.target.value })}
                       required
-                      style={{ width: "100%", boxSizing: "border-box" }}
-                    />
+                      style={{ width: "100%", boxSizing: "border-box", background: "var(--bg-card)", color: "var(--text-main)" }}
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.name}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
+                    <label className="form-label">Business Type</label>
+                    <select
+                      className="form-input"
+                      value={profileForm.businessType || ""}
+                      onChange={(e) => setProfileForm({ ...profileForm, businessType: e.target.value })}
+                      required
+                      style={{ width: "100%", boxSizing: "border-box", background: "var(--bg-card)", color: "var(--text-main)" }}
+                    >
+                      <option value="">Select Business Type</option>
+                      <option value="Retailer">Retailer</option>
+                      <option value="Wholesaler">Wholesaler</option>
+                      <option value="Manufacturer">Manufacturer</option>
+                      <option value="Distributor">Distributor</option>
+                      <option value="Service Provider">Service Provider</option>
+                      <option value="Individual / Freelancer">Individual / Freelancer</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
+                    <label className="form-label">Shop Logo / Profile Photo</label>
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      {profileForm.imagePath && (
+                        <img
+                          src={profileForm.imagePath.startsWith("http") ? profileForm.imagePath : `${imageServer}${profileForm.imagePath}`}
+                          alt="Logo Preview"
+                          style={{ width: "40px", height: "40px", borderRadius: "50%", objectFit: "cover" }}
+                        />
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="form-input"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            setProfileLogoFile(e.target.files[0]);
+                          }
+                        }}
+                        style={{ width: "100%", boxSizing: "border-box" }}
+                      />
+                    </div>
                   </div>
 
                   <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
@@ -1758,6 +1848,82 @@ export default function Dashboard() {
                       style={{ width: "100%", boxSizing: "border-box" }}
                     />
                   </div>
+
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
+                    <label className="form-label">Business Location Address</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Madhapur, Hyderabad"
+                      value={profileForm.location || ""}
+                      onChange={(e) => setProfileForm({ ...profileForm, location: e.target.value })}
+                      required
+                      style={{ width: "100%", boxSizing: "border-box" }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
+                    <label className="form-label">Latitude</label>
+                    <input
+                      type="number"
+                      step="any"
+                      className="form-input"
+                      placeholder="e.g. 17.4483"
+                      value={profileForm.latitude || ""}
+                      onChange={(e) => setProfileForm({ ...profileForm, latitude: e.target.value })}
+                      required
+                      style={{ width: "100%", boxSizing: "border-box" }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ width: "100%", minWidth: 0 }}>
+                    <label className="form-label">Longitude</label>
+                    <input
+                      type="number"
+                      step="any"
+                      className="form-input"
+                      placeholder="e.g. 78.3741"
+                      value={profileForm.longitude || ""}
+                      onChange={(e) => setProfileForm({ ...profileForm, longitude: e.target.value })}
+                      required
+                      style={{ width: "100%", boxSizing: "border-box" }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginTop: "12px", marginBottom: "20px" }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition((pos) => {
+                          setProfileForm(prev => ({
+                            ...prev,
+                            latitude: pos.coords.latitude.toFixed(6),
+                            longitude: pos.coords.longitude.toFixed(6)
+                          }));
+                          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`)
+                            .then(res => res.json())
+                            .then(data => {
+                              const city = data.address.city || data.address.town || data.address.village || data.address.state || '';
+                              const suburb = data.address.suburb || data.address.neighbourhood || data.address.road || '';
+                              const addr = suburb && city ? `${suburb}, ${city}` : (city || '');
+                              if (addr) {
+                                setProfileForm(prev => ({ ...prev, location: addr }));
+                              }
+                            }).catch(console.error);
+                        }, (err) => {
+                          alert("Failed to get location: " + err.message);
+                        });
+                      } else {
+                        alert("Geolocation is not supported by your browser.");
+                      }
+                    }}
+                    style={{ fontSize: "12.5px", padding: "8px 16px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    📍 Detect & Use Current Coordinates
+                  </button>
                 </div>
 
                 {/* Privacy & Contact Visibility Settings */}
@@ -1768,11 +1934,11 @@ export default function Dashboard() {
                   border: "1px solid var(--border-glass)",
                   borderRadius: "14px"
                 }}>
-                  <h4 style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main)", margin: "0 0 12px 0", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <h4 style={{ fontSize: "var(--font-small)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: "0 0 12px 0", display: "flex", alignItems: "center", gap: "6px" }}>
                     🔒 Seller Privacy &amp; Contact Settings
                   </h4>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "600", color: "var(--text-main)" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)" }}>
                       <input
                         type="checkbox"
                         checked={Boolean(profileForm.showWhatsapp)}
@@ -1782,7 +1948,7 @@ export default function Dashboard() {
                       ☑ Show WhatsApp Number
                     </label>
 
-                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "600", color: "var(--text-main)" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)" }}>
                       <input
                         type="checkbox"
                         checked={Boolean(profileForm.showPhone)}
@@ -1792,7 +1958,7 @@ export default function Dashboard() {
                       ☑ Show Phone Number
                     </label>
 
-                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "600", color: "var(--text-main)" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)" }}>
                       <input
                         type="checkbox"
                         checked={Boolean(profileForm.allowChat)}
@@ -1842,8 +2008,8 @@ export default function Dashboard() {
             alignItems: 'center',
             gap: '10px',
             backdropFilter: 'blur(8px)',
-            fontWeight: '600',
-            fontSize: '14px',
+            fontWeight: "var(--font-weight-semibold)",
+            fontSize: "var(--font-small)",
             maxWidth: '350px',
             border: '1px solid rgba(255, 255, 255, 0.1)',
             transition: 'all 0.3s ease'
@@ -1860,7 +2026,7 @@ export default function Dashboard() {
               cursor: 'pointer',
               opacity: 0.7,
               marginLeft: '10px',
-              fontSize: '12px'
+              fontSize: "var(--font-caption)"
             }}
           >
             ✕

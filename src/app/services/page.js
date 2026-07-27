@@ -81,11 +81,11 @@ export default function ServicesPage() {
       {/* Header */}
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", marginBottom: "32px" }}>
         <div>
-          <Link href="/" className="btn btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", padding: "8px 16px", borderRadius: "8px", marginBottom: "16px" }}>
+          <Link href="/" className="btn btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)", padding: "8px 16px", borderRadius: "8px", marginBottom: "16px" }}>
             ← Back to Marketplace
           </Link>
-          <h1 style={{ fontSize: "28px", fontWeight: "800", color: "var(--text-main)" }}>🛠️ Services Near You</h1>
-          <p style={{ fontSize: "14px", color: "var(--text-muted)", marginTop: "4px" }}>
+          <h1 style={{ fontSize: "var(--font-h2)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>🛠️ Services Near You</h1>
+          <p style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", marginTop: "4px" }}>
             Showing verified local professionals near <strong style={{ color: "var(--text-main)" }}>{locationFilter || "your location"}</strong>
           </p>
         </div>
@@ -126,10 +126,10 @@ export default function ServicesPage() {
             className={`btn ${selectedType === type ? "btn-primary" : "btn-secondary"}`}
             style={{
               padding: "8px 16px",
-              fontSize: "13px",
+              fontSize: "var(--font-helper)",
               borderRadius: "20px",
               flexShrink: 0,
-              fontWeight: "600"
+              fontWeight: "var(--font-weight-semibold)"
             }}
           >
             {type}
@@ -192,28 +192,28 @@ export default function ServicesPage() {
                 </div>
 
                 {/* Title & Type */}
-                <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-main)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
+                <h3 style={{ fontSize: "var(--font-body-lg)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
                   {service.name}
                 </h3>
-                <span style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
+                <span style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", marginTop: "4px" }}>
                   🛠️ {service.serviceType}
                 </span>
 
                 {/* Rating */}
-                <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "8px", fontSize: "13px", color: "#fbbf24", fontWeight: "600" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "8px", fontSize: "var(--font-helper)", color: "#fbbf24", fontWeight: "var(--font-weight-semibold)" }}>
                   ⭐ {service.averageRating ? service.averageRating.toFixed(1) : service.rating.toFixed(1)}
                 </div>
 
                 {/* Location & Contact Button */}
                 <div style={{ marginTop: "auto", paddingTop: "16px", borderTop: "1px solid rgba(255,255,255,0.05)", width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "12px", color: "var(--text-main)", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <span style={{ fontSize: "var(--font-caption)", color: "var(--text-main)", fontWeight: "var(--font-weight-semibold)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
                     📍 {service.distance !== null ? `${service.distance} km away` : service.location}
                   </span>
 
                   {service.contact && (
                     <span
                       className="btn btn-primary"
-                      style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "8px", fontWeight: "600" }}
+                      style={{ padding: "6px 12px", fontSize: "var(--font-caption)", borderRadius: "8px", fontWeight: "var(--font-weight-semibold)" }}
                       onClick={(e) => {
                         e.stopPropagation();
                         window.open(`https://wa.me/${service.contact.replace(/[^0-9]/g, '')}`, '_blank');
@@ -234,7 +234,7 @@ export default function ServicesPage() {
                 className="btn btn-secondary"
                 disabled={loading}
                 onClick={() => setPage(prev => prev + 1)}
-                style={{ padding: "12px 32px", fontSize: "14px", borderRadius: "10px", fontWeight: "600" }}
+                style={{ padding: "12px 32px", fontSize: "var(--font-small)", borderRadius: "10px", fontWeight: "var(--font-weight-semibold)" }}
               >
                 {loading ? "Loading..." : "Load More Services"}
               </button>
