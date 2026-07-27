@@ -11,6 +11,8 @@ export default function ClientLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
 
+  const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
+
   const {
     user,
     setUser,
@@ -60,14 +62,19 @@ export default function ClientLayout({ children }) {
     if (!user) { setUnreadCount(0); return; }
     async function fetchUnread() {
       try {
-        const data = user.role === 'SELLER'
-          ? await api.getSellerInquiries()
-          : await api.getBuyerInquiries();
-        const unread = (data || []).filter(inq =>
-          (user.role === 'SELLER' && !inq.isReadBySeller) ||
-          (user.role === 'BUYER'  && !inq.isReadByBuyer)
-        ).length;
-        setUnreadCount(unread);
+        let sellerInqs = [];
+        let buyerInqs = [];
+        try {
+          sellerInqs = await api.getSellerInquiries() || [];
+        } catch {}
+        try {
+          buyerInqs = await api.getBuyerInquiries() || [];
+        } catch {}
+        
+        const sellerUnread = sellerInqs.filter(inq => !inq.isReadBySeller).length;
+        const buyerUnread = buyerInqs.filter(inq => !inq.isReadByBuyer).length;
+        
+        setUnreadCount(sellerUnread + buyerUnread);
       } catch { setUnreadCount(0); }
     }
     fetchUnread();
@@ -424,7 +431,7 @@ export default function ClientLayout({ children }) {
             </button>
             {user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                {(user.role === 'SELLER' || user.role === 'BUYER' || user.role === 'ADMIN') && (
+                {user && (
                   <button
                     className="btn btn-secondary"
                     onClick={() => {
@@ -494,7 +501,7 @@ export default function ClientLayout({ children }) {
                     }}
                   >
                     <img
-                      src={user.profilePicture || "https://placehold.co/100x100?text=User"}
+                      src={user.profilePicture ? (user.profilePicture.startsWith("http") ? user.profilePicture : `${imageServer}${user.profilePicture}`) : "https://placehold.co/100x100?text=User"}
                       alt={user.fullName || user.username}
                       style={{
                         width: "36px",
@@ -568,8 +575,7 @@ export default function ClientLayout({ children }) {
               </div>
             ) : (
               <>
-                <button className="btn btn-secondary" onClick={() => router.push('/login')}>Sign In</button>
-                <button className="btn btn-primary" onClick={() => router.push('/register')}>Register</button>
+                <button className="btn btn-primary" onClick={() => router.push('/login')}>Login</button>
               </>
             )}
           </div>
@@ -803,7 +809,17 @@ export default function ClientLayout({ children }) {
           <div className="drawer-body">
             {user ? (
               <div className="drawer-profile-section">
-                <div className="drawer-avatar">👤</div>
+                <div className="drawer-avatar" style={{ overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}>
+                  {user.profilePicture ? (
+                    <img
+                      src={user.profilePicture.startsWith("http") ? user.profilePicture : `${imageServer}${user.profilePicture}`}
+                      alt="Avatar"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    "👤"
+                  )}
+                </div>
                 <div className="drawer-user-meta">
                   <div className="drawer-username">{user.username ? user.username.split('@')[0] : 'User'}</div>
                   <div className="drawer-role-badge">{user.role}</div>
@@ -839,11 +855,9 @@ export default function ClientLayout({ children }) {
                       📈 Admin Dashboard
                     </a>
                   ) : (
-                    (user.role === 'SELLER' || user.role === 'BUYER') && (
-                      <Link href={`/dashboard/${user.role === 'SELLER' ? 'my-listings' : 'inquiries'}`} className="drawer-nav-item" onClick={() => setMobileMenuOpen(false)}>
-                        📈 Profile
-                      </Link>
-                    )
+                    <Link href="/dashboard/profile" className="drawer-nav-item" onClick={() => setMobileMenuOpen(false)}>
+                      👤 Profile & Listings
+                    </Link>
                   )}
                   <button className="btn btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={() => { logout(); setMobileMenuOpen(false); }}>
                     Log Out
@@ -852,10 +866,7 @@ export default function ClientLayout({ children }) {
               ) : (
                 <>
                   <Link href="/login" className="drawer-nav-item" onClick={() => setMobileMenuOpen(false)}>
-                    🔑 Sign In
-                  </Link>
-                  <Link href="/register" className="drawer-nav-item" onClick={() => setMobileMenuOpen(false)}>
-                    ➕ Register
+                    🔑 Login
                   </Link>
                 </>
               )}

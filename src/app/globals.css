@@ -454,8 +454,6 @@ h6 {
 /* Category Grid & Feed Section */
 .home-layout {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  gap: 24px;
   margin-top: 20px;
 }
 
@@ -474,6 +472,7 @@ h6 {
     background: var(--bg-card);
     border: 1px solid var(--border-glass);
     border-radius: var(--radius-md);
+   
   }
 
   .sidebar-filter .filter-group {
@@ -486,6 +485,7 @@ h6 {
   display: flex;
   flex-direction: column;
   gap: 20px;
+   max-width: 250px;
 }
 
 @media (min-width: 901px) {
@@ -2360,10 +2360,6 @@ h6 {
   /* Hide the horizontal scroll tabs and show the direct tab buttons */
   .dashboard-sidebar {
     display: none !important;
-  }
-
-  .mobile-dashboard-tabs {
-    display: flex !important;
   }
 
   /* Compact Horizontal Layout for Dashboard Listing Cards */

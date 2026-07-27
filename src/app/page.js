@@ -12,7 +12,8 @@ import { Splide, SplideSlide } from "@splidejs/react-splide";
 import "@splidejs/react-splide/css";
 
 function HomeContent() {
-  const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
+  const imageServer =
+    process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
 
   const {
     listings,
@@ -139,11 +140,27 @@ function HomeContent() {
       updateArrowVisibility(categoryScrollRef, setShowLeftCat, setShowRightCat);
       updateArrowVisibility(cityScrollRef, setShowLeftCity, setShowRightCity);
       if (selectedCatFilter && selectedCatFilter.subCategories?.length > 0) {
-        updateArrowVisibility(subcategoryScrollRef, setShowLeftSubCat, setShowRightSubCat);
+        updateArrowVisibility(
+          subcategoryScrollRef,
+          setShowLeftSubCat,
+          setShowRightSubCat,
+        );
       }
-      updateArrowVisibility(storesScrollRef, setShowLeftStores, setShowRightStores);
-      updateArrowVisibility(dealsScrollRef, setShowLeftDeals, setShowRightDeals);
-      updateArrowVisibility(secondHandScrollRef, setShowLeftSecondHand, setShowRightSecondHand);
+      updateArrowVisibility(
+        storesScrollRef,
+        setShowLeftStores,
+        setShowRightStores,
+      );
+      updateArrowVisibility(
+        dealsScrollRef,
+        setShowLeftDeals,
+        setShowRightDeals,
+      );
+      updateArrowVisibility(
+        secondHandScrollRef,
+        setShowLeftSecondHand,
+        setShowRightSecondHand,
+      );
       updateArrowVisibility(jobsScrollRef, setShowLeftJobs, setShowRightJobs);
     }, 500);
     return () => clearTimeout(timer);
@@ -158,10 +175,15 @@ function HomeContent() {
       if (cat) {
         setSelectedCatFilter(cat);
         if (subId) {
-          const sub = (cat.subCategories || []).find((s) => s.id === parseInt(subId));
+          const sub = (cat.subCategories || []).find(
+            (s) => s.id === parseInt(subId),
+          );
           if (sub) setSelectedSubCatFilter(sub);
         }
-        fetchListings({ categoryId: parseInt(catId), subCategoryId: subId ? parseInt(subId) : null });
+        fetchListings({
+          categoryId: parseInt(catId),
+          subCategoryId: subId ? parseInt(subId) : null,
+        });
         setTimeout(() => scrollToTabSection(), 400);
       }
     }
@@ -222,7 +244,7 @@ function HomeContent() {
   const handleDragScroll = (e) => {
     const slider = e.currentTarget;
     slider.isDown = true;
-    slider.classList.add('active');
+    slider.classList.add("active");
     slider.startX = e.pageX - slider.offsetLeft;
     slider.scrollLeftStart = slider.scrollLeft;
   };
@@ -230,7 +252,7 @@ function HomeContent() {
   const handleDragScrollLeaveOrUp = (e) => {
     const slider = e.currentTarget;
     slider.isDown = false;
-    slider.classList.remove('active');
+    slider.classList.remove("active");
   };
 
   const handleDragScrollMove = (e) => {
@@ -248,19 +270,19 @@ function HomeContent() {
     const slug = (cat.slug || "").toLowerCase();
 
     if (
-      slug.includes("service") || 
+      slug.includes("service") ||
       name.includes("service") ||
-      slug.includes("education") || 
+      slug.includes("education") ||
       name.includes("education") ||
-      slug.includes("beauty") || 
+      slug.includes("beauty") ||
       name.includes("beauty") ||
-      slug.includes("hospital") || 
+      slug.includes("hospital") ||
       name.includes("hospital") ||
-      slug.includes("repair") || 
+      slug.includes("repair") ||
       name.includes("repair") ||
-      slug.includes("work") || 
+      slug.includes("work") ||
       name.includes("work") ||
-      slug.includes("business") || 
+      slug.includes("business") ||
       name.includes("business") ||
       slug.includes("spa") ||
       name.includes("spa") ||
@@ -271,9 +293,9 @@ function HomeContent() {
     }
 
     if (
-      slug.includes("second") || 
+      slug.includes("second") ||
       name.includes("second") ||
-      slug.includes("used") || 
+      slug.includes("used") ||
       name.includes("used")
     ) {
       return "SECONDHAND";
@@ -283,21 +305,32 @@ function HomeContent() {
   };
 
   const getCombinedFilteredListings = (type) => {
-    const direct = listings.filter(item => (item.listingType || "SALES") === type && item.status === "ACTIVE");
-    const nearby = nearbyListings.filter(item => (item.listingType || "SALES") === type && item.status === "ACTIVE");
-    
+    const direct = listings.filter(
+      (item) =>
+        (item.listingType || "SALES") === type && item.status === "ACTIVE",
+    );
+    const nearby = nearbyListings.filter(
+      (item) =>
+        (item.listingType || "SALES") === type && item.status === "ACTIVE",
+    );
+
     const combined = [...direct];
-    const directIds = new Set(direct.map(item => item.id));
+    const directIds = new Set(direct.map((item) => item.id));
     for (const item of nearby) {
       if (!directIds.has(item.id)) {
         combined.push(item);
       }
     }
-    
+
     return combined.filter((item) => {
-      if (selectedCatFilter && item.categoryId !== selectedCatFilter.id) return false;
-      if (selectedSubCatFilter && item.subCategoryId !== selectedSubCatFilter.id) return false;
-      
+      if (selectedCatFilter && item.categoryId !== selectedCatFilter.id)
+        return false;
+      if (
+        selectedSubCatFilter &&
+        item.subCategoryId !== selectedSubCatFilter.id
+      )
+        return false;
+
       if (locationFilter && locationFilter.toLowerCase() !== "india") {
         const itemLoc = (item.location || "").toLowerCase();
         if (!itemLoc.includes(locationFilter.toLowerCase())) return false;
@@ -310,16 +343,20 @@ function HomeContent() {
         const catMatch = item.category?.name?.toLowerCase().includes(q);
         const subCatMatch = item.subCategory?.name?.toLowerCase().includes(q);
         const locMatch = (item.location || "").toLowerCase().includes(q);
-        if (!titleMatch && !descMatch && !catMatch && !subCatMatch && !locMatch) return false;
+        if (!titleMatch && !descMatch && !catMatch && !subCatMatch && !locMatch)
+          return false;
       }
 
       if (minPrice && item.price < parseFloat(minPrice)) return false;
       if (maxPrice && item.price > parseFloat(maxPrice)) return false;
 
-      if (discountOnly && (!item.discountPercent || item.discountPercent <= 0)) return false;
+      if (discountOnly && (!item.discountPercent || item.discountPercent <= 0))
+        return false;
 
       if (selectedDateFilter) {
-        const itemDateStr = new Date(item.createdAt).toISOString().split("T")[0];
+        const itemDateStr = new Date(item.createdAt)
+          .toISOString()
+          .split("T")[0];
         if (selectedDateFilter === "today") {
           const todayStr = new Date().toISOString().split("T")[0];
           if (itemDateStr !== todayStr) return false;
@@ -346,9 +383,14 @@ function HomeContent() {
       const itemType = item.listingType || "SALES";
       if (itemType !== type) return false;
       if (item.status !== "ACTIVE") return false;
-      if (selectedCatFilter && item.categoryId !== selectedCatFilter.id) return false;
-      if (selectedSubCatFilter && item.subCategoryId !== selectedSubCatFilter.id) return false;
-      
+      if (selectedCatFilter && item.categoryId !== selectedCatFilter.id)
+        return false;
+      if (
+        selectedSubCatFilter &&
+        item.subCategoryId !== selectedSubCatFilter.id
+      )
+        return false;
+
       if (locationFilter && locationFilter.toLowerCase() !== "india") {
         const itemLoc = (item.location || "").toLowerCase();
         if (!itemLoc.includes(locationFilter.toLowerCase())) return false;
@@ -361,16 +403,20 @@ function HomeContent() {
         const catMatch = item.category?.name?.toLowerCase().includes(q);
         const subCatMatch = item.subCategory?.name?.toLowerCase().includes(q);
         const locMatch = (item.location || "").toLowerCase().includes(q);
-        if (!titleMatch && !descMatch && !catMatch && !subCatMatch && !locMatch) return false;
+        if (!titleMatch && !descMatch && !catMatch && !subCatMatch && !locMatch)
+          return false;
       }
 
       if (minPrice && item.price < parseFloat(minPrice)) return false;
       if (maxPrice && item.price > parseFloat(maxPrice)) return false;
 
-      if (discountOnly && (!item.discountPercent || item.discountPercent <= 0)) return false;
+      if (discountOnly && (!item.discountPercent || item.discountPercent <= 0))
+        return false;
 
       if (selectedDateFilter) {
-        const itemDateStr = new Date(item.createdAt).toISOString().split("T")[0];
+        const itemDateStr = new Date(item.createdAt)
+          .toISOString()
+          .split("T")[0];
         if (selectedDateFilter === "today") {
           const todayStr = new Date().toISOString().split("T")[0];
           if (itemDateStr !== todayStr) return false;
@@ -390,14 +436,20 @@ function HomeContent() {
 
   const getMOQ = (description) => {
     if (!description) return "10 units";
-    const moqMatch = description.match(/(?:moq|minimum\s+order\s+quantity|min\s+order|min\s+qty)[:\s\-]+(\d+[\s\w]*)/i);
+    const moqMatch = description.match(
+      /(?:moq|minimum\s+order\s+quantity|min\s+order|min\s+qty)[:\s\-]+(\d+[\s\w]*)/i,
+    );
     return moqMatch ? moqMatch[1].trim() : "10 units";
   };
 
   const fetchWholesaleDeals = async () => {
     setWholesaleLoading(true);
     try {
-      const data = await api.getListings({ categoryId: 55, status: "ACTIVE", sortBy: "date_desc" });
+      const data = await api.getListings({
+        categoryId: 55,
+        status: "ACTIVE",
+        sortBy: "date_desc",
+      });
       setWholesaleDeals(data || []);
     } catch (e) {
       console.error("Wholesale Deals fetch error:", e);
@@ -416,8 +468,14 @@ function HomeContent() {
     };
   }, []);
 
-  const filteredListings = getFilteredListingsForGrid(listings, activeSegmentTab);
-  const filteredNearbyListings = getFilteredListingsForGrid(nearbyListings, activeSegmentTab);
+  const filteredListings = getFilteredListingsForGrid(
+    listings,
+    activeSegmentTab,
+  );
+  const filteredNearbyListings = getFilteredListingsForGrid(
+    nearbyListings,
+    activeSegmentTab,
+  );
 
   useEffect(() => {
     setCurrentPage(1);
@@ -428,10 +486,14 @@ function HomeContent() {
     async function loadStoresAndServices() {
       setDataLoading(true);
       try {
-        const storesData = await api.getStores(userCoords ? { lat: userCoords.lat, lng: userCoords.lng } : {});
+        const storesData = await api.getStores(
+          userCoords ? { lat: userCoords.lat, lng: userCoords.lng } : {},
+        );
         setNearbyStores(storesData);
 
-        const servicesData = await api.getServices(userCoords ? { lat: userCoords.lat, lng: userCoords.lng } : {});
+        const servicesData = await api.getServices(
+          userCoords ? { lat: userCoords.lat, lng: userCoords.lng } : {},
+        );
         setNearbyServices(servicesData);
       } catch (err) {
         console.error("Failed to load stores/services:", err);
@@ -449,18 +511,18 @@ function HomeContent() {
     const lowerName = catName.toLowerCase();
 
     const searchMap = {
-      "mobiles": "mobile-phones",
-      "laptops": "laptops",
-      "bikes": "motorcycles",
-      "cars": "cars",
-      "furniture": "furniture",
-      "electronics": "electronics",
-      "books": "books",
-      "fashion": "clothing",
-      "appliances": "appliances",
-      "sports": "sports",
-      "toys": "toys",
-      "instruments": "musical-instruments"
+      mobiles: "mobile-phones",
+      laptops: "laptops",
+      bikes: "motorcycles",
+      cars: "cars",
+      furniture: "furniture",
+      electronics: "electronics",
+      books: "books",
+      fashion: "clothing",
+      appliances: "appliances",
+      sports: "sports",
+      toys: "toys",
+      instruments: "musical-instruments",
     };
 
     const targetSlug = searchMap[lowerName] || lowerName;
@@ -486,7 +548,10 @@ function HomeContent() {
       setSelectedCatFilter(matchedCat);
       if (matchedSub) {
         setSelectedSubCatFilter(matchedSub);
-        fetchListings({ categoryId: matchedCat.id, subCategoryId: matchedSub.id });
+        fetchListings({
+          categoryId: matchedCat.id,
+          subCategoryId: matchedSub.id,
+        });
       } else {
         setSelectedSubCatFilter(null);
         fetchListings({ categoryId: matchedCat.id, subCategoryId: null });
@@ -510,10 +575,14 @@ function HomeContent() {
     if (selectedCatFilter || selectedSubCatFilter) {
       const allItems = [...listings, ...nearbyListings];
       if (allItems.length > 0) {
-        const typesInListings = new Set(allItems.map(item => item.listingType || "SALES"));
+        const typesInListings = new Set(
+          allItems.map((item) => item.listingType || "SALES"),
+        );
         if (!typesInListings.has(activeSegmentTab)) {
           const order = ["SALES", "SERVICES", "SECONDHAND"];
-          const nextTab = order.find(t => typesInListings.has(t)) || Array.from(typesInListings)[0];
+          const nextTab =
+            order.find((t) => typesInListings.has(t)) ||
+            Array.from(typesInListings)[0];
           if (nextTab) {
             setActiveSegmentTab(nextTab);
           }
@@ -523,21 +592,45 @@ function HomeContent() {
   }, [listings, nearbyListings, selectedCatFilter, selectedSubCatFilter]);
 
   const getCityEmoji = (city) => {
-    const found = citiesList.find((c) => c.name.toLowerCase() === city.toLowerCase());
+    const found = citiesList.find(
+      (c) => c.name.toLowerCase() === city.toLowerCase(),
+    );
     return found ? found.emoji : "📍";
   };
 
   const renderFilterContent = (isMobile = false) => {
     return (
       <>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--border-glass)", paddingBottom: "10px" }}>
-          <span style={{ fontSize: "var(--font-body)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>Filters</span>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "16px",
+            borderBottom: "1px solid var(--border-glass)",
+            paddingBottom: "10px",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "var(--font-body)",
+              fontWeight: "var(--font-weight-bold)",
+              color: "var(--text-main)",
+            }}
+          >
+            Filters
+          </span>
           <span
             onClick={() => {
               handleClearAllFilters();
               if (isMobile) setMobileFiltersOpen(false);
             }}
-            style={{ fontSize: "var(--font-caption)", color: "var(--primary)", cursor: "pointer", fontWeight: "var(--font-weight-semibold)" }}
+            style={{
+              fontSize: "var(--font-caption)",
+              color: "var(--primary)",
+              cursor: "pointer",
+              fontWeight: "var(--font-weight-semibold)",
+            }}
           >
             Clear All
           </span>
@@ -547,7 +640,15 @@ function HomeContent() {
           <div className="filter-title">Sort By</div>
           <select
             className="form-select"
-            style={{ width: "100%", background: "rgba(255,255,255,0.05)", color: "var(--text-main)", border: "1px solid var(--border-glass)", borderRadius: "8px", padding: "8px", fontSize: "var(--font-helper)" }}
+            style={{
+              width: "100%",
+              background: "rgba(255,255,255,0.05)",
+              color: "var(--text-main)",
+              border: "1px solid var(--border-glass)",
+              borderRadius: "8px",
+              padding: "8px",
+              fontSize: "var(--font-helper)",
+            }}
             value={selectedSortBy}
             onChange={(e) => setSelectedSortBy(e.target.value)}
           >
@@ -561,7 +662,16 @@ function HomeContent() {
         <div className="filter-group">
           <div className="filter-title">Posted Date</div>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)", color: "var(--text-muted)", cursor: "pointer" }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "var(--font-helper)",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+              }}
+            >
               <input
                 type="radio"
                 name={isMobile ? "mobileDateFilter" : "dateFilter"}
@@ -570,7 +680,16 @@ function HomeContent() {
               />
               All Time
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)", color: "var(--text-muted)", cursor: "pointer" }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "var(--font-helper)",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+              }}
+            >
               <input
                 type="radio"
                 name={isMobile ? "mobileDateFilter" : "dateFilter"}
@@ -579,7 +698,16 @@ function HomeContent() {
               />
               Today
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)", color: "var(--text-muted)", cursor: "pointer" }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "var(--font-helper)",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+              }}
+            >
               <input
                 type="radio"
                 name={isMobile ? "mobileDateFilter" : "dateFilter"}
@@ -588,11 +716,24 @@ function HomeContent() {
               />
               Yesterday
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)", color: "var(--text-muted)", cursor: "pointer" }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "var(--font-helper)",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+              }}
+            >
               <input
                 type="radio"
                 name={isMobile ? "mobileDateFilter" : "dateFilter"}
-                checked={selectedDateFilter !== "" && selectedDateFilter !== "today" && selectedDateFilter !== "yesterday"}
+                checked={
+                  selectedDateFilter !== "" &&
+                  selectedDateFilter !== "today" &&
+                  selectedDateFilter !== "yesterday"
+                }
                 onChange={() => {
                   const todayStr = new Date().toISOString().split("T")[0];
                   setSelectedDateFilter(todayStr);
@@ -602,27 +743,29 @@ function HomeContent() {
               Specific Date
             </label>
 
-            {selectedDateFilter !== "" && selectedDateFilter !== "today" && selectedDateFilter !== "yesterday" && (
-              <input
-                type="date"
-                style={{
-                  width: "100%",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "var(--text-main)",
-                  border: "1px solid var(--border-glass)",
-                  borderRadius: "8px",
-                  padding: "6px 8px",
-                  fontSize: "var(--font-caption)",
-                  marginTop: "4px",
-                }}
-                value={customDateInput}
-                onChange={(e) => {
-                  const dateVal = e.target.value;
-                  setCustomDateInput(dateVal);
-                  setSelectedDateFilter(dateVal);
-                }}
-              />
-            )}
+            {selectedDateFilter !== "" &&
+              selectedDateFilter !== "today" &&
+              selectedDateFilter !== "yesterday" && (
+                <input
+                  type="date"
+                  style={{
+                    width: "100%",
+                    background: "rgba(255,255,255,0.05)",
+                    color: "var(--text-main)",
+                    border: "1px solid var(--border-glass)",
+                    borderRadius: "8px",
+                    padding: "6px 8px",
+                    fontSize: "var(--font-caption)",
+                    marginTop: "4px",
+                  }}
+                  value={customDateInput}
+                  onChange={(e) => {
+                    const dateVal = e.target.value;
+                    setCustomDateInput(dateVal);
+                    setSelectedDateFilter(dateVal);
+                  }}
+                />
+              )}
           </div>
         </div>
 
@@ -647,7 +790,10 @@ function HomeContent() {
           </div>
         </div>
 
-        <div className="filter-group" style={{ flexDirection: "row", alignItems: "center", gap: "8px" }}>
+        <div
+          className="filter-group"
+          style={{ flexDirection: "row", alignItems: "center", gap: "8px" }}
+        >
           <input
             type="checkbox"
             id={isMobile ? "mobile-discount-check" : "discount-check"}
@@ -655,7 +801,14 @@ function HomeContent() {
             onChange={(e) => setDiscountOnly(e.target.checked)}
             style={{ cursor: "pointer" }}
           />
-          <label htmlFor={isMobile ? "mobile-discount-check" : "discount-check"} style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", cursor: "pointer" }}>
+          <label
+            htmlFor={isMobile ? "mobile-discount-check" : "discount-check"}
+            style={{
+              fontSize: "var(--font-small)",
+              color: "var(--text-muted)",
+              cursor: "pointer",
+            }}
+          >
             Discounted Deals Only
           </label>
         </div>
@@ -808,11 +961,32 @@ function HomeContent() {
             </button>
 
             {/* Breadcrumb */}
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0, overflow: "hidden" }}>
-              <span style={{ fontSize: "var(--font-helper)", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                minWidth: 0,
+                overflow: "hidden",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "var(--font-helper)",
+                  color: "var(--text-muted)",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 {subCategoryView.category?.name}
               </span>
-              <span style={{ color: "var(--text-dim)", fontSize: "var(--font-caption)" }}>›</span>
+              <span
+                style={{
+                  color: "var(--text-dim)",
+                  fontSize: "var(--font-caption)",
+                }}
+              >
+                ›
+              </span>
               <span
                 style={{
                   display: "inline-flex",
@@ -830,8 +1004,15 @@ function HomeContent() {
                   <img
                     src={`${imageServer}${subCategoryView.subcategory.imagePath}`}
                     alt={subCategoryView.subcategory.name}
-                    style={{ width: "18px", height: "18px", objectFit: "cover", borderRadius: "3px" }}
-                    onError={(e) => { e.target.style.display = "none"; }}
+                    style={{
+                      width: "18px",
+                      height: "18px",
+                      objectFit: "cover",
+                      borderRadius: "3px",
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
                   />
                 ) : (
                   <span>{subCategoryView.subcategory?.emoji}</span>
@@ -842,7 +1023,13 @@ function HomeContent() {
           </div>
 
           {/* Content */}
-          <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "28px 20px" }}>
+          <div
+            style={{
+              maxWidth: "1200px",
+              margin: "0 auto",
+              padding: "28px 20px",
+            }}
+          >
             {/* Title */}
             <h1
               style={{
@@ -859,18 +1046,45 @@ function HomeContent() {
                 <img
                   src={`${imageServer}${subCategoryView.subcategory.imagePath}`}
                   alt={subCategoryView.subcategory.name}
-                  style={{ width: "32px", height: "32px", objectFit: "cover", borderRadius: "6px" }}
-                  onError={(e) => { e.target.style.display = "none"; }}
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    objectFit: "cover",
+                    borderRadius: "6px",
+                  }}
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                  }}
                 />
               ) : (
                 <span>{subCategoryView.subcategory?.emoji}</span>
               )}
               {subCategoryView.subcategory?.name}
             </h1>
-            <p style={{ fontSize: "var(--font-helper)", color: "var(--text-muted)", marginBottom: "28px" }}>
-              in <strong style={{ color: "var(--text-main)" }}>{subCategoryView.category?.name}</strong>
+            <p
+              style={{
+                fontSize: "var(--font-helper)",
+                color: "var(--text-muted)",
+                marginBottom: "28px",
+              }}
+            >
+              in{" "}
+              <strong style={{ color: "var(--text-main)" }}>
+                {subCategoryView.category?.name}
+              </strong>
               {subCategoryView.listings.length > 0 && (
-                <> &nbsp;·&nbsp; <span style={{ color: "var(--accent-primary)", fontWeight: "var(--font-weight-semibold)" }}>{subCategoryView.listings.length} listings found</span></>
+                <>
+                  {" "}
+                  &nbsp;·&nbsp;{" "}
+                  <span
+                    style={{
+                      color: "var(--accent-primary)",
+                      fontWeight: "var(--font-weight-semibold)",
+                    }}
+                  >
+                    {subCategoryView.listings.length} listings found
+                  </span>
+                </>
               )}
             </p>
 
@@ -908,12 +1122,27 @@ function HomeContent() {
                 }}
               >
                 <div style={{ fontSize: "56px", marginBottom: "16px" }}>🔍</div>
-                <h2 style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "8px" }}>
+                <h2
+                  style={{
+                    fontSize: "var(--font-h4)",
+                    fontWeight: "var(--font-weight-bold)",
+                    color: "var(--text-main)",
+                    marginBottom: "8px",
+                  }}
+                >
                   No products found
                 </h2>
-                <p style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", marginBottom: "24px" }}>
-                  There are no listings in <strong>{subCategoryView.subcategory?.name}</strong> yet.
-                  <br />Be the first to post one!
+                <p
+                  style={{
+                    fontSize: "var(--font-small)",
+                    color: "var(--text-muted)",
+                    marginBottom: "24px",
+                  }}
+                >
+                  There are no listings in{" "}
+                  <strong>{subCategoryView.subcategory?.name}</strong> yet.
+                  <br />
+                  Be the first to post one!
                 </p>
                 <button
                   onClick={exitSubCategoryView}
@@ -943,35 +1172,78 @@ function HomeContent() {
 
       {/* ========== HOMEPAGE (hidden behind subcategory view) ========== */}
       {user && (
-        <div style={{ marginBottom: "20px", fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>
+        <div
+          style={{
+            marginBottom: "20px",
+            fontSize: "var(--font-h4)",
+            fontWeight: "var(--font-weight-bold)",
+            color: "var(--text-main)",
+          }}
+        >
           Hello, {user.fullName || user.username?.split("@")[0] || "User"} 👋
         </div>
       )}
 
       {/* 🔄 Account Mode Switcher Tab Bar */}
-      <div 
-        className="glass-panel mobile-flat-panel" 
-        style={{ 
-          padding: "16px 24px", 
-          marginBottom: "24px", 
-          background: "linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(236, 72, 153, 0.08) 100%)", 
+      <div
+        className="glass-panel mobile-flat-panel"
+        style={{
+          padding: "16px 24px",
+          marginBottom: "24px",
+          background:
+            "linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(236, 72, 153, 0.08) 100%)",
           border: "1.5px solid var(--border-glass)",
-          borderRadius: "20px"
+          borderRadius: "20px",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "16px",
+            flexWrap: "wrap",
+          }}
+        >
           <div>
-            <h2 style={{ fontSize: "clamp(15px, 4vw, 18px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-              {userMode === "SELLER" ? "🏪 Merchant Console" : "🛒 Customer Console"}
+            <h2
+              style={{
+                fontSize: "clamp(15px, 4vw, 18px)",
+                fontWeight: "var(--font-weight-bold)",
+                color: "var(--text-main)",
+                margin: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              {userMode === "SELLER"
+                ? "🏪 Merchant Console"
+                : "🛒 Customer Console"}
             </h2>
-            <p style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", margin: "3px 0 0 0" }}>
-              {userMode === "SELLER" 
+            <p
+              style={{
+                fontSize: "var(--font-caption)",
+                color: "var(--text-muted)",
+                margin: "3px 0 0 0",
+              }}
+            >
+              {userMode === "SELLER"
                 ? "You are in publishing mode. Post ads, view inquiries & manage listings."
                 : "You are in browsing mode. Find deals, search products & contact store owners."}
             </p>
           </div>
 
-          <div style={{ display: "inline-flex", background: "var(--bg-input)", border: "1px solid var(--border-glass)", borderRadius: "40px", padding: "4px", gap: "4px" }}>
+          <div
+            style={{
+              display: "inline-flex",
+              background: "var(--bg-input)",
+              border: "1px solid var(--border-glass)",
+              borderRadius: "40px",
+              padding: "4px",
+              gap: "4px",
+            }}
+          >
             <button
               onClick={() => switchUserMode("BUYER")}
               style={{
@@ -982,9 +1254,15 @@ function HomeContent() {
                 fontWeight: "var(--font-weight-bold)",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
-                background: userMode === "BUYER" ? "linear-gradient(135deg, #4f46e5, #6366f1)" : "transparent",
+                background:
+                  userMode === "BUYER"
+                    ? "linear-gradient(135deg, #4f46e5, #6366f1)"
+                    : "transparent",
                 color: userMode === "BUYER" ? "#ffffff" : "var(--text-muted)",
-                boxShadow: userMode === "BUYER" ? "0 2px 8px rgba(99, 102, 241, 0.3)" : "none"
+                boxShadow:
+                  userMode === "BUYER"
+                    ? "0 2px 8px rgba(99, 102, 241, 0.3)"
+                    : "none",
               }}
             >
               🛒 Customer Mode
@@ -999,9 +1277,15 @@ function HomeContent() {
                 fontWeight: "var(--font-weight-bold)",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
-                background: userMode === "SELLER" ? "linear-gradient(135deg, #059669, #10b981)" : "transparent",
+                background:
+                  userMode === "SELLER"
+                    ? "linear-gradient(135deg, #059669, #10b981)"
+                    : "transparent",
                 color: userMode === "SELLER" ? "#ffffff" : "var(--text-muted)",
-                boxShadow: userMode === "SELLER" ? "0 2px 8px rgba(16, 185, 129, 0.3)" : "none"
+                boxShadow:
+                  userMode === "SELLER"
+                    ? "0 2px 8px rgba(16, 185, 129, 0.3)"
+                    : "none",
               }}
             >
               🏪 Business Mode
@@ -1010,149 +1294,32 @@ function HomeContent() {
         </div>
       </div>
 
-      {userMode === "SELLER" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px", marginBottom: "32px" }}>
-          {/* Welcome Seller Card */}
-          <div 
-            className="glass-panel" 
-            style={{ 
-              padding: "32px", 
-              borderRadius: "20px", 
-              background: "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)",
-              border: "1px solid var(--border-glass)",
-              position: "relative",
-              overflow: "hidden"
+      {/* Top Categories Grid Bar */}
+      <div
+        className="glass-panel mobile-flat-panel"
+        style={{ padding: "24px" }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "16px",
+          }}
+        >
+          <h2
+            style={{
+              fontSize: "clamp(15px, 4.5vw, 20px)",
+              fontWeight: "var(--font-weight-bold)",
+              color: "var(--text-main)",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              margin: 0,
             }}
           >
-            <div style={{ position: "absolute", top: "-10px", right: "-10px", fontSize: "120px", opacity: 0.08, userSelect: "none" }}>🏪</div>
-            <h2 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "8px" }}>
-              Welcome back, {user?.username ? user.username.split('@')[0] : "User"}! 👋
-            </h2>
-            <p style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", maxWidth: "600px", margin: "0 0 24px 0", lineHeight: "1.6" }}>
-              Advertise new items, manage active inquiries, edit contact settings, or track statistics for your shop. Everything you need is right at your fingertips.
-            </p>
-
-            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-              <Link href="/dashboard/add-listing" className="btn btn-primary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "var(--font-weight-bold)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                ➕ Post New Product
-              </Link>
-              <Link href="/dashboard/my-listings" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "var(--font-weight-bold)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                📦 Manage My Listings
-              </Link>
-              <Link href="/dashboard/leads" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "var(--font-weight-bold)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                💬 Messages ({sellerInquiries.length})
-              </Link>
-              <Link href="/dashboard/profile" className="btn btn-secondary" style={{ padding: "10px 24px", borderRadius: "30px", fontWeight: "var(--font-weight-bold)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                🔒 Privacy & Profile Settings
-              </Link>
-            </div>
-          </div>
-
-          {/* Stats Summary Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px" }}>
-            <div className="glass-panel" style={{ padding: "20px 24px", borderRadius: "16px", border: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "16px" }}>
-              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-h3)" }}>📦</div>
-              <div>
-                <span style={{ display: "block", fontSize: "var(--font-caption)", color: "var(--text-dim)", fontWeight: "var(--font-weight-semibold)" }}>Total Listings</span>
-                <span style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>{sellerListings.length}</span>
-              </div>
-            </div>
-            <div className="glass-panel" style={{ padding: "20px 24px", borderRadius: "16px", border: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "16px" }}>
-              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(99, 102, 241, 0.15)", color: "#6366f1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-h3)" }}>💬</div>
-              <div>
-                <span style={{ display: "block", fontSize: "var(--font-caption)", color: "var(--text-dim)", fontWeight: "var(--font-weight-semibold)" }}>Leads</span>
-                <span style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>{sellerInquiries.length}</span>
-              </div>
-            </div>
-            <div className="glass-panel" style={{ padding: "20px 24px", borderRadius: "16px", border: "1px solid var(--border-glass)", display: "flex", alignItems: "center", gap: "16px" }}>
-              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-h3)" }}>⭐</div>
-              <div>
-                <span style={{ display: "block", fontSize: "var(--font-caption)", color: "var(--text-dim)", fontWeight: "var(--font-weight-semibold)" }}>Shop Rating</span>
-                <span style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>5.0 ★</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Seller listings section */}
-          <div className="glass-panel" style={{ padding: "24px", borderRadius: "16px", border: "1px solid var(--border-glass)" }}>
-            <h3 style={{ fontSize: "var(--font-h5)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: "0 0 16px 0", display: "flex", alignItems: "center", gap: "6px" }}>
-              📂 My Current Listings ({sellerListings.length})
-            </h3>
-            {sellerListings.length === 0 ? (
-              <div style={{ padding: "40px 16px", textAlign: "center", color: "var(--text-muted)" }}>
-                <p style={{ margin: "0 0 16px 0", fontSize: "var(--font-small)" }}>You have not posted any advertising listings yet.</p>
-                <Link href="/dashboard/add-listing" className="btn btn-primary" style={{ padding: "8px 20px", borderRadius: "30px", textDecoration: "none", fontSize: "var(--font-helper)" }}>
-                  Create Your First Listing
-                </Link>
-              </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "20px" }}>
-                {sellerListings.map((item) => {
-                  const photos = item.imagePath ? item.imagePath.split(",") : [];
-                  const coverImage = photos[0] || "";
-                  return (
-                    <div 
-                      key={item.id} 
-                      className="glass-panel product-card" 
-                      style={{ height: "auto", display: "flex", flexDirection: "column", background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glass)", borderRadius: "14px", overflow: "hidden", cursor: "pointer" }}
-                      onClick={() => router.push(`/details/${item.id}`)}
-                    >
-                      <div style={{ height: "150px", position: "relative", background: "#000" }}>
-                        <img 
-                          src={coverImage ? `${imageServer}${coverImage}` : "https://placehold.co/400x300?text=No+Photo"} 
-                          alt={item.title} 
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                          onError={(e) => { e.target.src = "https://placehold.co/400x300?text=Product"; }}
-                        />
-                        <span style={{ position: "absolute", top: "10px", right: "10px", padding: "4px 8px", fontSize: "10px", fontWeight: "var(--font-weight-bold)", borderRadius: "4px", background: item.status === "ACTIVE" ? "var(--emerald-glow)" : "rgba(245, 158, 11, 0.15)", color: item.status === "ACTIVE" ? "var(--emerald)" : "#fbbf24" }}>
-                          {item.status}
-                        </span>
-                      </div>
-                      <div style={{ padding: "12px", display: "flex", flexDirection: "column", flex: 1 }}>
-                        <h4 style={{ margin: "0 0 6px 0", fontSize: "var(--font-small)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {item.title}
-                        </h4>
-                        <span style={{ fontSize: "var(--font-body)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "12px" }}>
-                          ₹{item.price}{item.priceMax ? ` - ₹${item.priceMax}` : ""}
-                        </span>
-                        <div style={{ marginTop: "auto", display: "flex", gap: "6px" }}>
-                          <Link href={`/dashboard/my-listings`} className="btn btn-secondary" style={{ flex: 1, padding: "6px", fontSize: "11px", borderRadius: "6px", textAlign: "center", textDecoration: "none" }} onClick={(e) => e.stopPropagation()}>
-                            ✏️ Edit
-                          </Link>
-                          <button 
-                            className="btn btn-accent" 
-                            style={{ flex: 1, padding: "6px", fontSize: "11px", borderRadius: "6px" }}
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              if (confirm(`Delete listing LPP-${String(item.id).padStart(5, "0")}?`)) {
-                                try {
-                                  await api.deleteListing(item.id);
-                                  fetchSellerListings();
-                                } catch (err) {
-                                  alert(err.message);
-                                }
-                              }
-                            }}
-                          >
-                            🗑️ Delete
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Top Categories Grid Bar */}
-          <div className="glass-panel mobile-flat-panel" style={{ padding: "24px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0 }}>
-                📁 Browse Categories
-              </h2>
+            📁 Browse Categories
+          </h2>
           <Link
             href="/categories"
             className="btn btn-secondary"
@@ -1164,7 +1331,7 @@ function HomeContent() {
               alignItems: "center",
               flexShrink: 0,
               whiteSpace: "nowrap",
-              textDecoration: "none"
+              textDecoration: "none",
             }}
           >
             View All →
@@ -1173,7 +1340,12 @@ function HomeContent() {
 
         <div className="scroll-arrow-wrapper">
           {showLeftCat && (
-            <button className="scroll-arrow-btn left" onClick={() => scrollLeft(categoryScrollRef)}>◀</button>
+            <button
+              className="scroll-arrow-btn left"
+              onClick={() => scrollLeft(categoryScrollRef)}
+            >
+              ◀
+            </button>
           )}
           <div
             ref={categoryScrollRef}
@@ -1182,7 +1354,13 @@ function HomeContent() {
             onMouseLeave={handleDragScrollLeaveOrUp}
             onMouseUp={handleDragScrollLeaveOrUp}
             onMouseMove={handleDragScrollMove}
-            onScroll={() => updateArrowVisibility(categoryScrollRef, setShowLeftCat, setShowRightCat)}
+            onScroll={() =>
+              updateArrowVisibility(
+                categoryScrollRef,
+                setShowLeftCat,
+                setShowRightCat,
+              )
+            }
             style={{ scrollBehavior: "smooth" }}
           >
             <div
@@ -1193,7 +1371,9 @@ function HomeContent() {
                 fetchListings({ categoryId: null, subCategoryId: null });
               }}
             >
-              <div className={`category-bar-icon-box ${!selectedCatFilter ? "active" : ""}`}>
+              <div
+                className={`category-bar-icon-box ${!selectedCatFilter ? "active" : ""}`}
+              >
                 <span className="category-bar-emoji">☰</span>
               </div>
               <span className="category-bar-label">All Categories</span>
@@ -1209,37 +1389,59 @@ function HomeContent() {
                     if (isSelected) {
                       setSelectedCatFilter(null);
                       setSelectedSubCatFilter(null);
-                      fetchListings({ categoryId: null, subCategoryId: null });
+                      fetchListings({
+                        categoryId: null,
+                        subCategoryId: null,
+                      });
                     } else {
                       setSelectedCatFilter(cat);
                       setSelectedSubCatFilter(null);
                       const targetTab = getTabForCategory(cat);
                       setActiveSegmentTab(targetTab);
-                      fetchListings({ categoryId: cat.id, subCategoryId: null });
-                      if (!cat.subCategories || cat.subCategories.length === 0) {
+                      fetchListings({
+                        categoryId: cat.id,
+                        subCategoryId: null,
+                      });
+                      if (
+                        !cat.subCategories ||
+                        cat.subCategories.length === 0
+                      ) {
                         scrollToTabSection();
                       }
                     }
                   }}
                 >
-                  <div className={`category-bar-icon-box ${isSelected ? "active" : ""}`}>
+                  <div
+                    className={`category-bar-icon-box ${isSelected ? "active" : ""}`}
+                  >
                     {cat.imagePath ? (
                       <img
                         src={`${imageServer}${cat.imagePath}`}
-                        srcSet={getImageSrcSet(cat.imagePath, imageServer) || undefined}
+                        srcSet={
+                          getImageSrcSet(cat.imagePath, imageServer) ||
+                          undefined
+                        }
                         sizes="70px"
                         loading="lazy"
                         alt={cat.name}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
                         onError={(e) => {
-                          e.target.style.display = 'none';
+                          e.target.style.display = "none";
                           e.target.srcSet = "";
                           const fallbackSpan = e.target.nextSibling;
-                          if (fallbackSpan) fallbackSpan.style.display = 'inline';
+                          if (fallbackSpan)
+                            fallbackSpan.style.display = "inline";
                         }}
                       />
                     ) : null}
-                    <span className="category-bar-emoji" style={{ display: cat.imagePath ? "none" : "inline" }}>
+                    <span
+                      className="category-bar-emoji"
+                      style={{ display: cat.imagePath ? "none" : "inline" }}
+                    >
                       {cat.emoji || "📁"}
                     </span>
                   </div>
@@ -1249,67 +1451,127 @@ function HomeContent() {
             })}
           </div>
           {showRightCat && (
-            <button className="scroll-arrow-btn right" onClick={() => scrollRight(categoryScrollRef)}>▶</button>
+            <button
+              className="scroll-arrow-btn right"
+              onClick={() => scrollRight(categoryScrollRef)}
+            >
+              ▶
+            </button>
           )}
         </div>
 
         {/* Subcategories Pills bar */}
-        {selectedCatFilter && (selectedCatFilter.subCategories?.length > 0 || selectedCatFilter.subcategories?.length > 0) && (
-          <div className="subcategory-bar-pills">
-            <span className="subcategory-title">Subcategories:</span>
-            <div className="scroll-arrow-wrapper">
-              {showLeftSubCat && (
-                <button className="scroll-arrow-btn left" onClick={() => scrollLeft(subcategoryScrollRef)}>◀</button>
-              )}
-              <div
-                ref={subcategoryScrollRef}
-                className="subcategory-pills-row grab-scroll-container"
-                onMouseDown={handleDragScroll}
-                onMouseLeave={handleDragScrollLeaveOrUp}
-                onMouseUp={handleDragScrollLeaveOrUp}
-                onMouseMove={handleDragScrollMove}
-                onScroll={() => updateArrowVisibility(subcategoryScrollRef, setShowLeftSubCat, setShowRightSubCat)}
-                style={{ scrollBehavior: "smooth" }}
-              >
-                {(selectedCatFilter.subCategories || selectedCatFilter.subcategories || []).map((sub) => {
-                  const isSubSelected = selectedSubCatFilter?.id === sub.id;
-                  return (
-                    <button
-                      key={sub.id}
-                      className={`subcategory-pill-btn ${isSubSelected ? "active" : ""}`}
-                      onClick={() => {
-                        setSelectedSubCatFilter(sub);
-                        router.push(`/category/${selectedCatFilter.slug}/${sub.slug}`);
-                      }}
-                      style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-                    >
-                      {sub.imagePath ? (
-                        <img
-                          src={`${imageServer}${sub.imagePath}`}
-                          alt={sub.name}
-                          style={{ width: "16px", height: "16px", objectFit: "cover", borderRadius: "3px" }}
-                          onError={(e) => { e.target.style.display = "none"; }}
-                        />
-                      ) : (
-                        <span>{sub.emoji || "🔹"}</span>
-                      )}
-                      {sub.name}
-                    </button>
-                  );
-                })}
+        {selectedCatFilter &&
+          (selectedCatFilter.subCategories?.length > 0 ||
+            selectedCatFilter.subcategories?.length > 0) && (
+            <div className="subcategory-bar-pills">
+              <span className="subcategory-title">Subcategories:</span>
+              <div className="scroll-arrow-wrapper">
+                {showLeftSubCat && (
+                  <button
+                    className="scroll-arrow-btn left"
+                    onClick={() => scrollLeft(subcategoryScrollRef)}
+                  >
+                    ◀
+                  </button>
+                )}
+                <div
+                  ref={subcategoryScrollRef}
+                  className="subcategory-pills-row grab-scroll-container"
+                  onMouseDown={handleDragScroll}
+                  onMouseLeave={handleDragScrollLeaveOrUp}
+                  onMouseUp={handleDragScrollLeaveOrUp}
+                  onMouseMove={handleDragScrollMove}
+                  onScroll={() =>
+                    updateArrowVisibility(
+                      subcategoryScrollRef,
+                      setShowLeftSubCat,
+                      setShowRightSubCat,
+                    )
+                  }
+                  style={{ scrollBehavior: "smooth" }}
+                >
+                  {(
+                    selectedCatFilter.subCategories ||
+                    selectedCatFilter.subcategories ||
+                    []
+                  ).map((sub) => {
+                    const isSubSelected = selectedSubCatFilter?.id === sub.id;
+                    return (
+                      <button
+                        key={sub.id}
+                        className={`subcategory-pill-btn ${isSubSelected ? "active" : ""}`}
+                        onClick={() => {
+                          setSelectedSubCatFilter(sub);
+                          router.push(
+                            `/category/${selectedCatFilter.slug}/${sub.slug}`,
+                          );
+                        }}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        {sub.imagePath ? (
+                          <img
+                            src={`${imageServer}${sub.imagePath}`}
+                            alt={sub.name}
+                            style={{
+                              width: "16px",
+                              height: "16px",
+                              objectFit: "cover",
+                              borderRadius: "3px",
+                            }}
+                            onError={(e) => {
+                              e.target.style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <span>{sub.emoji || "🔹"}</span>
+                        )}
+                        {sub.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                {showRightSubCat && (
+                  <button
+                    className="scroll-arrow-btn right"
+                    onClick={() => scrollRight(subcategoryScrollRef)}
+                  >
+                    ▶
+                  </button>
+                )}
               </div>
-              {showRightSubCat && (
-                <button className="scroll-arrow-btn right" onClick={() => scrollRight(subcategoryScrollRef)}>▶</button>
-              )}
             </div>
-          </div>
-        )}
+          )}
       </div>
 
       {/* Explore by City Grid Bar */}
-      <div className="glass-panel mobile-flat-panel" style={{ padding: "20px 24px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0 }}>
+      <div
+        className="glass-panel mobile-flat-panel"
+        style={{ padding: "20px 24px" }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "16px",
+          }}
+        >
+          <h2
+            style={{
+              fontSize: "clamp(15px, 4.5vw, 20px)",
+              fontWeight: "var(--font-weight-bold)",
+              color: "var(--text-main)",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              margin: 0,
+            }}
+          >
             📍 Explore by City
           </h2>
           <button
@@ -1322,7 +1584,7 @@ function HomeContent() {
               alignItems: "center",
               flexShrink: 0,
               whiteSpace: "nowrap",
-              cursor: "pointer"
+              cursor: "pointer",
             }}
             onClick={() => {
               setCitySearchQuery("");
@@ -1334,7 +1596,12 @@ function HomeContent() {
         </div>
         <div className="scroll-arrow-wrapper">
           {showLeftCity && (
-            <button className="scroll-arrow-btn left" onClick={() => scrollLeft(cityScrollRef)}>◀</button>
+            <button
+              className="scroll-arrow-btn left"
+              onClick={() => scrollLeft(cityScrollRef)}
+            >
+              ◀
+            </button>
           )}
           <div
             ref={cityScrollRef}
@@ -1343,7 +1610,13 @@ function HomeContent() {
             onMouseLeave={handleDragScrollLeaveOrUp}
             onMouseUp={handleDragScrollLeaveOrUp}
             onMouseMove={handleDragScrollMove}
-            onScroll={() => updateArrowVisibility(cityScrollRef, setShowLeftCity, setShowRightCity)}
+            onScroll={() =>
+              updateArrowVisibility(
+                cityScrollRef,
+                setShowLeftCity,
+                setShowRightCity,
+              )
+            }
             style={{ scrollBehavior: "smooth" }}
           >
             <div
@@ -1354,14 +1627,32 @@ function HomeContent() {
                 fetchListings({ location: "India" });
               }}
             >
-              <div className={`category-bar-icon-box ${!locationFilter || locationFilter.toLowerCase() === "india" ? "active" : ""}`} style={{ width: "48px", height: "48px", borderRadius: "12px" }}>
-                <span className="category-bar-emoji" style={{ fontSize: "var(--font-h5)" }}>🇮🇳</span>
+              <div
+                className={`category-bar-icon-box ${!locationFilter || locationFilter.toLowerCase() === "india" ? "active" : ""}`}
+                style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "12px",
+                }}
+              >
+                <span
+                  className="category-bar-emoji"
+                  style={{ fontSize: "var(--font-h5)" }}
+                >
+                  🇮🇳
+                </span>
               </div>
-              <span className="category-bar-label" style={{ fontSize: "var(--font-caption)" }}>All India</span>
+              <span
+                className="category-bar-label"
+                style={{ fontSize: "var(--font-caption)" }}
+              >
+                All India
+              </span>
             </div>
 
             {citiesList.map((c) => {
-              const isSelected = locationFilter?.toLowerCase() === c.name.toLowerCase();
+              const isSelected =
+                locationFilter?.toLowerCase() === c.name.toLowerCase();
               return (
                 <div
                   key={c.id || c.name}
@@ -1372,74 +1663,141 @@ function HomeContent() {
                     fetchListings({ location: c.name });
                   }}
                 >
-                  <div className={`category-bar-icon-box ${isSelected ? "active" : ""}`} style={{ width: "48px", height: "48px", borderRadius: "12px" }}>
+                  <div
+                    className={`category-bar-icon-box ${isSelected ? "active" : ""}`}
+                    style={{
+                      width: "48px",
+                      height: "48px",
+                      borderRadius: "12px",
+                    }}
+                  >
                     {c.imagePath ? (
                       <img
                         src={`${imageServer}${c.imagePath}`}
-                        srcSet={getImageSrcSet(c.imagePath, imageServer) || undefined}
+                        srcSet={
+                          getImageSrcSet(c.imagePath, imageServer) || undefined
+                        }
                         sizes="48px"
                         loading="lazy"
                         alt={c.name}
-                        style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          borderRadius: "inherit",
+                        }}
                         onError={(e) => {
-                          e.target.style.display = 'none';
+                          e.target.style.display = "none";
                           e.target.srcSet = "";
                           const fallbackSpan = e.target.nextSibling;
-                          if (fallbackSpan) fallbackSpan.style.display = 'inline';
+                          if (fallbackSpan)
+                            fallbackSpan.style.display = "inline";
                         }}
                       />
                     ) : null}
-                    <span className="category-bar-emoji" style={{ display: c.imagePath ? "none" : "inline", fontSize: "var(--font-h4)" }}>
+                    <span
+                      className="category-bar-emoji"
+                      style={{
+                        display: c.imagePath ? "none" : "inline",
+                        fontSize: "var(--font-h4)",
+                      }}
+                    >
                       {c.emoji || "📍"}
                     </span>
                   </div>
-                  <span className="category-bar-label" style={{ fontSize: "var(--font-caption)" }}>{c.name}</span>
+                  <span
+                    className="category-bar-label"
+                    style={{ fontSize: "var(--font-caption)" }}
+                  >
+                    {c.name}
+                  </span>
                 </div>
               );
             })}
           </div>
           {showRightCity && (
-            <button className="scroll-arrow-btn right" onClick={() => scrollRight(cityScrollRef)}>▶</button>
+            <button
+              className="scroll-arrow-btn right"
+              onClick={() => scrollRight(cityScrollRef)}
+            >
+              ▶
+            </button>
           )}
         </div>
       </div>
 
       <div className="home-layout">
-        {/* Sidebar Filters */}
-        <aside className="sidebar-filter">{renderFilterContent(false)}</aside>
-
         {/* Product Feed Grid */}
         <section className="products-section">
           {/* Nearby Stores Section */}
-          <div className="homepage-section-wrapper" style={{ marginBottom: "32px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", gap: "12px", flexWrap: "nowrap" }}>
-              <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0, whiteSpace: "nowrap", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div
+            className="homepage-section-wrapper"
+            style={{ marginBottom: "32px" }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+                gap: "12px",
+                flexWrap: "nowrap",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: "clamp(15px, 4.5vw, 20px)",
+                  fontWeight: "var(--font-weight-bold)",
+                  color: "var(--text-main)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  margin: 0,
+                  whiteSpace: "nowrap",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
                 🏪 Nearby Stores
               </h2>
-              <Link 
-                href="/stores" 
-                className="btn btn-secondary" 
-                style={{ 
-                  padding: "6px 12px", 
-                  fontSize: "var(--font-caption)", 
-                  borderRadius: "6px", 
-                  display: "inline-flex", 
-                  alignItems: "center", 
-                  flexShrink: 0, 
+              <Link
+                href="/stores"
+                className="btn btn-secondary"
+                style={{
+                  padding: "6px 12px",
+                  fontSize: "var(--font-caption)",
+                  borderRadius: "6px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  flexShrink: 0,
                   whiteSpace: "nowrap",
-                  textDecoration: "none"
+                  textDecoration: "none",
                 }}
               >
                 View All →
               </Link>
             </div>
-            
+
             {nearbyStores.length === 0 ? (
-              <div style={{ padding: "20px", color: "var(--text-muted)", fontSize: "var(--font-helper)" }}>No stores found nearby.</div>
-            ) :             (
+              <div
+                style={{
+                  padding: "20px",
+                  color: "var(--text-muted)",
+                  fontSize: "var(--font-helper)",
+                }}
+              >
+                No stores found nearby.
+              </div>
+            ) : (
               <div className="scroll-arrow-wrapper">
                 {showLeftStores && (
-                  <button className="scroll-arrow-btn left" onClick={() => scrollLeft(storesScrollRef)}>◀</button>
+                  <button
+                    className="scroll-arrow-btn left"
+                    onClick={() => scrollLeft(storesScrollRef)}
+                  >
+                    ◀
+                  </button>
                 )}
                 <div
                   ref={storesScrollRef}
@@ -1448,8 +1806,20 @@ function HomeContent() {
                   onMouseLeave={handleDragScrollLeaveOrUp}
                   onMouseUp={handleDragScrollLeaveOrUp}
                   onMouseMove={handleDragScrollMove}
-                  onScroll={() => updateArrowVisibility(storesScrollRef, setShowLeftStores, setShowRightStores)}
-                  style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "12px", scrollBehavior: "smooth" }}
+                  onScroll={() =>
+                    updateArrowVisibility(
+                      storesScrollRef,
+                      setShowLeftStores,
+                      setShowRightStores,
+                    )
+                  }
+                  style={{
+                    display: "flex",
+                    gap: "16px",
+                    overflowX: "auto",
+                    paddingBottom: "12px",
+                    scrollBehavior: "smooth",
+                  }}
                 >
                   {nearbyStores.map((store) => (
                     <Link
@@ -1467,20 +1837,39 @@ function HomeContent() {
                         flexDirection: "column",
                         transition: "transform 0.2s ease",
                         cursor: "pointer",
-                        textDecoration: "none"
+                        textDecoration: "none",
                       }}
                     >
-                      <div style={{ height: "100px", width: "100%", position: "relative", background: "rgba(255,255,255,0.02)" }}>
+                      <div
+                        style={{
+                          height: "100px",
+                          width: "100%",
+                          position: "relative",
+                          background: "rgba(255,255,255,0.02)",
+                        }}
+                      >
                         {store.imagePath ? (
                           <img
-                            src={store.imagePath.startsWith("http") ? store.imagePath : `${imageServer}${store.imagePath}`}
-                            srcSet={getImageSrcSet(store.imagePath, imageServer) || undefined}
+                            src={
+                              store.imagePath.startsWith("http")
+                                ? store.imagePath
+                                : `${imageServer}${store.imagePath}`
+                            }
+                            srcSet={
+                              getImageSrcSet(store.imagePath, imageServer) ||
+                              undefined
+                            }
                             sizes="200px"
                             alt={store.name}
                             loading="lazy"
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                            onError={(e) => { 
-                              e.target.src = "https://placehold.co/400x300?text=Store"; 
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                            onError={(e) => {
+                              e.target.src =
+                                "https://placehold.co/400x300?text=Store";
                               e.target.srcSet = "";
                             }}
                           />
@@ -1489,23 +1878,79 @@ function HomeContent() {
                             src="https://placehold.co/400x300?text=Store"
                             alt={store.name}
                             loading="lazy"
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
                           />
                         )}
-                        <span style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(13,14,21,0.85)", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "var(--font-weight-semibold)", color: "#fbbf24", border: "1px solid rgba(255,255,255,0.05)" }}>
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: "8px",
+                            right: "8px",
+                            background: "rgba(13,14,21,0.85)",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            fontSize: "10px",
+                            fontWeight: "var(--font-weight-semibold)",
+                            color: "#fbbf24",
+                            border: "1px solid rgba(255,255,255,0.05)",
+                          }}
+                        >
                           ⭐ {store.rating.toFixed(1)}
                         </span>
                       </div>
-                      <div style={{ padding: "10px", display: "flex", flexDirection: "column", flex: 1 }}>
-                        <span style={{ fontSize: "var(--font-helper)", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div
+                        style={{
+                          padding: "10px",
+                          display: "flex",
+                          flexDirection: "column",
+                          flex: 1,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "var(--font-helper)",
+                            fontWeight: "var(--font-weight-semibold)",
+                            color: "var(--text-main)",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
                           {store.name}
                         </span>
-                        <span style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            color: "var(--text-muted)",
+                            marginTop: "2px",
+                          }}
+                        >
                           {store.category}
                         </span>
-                        <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "8px" }}>
-                          <span style={{ fontSize: "11px", color: "var(--text-main)", fontWeight: "var(--font-weight-medium)" }}>
-                            📍 {store.distance !== null ? `${store.distance} km` : store.location}
+                        <div
+                          style={{
+                            marginTop: "auto",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            paddingTop: "8px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              color: "var(--text-main)",
+                              fontWeight: "var(--font-weight-medium)",
+                            }}
+                          >
+                            📍{" "}
+                            {store.distance !== null
+                              ? `${store.distance} km`
+                              : store.location}
                           </span>
                         </div>
                       </div>
@@ -1513,38 +1958,76 @@ function HomeContent() {
                   ))}
                 </div>
                 {showRightStores && (
-                  <button className="scroll-arrow-btn right" onClick={() => scrollRight(storesScrollRef)}>▶</button>
+                  <button
+                    className="scroll-arrow-btn right"
+                    onClick={() => scrollRight(storesScrollRef)}
+                  >
+                    ▶
+                  </button>
                 )}
               </div>
             )}
           </div>
 
           {/* Wholesale Deals Section */}
-          <div className="homepage-section-wrapper" style={{ marginBottom: "32px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", gap: "12px", flexWrap: "nowrap" }}>
-              <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0, whiteSpace: "nowrap", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div
+            className="homepage-section-wrapper"
+            style={{ marginBottom: "32px" }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+                gap: "12px",
+                flexWrap: "nowrap",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: "clamp(15px, 4.5vw, 20px)",
+                  fontWeight: "var(--font-weight-bold)",
+                  color: "var(--text-main)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  margin: 0,
+                  whiteSpace: "nowrap",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
                 🏷️ Wholesale Deals
               </h2>
-              <Link 
-                href="/wholesale" 
-                className="btn btn-secondary" 
-                style={{ 
-                  padding: "6px 12px", 
-                  fontSize: "var(--font-caption)", 
-                  borderRadius: "6px", 
-                  display: "inline-flex", 
-                  alignItems: "center", 
-                  flexShrink: 0, 
+              <Link
+                href="/wholesale"
+                className="btn btn-secondary"
+                style={{
+                  padding: "6px 12px",
+                  fontSize: "var(--font-caption)",
+                  borderRadius: "6px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  flexShrink: 0,
                   whiteSpace: "nowrap",
-                  textDecoration: "none"
+                  textDecoration: "none",
                 }}
               >
                 View All →
               </Link>
             </div>
-            
+
             {wholesaleLoading ? (
-              <div style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "12px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "16px",
+                  overflowX: "auto",
+                  paddingBottom: "12px",
+                }}
+              >
                 {[...Array(6)].map((_, idx) => (
                   <div
                     key={idx}
@@ -1558,30 +2041,92 @@ function HomeContent() {
                       animation: "pulse 1.5s infinite ease-in-out",
                       display: "flex",
                       flexDirection: "column",
-                      overflow: "hidden"
+                      overflow: "hidden",
                     }}
                   >
-                    <div style={{ height: "100px", background: "rgba(255,255,255,0.08)" }}></div>
-                    <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
-                      <div style={{ width: "120px", height: "12px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <div style={{ width: "40px", height: "12px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
-                        <div style={{ width: "60px", height: "10px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
+                    <div
+                      style={{
+                        height: "100px",
+                        background: "rgba(255,255,255,0.08)",
+                      }}
+                    ></div>
+                    <div
+                      style={{
+                        padding: "10px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                        flex: 1,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "120px",
+                          height: "12px",
+                          borderRadius: "4px",
+                          background: "rgba(255,255,255,0.08)",
+                        }}
+                      ></div>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "40px",
+                            height: "12px",
+                            borderRadius: "4px",
+                            background: "rgba(255,255,255,0.08)",
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            width: "60px",
+                            height: "10px",
+                            borderRadius: "4px",
+                            background: "rgba(255,255,255,0.08)",
+                          }}
+                        ></div>
                       </div>
-                      <div style={{ borderTop: "1px solid var(--border-glass)", paddingTop: "6px", display: "flex", flexDirection: "column", gap: "4px", marginTop: "auto" }}>
-                        <div style={{ width: "80px", height: "8px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
-                        <div style={{ width: "60px", height: "8px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
+                      <div
+                        style={{
+                          borderTop: "1px solid var(--border-glass)",
+                          paddingTop: "6px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "4px",
+                          marginTop: "auto",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "80px",
+                            height: "8px",
+                            borderRadius: "4px",
+                            background: "rgba(255,255,255,0.08)",
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            width: "60px",
+                            height: "8px",
+                            borderRadius: "4px",
+                            background: "rgba(255,255,255,0.08)",
+                          }}
+                        ></div>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : wholesaleDeals.length === 0 ? (
-              <div 
-                className="glass-panel" 
-                style={{ 
-                  padding: "40px 20px", 
-                  textAlign: "center", 
+              <div
+                className="glass-panel"
+                style={{
+                  padding: "40px 20px",
+                  textAlign: "center",
                   color: "var(--text-muted)",
                   borderRadius: "12px",
                   border: "1px solid var(--border-glass)",
@@ -1590,21 +2135,37 @@ function HomeContent() {
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: "12px"
+                  gap: "12px",
                 }}
               >
                 <div style={{ fontSize: "36px" }}>🏷️</div>
-                <div style={{ fontSize: "var(--font-body)", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)" }}>
+                <div
+                  style={{
+                    fontSize: "var(--font-body)",
+                    fontWeight: "var(--font-weight-semibold)",
+                    color: "var(--text-main)",
+                  }}
+                >
                   No Wholesale Deals Available
                 </div>
-                <div style={{ fontSize: "var(--font-caption)", color: "var(--text-dim)" }}>
+                <div
+                  style={{
+                    fontSize: "var(--font-caption)",
+                    color: "var(--text-dim)",
+                  }}
+                >
                   Check back later for bulk purchase offers and merchant deals.
                 </div>
               </div>
             ) : (
               <div className="scroll-arrow-wrapper">
                 {showLeftWholesale && (
-                  <button className="scroll-arrow-btn left" onClick={() => scrollLeft(wholesaleScrollRef)}>◀</button>
+                  <button
+                    className="scroll-arrow-btn left"
+                    onClick={() => scrollLeft(wholesaleScrollRef)}
+                  >
+                    ◀
+                  </button>
                 )}
                 <div
                   ref={wholesaleScrollRef}
@@ -1613,8 +2174,20 @@ function HomeContent() {
                   onMouseLeave={handleDragScrollLeaveOrUp}
                   onMouseUp={handleDragScrollLeaveOrUp}
                   onMouseMove={handleDragScrollMove}
-                  onScroll={() => updateArrowVisibility(wholesaleScrollRef, setShowLeftWholesale, setShowRightWholesale)}
-                  style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "12px", scrollBehavior: "smooth" }}
+                  onScroll={() =>
+                    updateArrowVisibility(
+                      wholesaleScrollRef,
+                      setShowLeftWholesale,
+                      setShowRightWholesale,
+                    )
+                  }
+                  style={{
+                    display: "flex",
+                    gap: "16px",
+                    overflowX: "auto",
+                    paddingBottom: "12px",
+                    scrollBehavior: "smooth",
+                  }}
                 >
                   {wholesaleDeals.map((item) => (
                     <Link
@@ -1632,20 +2205,41 @@ function HomeContent() {
                         flexDirection: "column",
                         transition: "transform 0.2s ease",
                         cursor: "pointer",
-                        textDecoration: "none"
+                        textDecoration: "none",
                       }}
                     >
-                      <div style={{ height: "100px", width: "100%", position: "relative", background: "rgba(255,255,255,0.02)" }}>
+                      <div
+                        style={{
+                          height: "100px",
+                          width: "100%",
+                          position: "relative",
+                          background: "rgba(255,255,255,0.02)",
+                        }}
+                      >
                         {item.imagePath ? (
                           <img
-                            src={item.imagePath.startsWith("http") ? item.imagePath.split(',')[0] : `${imageServer}${item.imagePath.split(',')[0]}`}
-                            srcSet={getImageSrcSet(item.imagePath.split(',')[0], imageServer) || undefined}
+                            src={
+                              item.imagePath.startsWith("http")
+                                ? item.imagePath.split(",")[0]
+                                : `${imageServer}${item.imagePath.split(",")[0]}`
+                            }
+                            srcSet={
+                              getImageSrcSet(
+                                item.imagePath.split(",")[0],
+                                imageServer,
+                              ) || undefined
+                            }
                             sizes="200px"
                             alt={item.title}
                             loading="lazy"
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                            onError={(e) => { 
-                              e.target.src = "https://placehold.co/400x300?text=Product"; 
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                            onError={(e) => {
+                              e.target.src =
+                                "https://placehold.co/400x300?text=Product";
                               e.target.srcSet = "";
                             }}
                           />
@@ -1654,37 +2248,135 @@ function HomeContent() {
                             src="https://placehold.co/400x300?text=Product"
                             alt={item.title}
                             loading="lazy"
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
                           />
                         )}
-                        <span style={{ position: "absolute", top: "8px", left: "8px", background: "var(--primary)", padding: "2px 6px", borderRadius: "4px", fontSize: "9px", fontWeight: "var(--font-weight-bold)", color: "#ffffff", boxShadow: "0 2px 4px rgba(0,0,0,0.3)" }}>
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: "8px",
+                            left: "8px",
+                            background: "var(--primary)",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            fontSize: "9px",
+                            fontWeight: "var(--font-weight-bold)",
+                            color: "#ffffff",
+                            boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                          }}
+                        >
                           Wholesale
                         </span>
-                        {item.averageRating !== undefined && item.averageRating !== null && item.averageRating > 0 && (
-                          <span style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(13,14,21,0.85)", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "var(--font-weight-semibold)", color: "#fbbf24", border: "1px solid rgba(255,255,255,0.05)" }}>
-                            ⭐ {Number(item.averageRating).toFixed(1)}
-                          </span>
-                        )}
+                        {item.averageRating !== undefined &&
+                          item.averageRating !== null &&
+                          item.averageRating > 0 && (
+                            <span
+                              style={{
+                                position: "absolute",
+                                top: "8px",
+                                right: "8px",
+                                background: "rgba(13,14,21,0.85)",
+                                padding: "2px 6px",
+                                borderRadius: "4px",
+                                fontSize: "10px",
+                                fontWeight: "var(--font-weight-semibold)",
+                                color: "#fbbf24",
+                                border: "1px solid rgba(255,255,255,0.05)",
+                              }}
+                            >
+                              ⭐ {Number(item.averageRating).toFixed(1)}
+                            </span>
+                          )}
                       </div>
-                      <div style={{ padding: "10px", display: "flex", flexDirection: "column", flex: 1, gap: "4px" }}>
-                        <span style={{ fontSize: "var(--font-helper)", fontWeight: "var(--font-weight-semibold)", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div
+                        style={{
+                          padding: "10px",
+                          display: "flex",
+                          flexDirection: "column",
+                          flex: 1,
+                          gap: "4px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "var(--font-helper)",
+                            fontWeight: "var(--font-weight-semibold)",
+                            color: "var(--text-main)",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
                           {item.title}
                         </span>
-                        
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                          <span style={{ fontSize: "13px", fontWeight: "var(--font-weight-bold)", color: "var(--primary)" }}>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "baseline",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: "var(--font-weight-bold)",
+                              color: "var(--primary)",
+                            }}
+                          >
                             ₹{item.price}
                           </span>
-                          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: "var(--font-weight-semibold)" }}>
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              color: "var(--text-muted)",
+                              fontWeight: "var(--font-weight-semibold)",
+                            }}
+                          >
                             MOQ: {getMOQ(item.description)}
                           </span>
                         </div>
 
-                        <div style={{ display: "flex", flexDirection: "column", gap: "2px", borderTop: "1px solid var(--border-glass)", paddingTop: "6px", marginTop: "4px" }}>
-                          <span style={{ fontSize: "10px", color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={item.seller?.fullName || item.seller?.username}>
-                            👤 {item.seller?.fullName || item.seller?.username?.split("@")[0] || "User"}
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "2px",
+                            borderTop: "1px solid var(--border-glass)",
+                            paddingTop: "6px",
+                            marginTop: "4px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              color: "var(--text-dim)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                            title={
+                              item.seller?.fullName || item.seller?.username
+                            }
+                          >
+                            👤{" "}
+                            {item.seller?.fullName ||
+                              item.seller?.username?.split("@")[0] ||
+                              "User"}
                           </span>
-                          <span style={{ fontSize: "10px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              color: "var(--text-muted)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
                             📍 {item.location}
                           </span>
                         </div>
@@ -1693,30 +2385,61 @@ function HomeContent() {
                   ))}
                 </div>
                 {showRightWholesale && (
-                  <button className="scroll-arrow-btn right" onClick={() => scrollRight(wholesaleScrollRef)}>▶</button>
+                  <button
+                    className="scroll-arrow-btn right"
+                    onClick={() => scrollRight(wholesaleScrollRef)}
+                  >
+                    ▶
+                  </button>
                 )}
               </div>
             )}
           </div>
 
           {/* Best Services Near You Section */}
-          <div className="homepage-section-wrapper" style={{ marginBottom: "32px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", gap: "12px", flexWrap: "nowrap" }}>
-              <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0, whiteSpace: "nowrap", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div
+            className="homepage-section-wrapper"
+            style={{ marginBottom: "32px" }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+                gap: "12px",
+                flexWrap: "nowrap",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: "clamp(15px, 4.5vw, 20px)",
+                  fontWeight: "var(--font-weight-bold)",
+                  color: "var(--text-main)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  margin: 0,
+                  whiteSpace: "nowrap",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
                 🛠️ Best Services Near You
               </h2>
-              <Link 
-                href="/services" 
-                className="btn btn-secondary" 
-                style={{ 
-                  padding: "6px 12px", 
-                  fontSize: "var(--font-caption)", 
-                  borderRadius: "6px", 
-                  display: "inline-flex", 
-                  alignItems: "center", 
-                  flexShrink: 0, 
+              <Link
+                href="/services"
+                className="btn btn-secondary"
+                style={{
+                  padding: "6px 12px",
+                  fontSize: "var(--font-caption)",
+                  borderRadius: "6px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  flexShrink: 0,
                   whiteSpace: "nowrap",
-                  textDecoration: "none"
+                  textDecoration: "none",
                 }}
               >
                 View All →
@@ -1726,21 +2449,60 @@ function HomeContent() {
               <div className="services-responsive-layout">
                 {[...Array(8)].map((_, idx) => (
                   <div key={idx} className="services-card-item">
-                    <div className="glass-panel" style={{
-                      width: "130px", height: "140px", borderRadius: "12px", padding: "12px",
-                      display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
-                      background: "var(--bg-card)", border: "1px solid var(--border-glass)",
-                      animation: "pulse 1.5s infinite ease-in-out"
-                    }}>
-                      <div style={{ width: "50px", height: "50px", borderRadius: "50%", background: "rgba(255,255,255,0.08)" }}></div>
-                      <div style={{ width: "80px", height: "12px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
-                      <div style={{ width: "50px", height: "8px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
+                    <div
+                      className="glass-panel"
+                      style={{
+                        width: "130px",
+                        height: "140px",
+                        borderRadius: "12px",
+                        padding: "12px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "8px",
+                        background: "var(--bg-card)",
+                        border: "1px solid var(--border-glass)",
+                        animation: "pulse 1.5s infinite ease-in-out",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "50px",
+                          height: "50px",
+                          borderRadius: "50%",
+                          background: "rgba(255,255,255,0.08)",
+                        }}
+                      ></div>
+                      <div
+                        style={{
+                          width: "80px",
+                          height: "12px",
+                          borderRadius: "4px",
+                          background: "rgba(255,255,255,0.08)",
+                        }}
+                      ></div>
+                      <div
+                        style={{
+                          width: "50px",
+                          height: "8px",
+                          borderRadius: "4px",
+                          background: "rgba(255,255,255,0.08)",
+                        }}
+                      ></div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : nearbyServices.length === 0 ? (
-              <div style={{ padding: "20px", color: "var(--text-muted)", fontSize: "var(--font-helper)" }}>No services available yet.</div>
+              <div
+                style={{
+                  padding: "20px",
+                  color: "var(--text-muted)",
+                  fontSize: "var(--font-helper)",
+                }}
+              >
+                No services available yet.
+              </div>
             ) : (
               <div className="services-responsive-layout">
                 {nearbyServices.slice(0, 10).map((service) => (
@@ -1761,7 +2523,7 @@ function HomeContent() {
                         alignItems: "center",
                         cursor: "pointer",
                         textDecoration: "none",
-                        position: "relative"
+                        position: "relative",
                       }}
                     >
                       <div
@@ -1772,19 +2534,31 @@ function HomeContent() {
                           position: "relative",
                           overflow: "hidden",
                           marginBottom: "8px",
-                          border: "1px solid rgba(255, 255, 255, 0.05)"
+                          border: "1px solid rgba(255, 255, 255, 0.05)",
                         }}
                       >
                         {service.imagePath ? (
                           <img
-                            src={service.imagePath.startsWith("http") ? service.imagePath : `${imageServer}${service.imagePath}`}
-                            srcSet={getImageSrcSet(service.imagePath, imageServer) || undefined}
+                            src={
+                              service.imagePath.startsWith("http")
+                                ? service.imagePath
+                                : `${imageServer}${service.imagePath}`
+                            }
+                            srcSet={
+                              getImageSrcSet(service.imagePath, imageServer) ||
+                              undefined
+                            }
                             sizes="50px"
                             loading="lazy"
                             alt={service.name}
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                            onError={(e) => { 
-                              e.target.src = "https://placehold.co/100x100?text=Service"; 
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                            onError={(e) => {
+                              e.target.src =
+                                "https://placehold.co/100x100?text=Service";
                               e.target.srcSet = "";
                             }}
                           />
@@ -1793,26 +2567,78 @@ function HomeContent() {
                             src="https://placehold.co/100x100?text=Service"
                             loading="lazy"
                             alt={service.name}
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
                           />
                         )}
                       </div>
-                      <span style={{ fontSize: "11px", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", height: "30px", lineHeight: "15px" }}>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: "var(--font-weight-bold)",
+                          color: "var(--text-main)",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                          height: "30px",
+                          lineHeight: "15px",
+                        }}
+                      >
                         {service.name}
                         {service.verified && (
-                          <span style={{ color: "#3b82f6", marginLeft: "4px", fontSize: "10px" }} title="Verified Seller">✓</span>
+                          <span
+                            style={{
+                              color: "#3b82f6",
+                              marginLeft: "4px",
+                              fontSize: "10px",
+                            }}
+                            title="Verified Seller"
+                          >
+                            ✓
+                          </span>
                         )}
                       </span>
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
+                      <span
+                        style={{
+                          fontSize: "9px",
+                          color: "var(--text-muted)",
+                          marginTop: "2px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          width: "100%",
+                        }}
+                      >
                         {service.serviceType}
                       </span>
                       {service.price && (
-                        <span style={{ fontSize: "10px", color: "var(--text-main)", fontWeight: "var(--font-weight-semibold)", marginTop: "2px" }}>
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            color: "var(--text-main)",
+                            fontWeight: "var(--font-weight-semibold)",
+                            marginTop: "2px",
+                          }}
+                        >
                           ₹{service.price}
                         </span>
                       )}
-                      <span style={{ fontSize: "9px", color: "var(--primary-indigo)", fontWeight: "var(--font-weight-semibold)", marginTop: "auto" }}>
-                        📍 {service.distance !== null ? `${service.distance.toFixed(1)} km` : (service.location?.split(',')[0] || "Local")}
+                      <span
+                        style={{
+                          fontSize: "9px",
+                          color: "var(--primary-indigo)",
+                          fontWeight: "var(--font-weight-semibold)",
+                          marginTop: "auto",
+                        }}
+                      >
+                        📍{" "}
+                        {service.distance !== null
+                          ? `${service.distance.toFixed(1)} km`
+                          : service.location?.split(",")[0] || "Local"}
                       </span>
                     </Link>
                   </div>
@@ -1822,28 +2648,67 @@ function HomeContent() {
           </div>
 
           {loading ? (
-            <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>Loading items...</div>
+            <div
+              style={{
+                textAlign: "center",
+                padding: "40px",
+                color: "var(--text-muted)",
+              }}
+            >
+              Loading items...
+            </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "36px" }}>
-
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "36px",
+              }}
+            >
               {/* Second-Hand Items Section */}
-              <div className="homepage-section-wrapper" style={{ marginBottom: "36px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", gap: "12px", flexWrap: "nowrap" }}>
-                  <h2 style={{ fontSize: "clamp(15px, 4.5vw, 20px)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "6px", margin: 0, whiteSpace: "nowrap", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div
+                className="homepage-section-wrapper"
+                style={{ marginBottom: "36px" }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "16px",
+                    gap: "12px",
+                    flexWrap: "nowrap",
+                  }}
+                >
+                  <h2
+                    style={{
+                      fontSize: "clamp(15px, 4.5vw, 20px)",
+                      fontWeight: "var(--font-weight-bold)",
+                      color: "var(--text-main)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      margin: 0,
+                      whiteSpace: "nowrap",
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
                     ♻️ Second-Hand Items
                   </h2>
-                  <Link 
-                    href="/second-hand" 
-                    className="btn btn-secondary" 
-                    style={{ 
-                      padding: "6px 12px", 
-                      fontSize: "var(--font-caption)", 
-                      borderRadius: "6px", 
-                      display: "inline-flex", 
-                      alignItems: "center", 
-                      flexShrink: 0, 
+                  <Link
+                    href="/second-hand"
+                    className="btn btn-secondary"
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: "var(--font-caption)",
+                      borderRadius: "6px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      flexShrink: 0,
                       whiteSpace: "nowrap",
-                      textDecoration: "none"
+                      textDecoration: "none",
                     }}
                   >
                     View All →
@@ -1853,26 +2718,71 @@ function HomeContent() {
                   <div className="secondhand-responsive-layout">
                     {[...Array(8)].map((_, idx) => (
                       <div key={idx} className="secondhand-card-item">
-                        <div className="glass-panel" style={{
-                          width: "200px", height: "280px", borderRadius: "16px", padding: "12px",
-                          display: "flex", flexDirection: "column", gap: "12px",
-                          background: "var(--bg-card)", border: "1px solid var(--border-glass)",
-                          animation: "pulse 1.5s infinite ease-in-out"
-                        }}>
-                          <div style={{ width: "100%", height: "120px", borderRadius: "8px", background: "rgba(255,255,255,0.08)" }}></div>
-                          <div style={{ width: "80px", height: "10px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
-                          <div style={{ width: "140px", height: "14px", borderRadius: "4px", background: "rgba(255,255,255,0.08)" }}></div>
+                        <div
+                          className="glass-panel"
+                          style={{
+                            width: "200px",
+                            height: "280px",
+                            borderRadius: "16px",
+                            padding: "12px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "12px",
+                            background: "var(--bg-card)",
+                            border: "1px solid var(--border-glass)",
+                            animation: "pulse 1.5s infinite ease-in-out",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: "100%",
+                              height: "120px",
+                              borderRadius: "8px",
+                              background: "rgba(255,255,255,0.08)",
+                            }}
+                          ></div>
+                          <div
+                            style={{
+                              width: "80px",
+                              height: "10px",
+                              borderRadius: "4px",
+                              background: "rgba(255,255,255,0.08)",
+                            }}
+                          ></div>
+                          <div
+                            style={{
+                              width: "140px",
+                              height: "14px",
+                              borderRadius: "4px",
+                              background: "rgba(255,255,255,0.08)",
+                            }}
+                          ></div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : secondhandListings.length === 0 ? (
-                  <div style={{ padding: "20px", color: "var(--text-muted)", fontSize: "var(--font-helper)" }}>No second-hand items available yet.</div>
+                  <div
+                    style={{
+                      padding: "20px",
+                      color: "var(--text-muted)",
+                      fontSize: "var(--font-helper)",
+                    }}
+                  >
+                    No second-hand items available yet.
+                  </div>
                 ) : (
                   <div className="secondhand-responsive-layout">
                     {secondhandListings.slice(0, 10).map((item) => (
-                      <div key={item.id} className="secondhand-card-item" style={{ minWidth: 0 }}>
-                        <ProductCard item={item} href={`/second-hand/${item.id}`} />
+                      <div
+                        key={item.id}
+                        className="secondhand-card-item"
+                        style={{ minWidth: 0 }}
+                      >
+                        <ProductCard
+                          item={item}
+                          href={`/second-hand/${item.id}`}
+                        />
                       </div>
                     ))}
                   </div>
@@ -1880,12 +2790,20 @@ function HomeContent() {
               </div>
 
               {/* Segmented Switch Toggle */}
-              <div id="segmented-toggle-section" className="segmented-toggle-container" style={{ marginTop: "40px" }}>
+              <div
+                id="segmented-toggle-section"
+                className="segmented-toggle-container"
+                style={{ marginTop: "40px" }}
+              >
                 <div className="segmented-toggle">
                   {[
                     { id: "SALES", label: "Sales", emoji: "🛍️" },
-                    { id: "SERVICES", label: "Work & Services", emoji: "💼" },
-                    { id: "SECONDHAND", label: "Second-Hand", emoji: "♻️" }
+                    {
+                      id: "SERVICES",
+                      label: "Work & Services",
+                      emoji: "💼",
+                    },
+                    { id: "SECONDHAND", label: "Second-Hand", emoji: "♻️" },
                   ].map((tab) => {
                     const isActive = activeSegmentTab === tab.id;
                     return (
@@ -1905,55 +2823,120 @@ function HomeContent() {
               <div className="section-header" style={{ marginTop: "24px" }}>
                 <div>
                   <h2 style={{ fontSize: "var(--font-h4)" }}>
-                    {selectedSubCatFilter ? selectedSubCatFilter.name : selectedCatFilter ? selectedCatFilter.name : "Featured Listings Grid"}
+                    {selectedSubCatFilter
+                      ? selectedSubCatFilter.name
+                      : selectedCatFilter
+                        ? selectedCatFilter.name
+                        : "Featured Listings Grid"}
                   </h2>
-                  <p style={{ fontSize: "var(--font-helper)", color: "var(--text-muted)", marginTop: "4px" }}>
+                  <p
+                    style={{
+                      fontSize: "var(--font-helper)",
+                      color: "var(--text-muted)",
+                      marginTop: "4px",
+                    }}
+                  >
                     {filteredListings.length} exact match(es) found
                   </p>
                 </div>
               </div>
 
-              {filteredListings.length === 0 && filteredNearbyListings.length === 0 ? (
-                <div className="glass-panel" style={{ padding: "40px 24px", textAlign: "center", color: "var(--text-muted)", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
+              {filteredListings.length === 0 &&
+              filteredNearbyListings.length === 0 ? (
+                <div
+                  className="glass-panel"
+                  style={{
+                    padding: "40px 24px",
+                    textAlign: "center",
+                    color: "var(--text-muted)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "16px",
+                  }}
+                >
                   <div style={{ fontSize: "var(--font-body)" }}>
-                    No active listings found in this category. Try switching tabs or broadening your keywords.
+                    No active listings found in this category. Try switching
+                    tabs or broadening your keywords.
                   </div>
                   {isAnyFilterApplied && (
                     <button
                       className="btn btn-primary"
                       onClick={handleClearAllFilters}
-                      style={{ padding: "8px 16px", fontSize: "var(--font-helper)", borderRadius: "8px" }}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "var(--font-helper)",
+                        borderRadius: "8px",
+                      }}
                     >
                       Reset & Clear All Filters
                     </button>
                   )}
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "32px",
+                  }}
+                >
                   {/* Exact Locality Matches */}
                   {filteredListings.length > 0 ? (
-                    <div>
+                    <div style={{ display: "flex", gap: "20px" }}>
+                      {/* Sidebar Filters */}
+                      <aside className="sidebar-filter">
+                        {renderFilterContent(false)}
+                      </aside>
                       <div className="products-grid">
-                        {filteredListings.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((item) => (
-                          <ProductCard key={item.id} item={item} />
-                        ))}
+                        {filteredListings
+                          .slice(
+                            (currentPage - 1) * ITEMS_PER_PAGE,
+                            currentPage * ITEMS_PER_PAGE,
+                          )
+                          .map((item) => (
+                            <ProductCard key={item.id} item={item} />
+                          ))}
                       </div>
                       {/* Pagination Controls */}
                       {filteredListings.length > ITEMS_PER_PAGE && (
-                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "24px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            gap: "8px",
+                            marginTop: "24px",
+                          }}
+                        >
                           <button
                             className="btn btn-secondary"
-                            style={{ padding: "6px 12px", fontSize: "var(--font-helper)" }}
+                            style={{
+                              padding: "6px 12px",
+                              fontSize: "var(--font-helper)",
+                            }}
                             disabled={currentPage === 1}
-                            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                            onClick={() =>
+                              setCurrentPage((prev) => Math.max(prev - 1, 1))
+                            }
                           >
                             Previous
                           </button>
-                          {[...Array(Math.ceil(filteredListings.length / ITEMS_PER_PAGE))].map((_, i) => (
+                          {[
+                            ...Array(
+                              Math.ceil(
+                                filteredListings.length / ITEMS_PER_PAGE,
+                              ),
+                            ),
+                          ].map((_, i) => (
                             <button
                               key={i}
                               className={`btn ${currentPage === i + 1 ? "btn-primary" : "btn-secondary"}`}
-                              style={{ padding: "6px 12px", fontSize: "var(--font-helper)", minWidth: "32px" }}
+                              style={{
+                                padding: "6px 12px",
+                                fontSize: "var(--font-helper)",
+                                minWidth: "32px",
+                              }}
                               onClick={() => setCurrentPage(i + 1)}
                             >
                               {i + 1}
@@ -1961,9 +2944,26 @@ function HomeContent() {
                           ))}
                           <button
                             className="btn btn-secondary"
-                            style={{ padding: "6px 12px", fontSize: "var(--font-helper)" }}
-                            disabled={currentPage === Math.ceil(filteredListings.length / ITEMS_PER_PAGE)}
-                            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, Math.ceil(filteredListings.length / ITEMS_PER_PAGE)))}
+                            style={{
+                              padding: "6px 12px",
+                              fontSize: "var(--font-helper)",
+                            }}
+                            disabled={
+                              currentPage ===
+                              Math.ceil(
+                                filteredListings.length / ITEMS_PER_PAGE,
+                              )
+                            }
+                            onClick={() =>
+                              setCurrentPage((prev) =>
+                                Math.min(
+                                  prev + 1,
+                                  Math.ceil(
+                                    filteredListings.length / ITEMS_PER_PAGE,
+                                  ),
+                                ),
+                              )
+                            }
                           >
                             Next
                           </button>
@@ -1972,39 +2972,97 @@ function HomeContent() {
                     </div>
                   ) : (
                     locationFilter && (
-                      <div className="glass-panel" style={{ padding: "24px", textAlign: "center", color: "var(--text-muted)" }}>
-                        No direct listings found in <strong>{locationFilter}</strong>.
+                      <div
+                        className="glass-panel"
+                        style={{
+                          padding: "24px",
+                          textAlign: "center",
+                          color: "var(--text-muted)",
+                        }}
+                      >
+                        No direct listings found in{" "}
+                        <strong>{locationFilter}</strong>.
                       </div>
                     )
                   )}
 
                   {/* Nearby City-Wide Matches Fallback */}
                   {filteredNearbyListings.length > 0 && (
-                    <div style={{ borderTop: "1px solid var(--border-glass)", paddingTop: "24px" }}>
-                      <h2 style={{ fontSize: "var(--font-h4)", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px", color: "var(--primary)" }}>
-                        🗺️ Nearby {activeSegmentTab === "SALES" ? "Sales" : activeSegmentTab === "SERVICES" ? "Services" : "Second-Hand"} Listings in {extractParentCity(locationFilter)}
+                    <div
+                      style={{
+                        borderTop: "1px solid var(--border-glass)",
+                        paddingTop: "24px",
+                      }}
+                    >
+                      <h2
+                        style={{
+                          fontSize: "var(--font-h4)",
+                          marginBottom: "16px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          color: "var(--primary)",
+                        }}
+                      >
+                        🗺️ Nearby{" "}
+                        {activeSegmentTab === "SALES"
+                          ? "Sales"
+                          : activeSegmentTab === "SERVICES"
+                            ? "Services"
+                            : "Second-Hand"}{" "}
+                        Listings in {extractParentCity(locationFilter)}
                       </h2>
                       <div className="products-grid">
-                        {filteredNearbyListings.slice((currentNearbyPage - 1) * ITEMS_PER_PAGE, currentNearbyPage * ITEMS_PER_PAGE).map((item) => (
-                          <ProductCard key={item.id} item={item} />
-                        ))}
+                        {filteredNearbyListings
+                          .slice(
+                            (currentNearbyPage - 1) * ITEMS_PER_PAGE,
+                            currentNearbyPage * ITEMS_PER_PAGE,
+                          )
+                          .map((item) => (
+                            <ProductCard key={item.id} item={item} />
+                          ))}
                       </div>
                       {/* Pagination Controls */}
                       {filteredNearbyListings.length > ITEMS_PER_PAGE && (
-                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "24px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            gap: "8px",
+                            marginTop: "24px",
+                          }}
+                        >
                           <button
                             className="btn btn-secondary"
-                            style={{ padding: "6px 12px", fontSize: "var(--font-helper)" }}
+                            style={{
+                              padding: "6px 12px",
+                              fontSize: "var(--font-helper)",
+                            }}
                             disabled={currentNearbyPage === 1}
-                            onClick={() => setCurrentNearbyPage((prev) => Math.max(prev - 1, 1))}
+                            onClick={() =>
+                              setCurrentNearbyPage((prev) =>
+                                Math.max(prev - 1, 1),
+                              )
+                            }
                           >
                             Previous
                           </button>
-                          {[...Array(Math.ceil(filteredNearbyListings.length / ITEMS_PER_PAGE))].map((_, i) => (
+                          {[
+                            ...Array(
+                              Math.ceil(
+                                filteredNearbyListings.length / ITEMS_PER_PAGE,
+                              ),
+                            ),
+                          ].map((_, i) => (
                             <button
                               key={i}
                               className={`btn ${currentNearbyPage === i + 1 ? "btn-primary" : "btn-secondary"}`}
-                              style={{ padding: "6px 12px", fontSize: "var(--font-helper)", minWidth: "32px" }}
+                              style={{
+                                padding: "6px 12px",
+                                fontSize: "var(--font-helper)",
+                                minWidth: "32px",
+                              }}
                               onClick={() => setCurrentNearbyPage(i + 1)}
                             >
                               {i + 1}
@@ -2012,9 +3070,27 @@ function HomeContent() {
                           ))}
                           <button
                             className="btn btn-secondary"
-                            style={{ padding: "6px 12px", fontSize: "var(--font-helper)" }}
-                            disabled={currentNearbyPage === Math.ceil(filteredNearbyListings.length / ITEMS_PER_PAGE)}
-                            onClick={() => setCurrentNearbyPage((prev) => Math.min(prev + 1, Math.ceil(filteredNearbyListings.length / ITEMS_PER_PAGE)))}
+                            style={{
+                              padding: "6px 12px",
+                              fontSize: "var(--font-helper)",
+                            }}
+                            disabled={
+                              currentNearbyPage ===
+                              Math.ceil(
+                                filteredNearbyListings.length / ITEMS_PER_PAGE,
+                              )
+                            }
+                            onClick={() =>
+                              setCurrentNearbyPage((prev) =>
+                                Math.min(
+                                  prev + 1,
+                                  Math.ceil(
+                                    filteredNearbyListings.length /
+                                      ITEMS_PER_PAGE,
+                                  ),
+                                ),
+                              )
+                            }
                           >
                             Next
                           </button>
@@ -2028,16 +3104,37 @@ function HomeContent() {
           )}
         </section>
       </div>
-    </>)}
 
       {/* Mobile Bottom Filter Drawer */}
-      <div className={`mobile-filter-drawer-overlay ${mobileFiltersOpen ? "open" : ""}`} onClick={() => setMobileFiltersOpen(false)}>
-        <div className="mobile-filter-drawer" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`mobile-filter-drawer-overlay ${mobileFiltersOpen ? "open" : ""}`}
+        onClick={() => setMobileFiltersOpen(false)}
+      >
+        <div
+          className="mobile-filter-drawer"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="drawer-header">
-            <span style={{ fontSize: "var(--font-body-lg)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>Filter Listings</span>
-            <button className="drawer-close-btn" onClick={() => setMobileFiltersOpen(false)}>✖</button>
+            <span
+              style={{
+                fontSize: "var(--font-body-lg)",
+                fontWeight: "var(--font-weight-bold)",
+                color: "var(--text-main)",
+              }}
+            >
+              Filter Listings
+            </span>
+            <button
+              className="drawer-close-btn"
+              onClick={() => setMobileFiltersOpen(false)}
+            >
+              ✖
+            </button>
           </div>
-          <div className="drawer-body" style={{ maxHeight: "70vh", overflowY: "auto", padding: "16px" }}>
+          <div
+            className="drawer-body"
+            style={{ maxHeight: "70vh", overflowY: "auto", padding: "16px" }}
+          >
             {renderFilterContent(true)}
           </div>
         </div>
@@ -2045,8 +3142,12 @@ function HomeContent() {
 
       {/* Sticky Bottom Mobile Filter Button */}
       <div className="mobile-filter-floating-bar">
-        <button className="mobile-floating-btn" onClick={() => setMobileFiltersOpen(true)}>
-          ⚡ Filters & Sort {isAnyFilterApplied && <span className="filter-active-dot"></span>}
+        <button
+          className="mobile-floating-btn"
+          onClick={() => setMobileFiltersOpen(true)}
+        >
+          ⚡ Filters & Sort{" "}
+          {isAnyFilterApplied && <span className="filter-active-dot"></span>}
         </button>
       </div>
 
@@ -2085,12 +3186,31 @@ function HomeContent() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
               <div>
-                <h3 style={{ fontSize: "var(--font-h5)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0 }}>
+                <h3
+                  style={{
+                    fontSize: "var(--font-h5)",
+                    fontWeight: "var(--font-weight-bold)",
+                    color: "var(--text-main)",
+                    margin: 0,
+                  }}
+                >
                   📍 Select Your City / Location
                 </h3>
-                <p style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", margin: "4px 0 0 0" }}>
+                <p
+                  style={{
+                    fontSize: "var(--font-caption)",
+                    color: "var(--text-muted)",
+                    margin: "4px 0 0 0",
+                  }}
+                >
                   Choose a location to discover deals near you
                 </p>
               </div>
@@ -2107,7 +3227,7 @@ function HomeContent() {
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center"
+                  justifyContent: "center",
                 }}
               >
                 ✖
@@ -2129,17 +3249,32 @@ function HomeContent() {
                   padding: "12px 16px 12px 40px",
                   color: "var(--text-main)",
                   fontSize: "var(--font-small)",
-                  outline: "none"
+                  outline: "none",
                 }}
               />
-              <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", fontSize: "var(--font-body-lg)", color: "var(--text-dim)" }}>
+              <span
+                style={{
+                  position: "absolute",
+                  left: "14px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  fontSize: "var(--font-body-lg)",
+                  color: "var(--text-dim)",
+                }}
+              >
                 🔍
               </span>
             </div>
 
             {/* Modal Grid of Cities */}
             <div style={{ overflowY: "auto", flex: 1, paddingRight: "4px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: "12px" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))",
+                  gap: "12px",
+                }}
+              >
                 {/* Nationwide All India Option */}
                 <div
                   onClick={() => {
@@ -2149,23 +3284,48 @@ function HomeContent() {
                     setShowAllCitiesModal(false);
                   }}
                   style={{
-                    background: (!locationFilter || locationFilter.toLowerCase() === "india") ? "var(--primary)" : "rgba(255,255,255,0.03)",
+                    background:
+                      !locationFilter ||
+                      locationFilter.toLowerCase() === "india"
+                        ? "var(--primary)"
+                        : "rgba(255,255,255,0.03)",
                     border: "1px solid var(--border-glass)",
                     borderRadius: "14px",
                     padding: "16px 8px",
                     textAlign: "center",
                     cursor: "pointer",
-                    transition: "var(--transition)"
+                    transition: "var(--transition)",
                   }}
                 >
-                  <span style={{ fontSize: "var(--font-h2)", display: "block", marginBottom: "8px" }}>🇮🇳</span>
-                  <span style={{ fontSize: "var(--font-caption)", fontWeight: "var(--font-weight-bold)", color: "#ffffff" }}>All India</span>
+                  <span
+                    style={{
+                      fontSize: "var(--font-h2)",
+                      display: "block",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    🇮🇳
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "var(--font-caption)",
+                      fontWeight: "var(--font-weight-bold)",
+                      color: "#ffffff",
+                    }}
+                  >
+                    All India
+                  </span>
                 </div>
 
                 {citiesList
-                  .filter((c) => c.name.toLowerCase().includes(citySearchQuery.toLowerCase()))
+                  .filter((c) =>
+                    c.name
+                      .toLowerCase()
+                      .includes(citySearchQuery.toLowerCase()),
+                  )
                   .map((c) => {
-                    const isSelected = locationFilter?.toLowerCase() === c.name.toLowerCase();
+                    const isSelected =
+                      locationFilter?.toLowerCase() === c.name.toLowerCase();
                     return (
                       <div
                         key={c.id || c.name}
@@ -2176,7 +3336,9 @@ function HomeContent() {
                           setShowAllCitiesModal(false);
                         }}
                         style={{
-                          background: isSelected ? "var(--primary)" : "rgba(255,255,255,0.03)",
+                          background: isSelected
+                            ? "var(--primary)"
+                            : "rgba(255,255,255,0.03)",
                           border: "1px solid var(--border-glass)",
                           borderRadius: "14px",
                           padding: "16px 8px",
@@ -2186,7 +3348,7 @@ function HomeContent() {
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "center",
-                          justifyContent: "center"
+                          justifyContent: "center",
                         }}
                       >
                         {c.imagePath ? (
@@ -2198,15 +3360,28 @@ function HomeContent() {
                               height: "36px",
                               borderRadius: "8px",
                               objectFit: "cover",
-                              marginBottom: "8px"
+                              marginBottom: "8px",
                             }}
                           />
                         ) : (
-                          <span style={{ fontSize: "var(--font-h2)", display: "block", marginBottom: "8px" }}>
+                          <span
+                            style={{
+                              fontSize: "var(--font-h2)",
+                              display: "block",
+                              marginBottom: "8px",
+                            }}
+                          >
                             {c.emoji || "📍"}
                           </span>
                         )}
-                        <span style={{ fontSize: "var(--font-caption)", fontWeight: "var(--font-weight-bold)", color: "#ffffff", wordBreak: "break-word" }}>
+                        <span
+                          style={{
+                            fontSize: "var(--font-caption)",
+                            fontWeight: "var(--font-weight-bold)",
+                            color: "#ffffff",
+                            wordBreak: "break-word",
+                          }}
+                        >
                           {c.name}
                         </span>
                       </div>

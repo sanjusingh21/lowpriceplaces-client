@@ -128,17 +128,11 @@ export default function Login() {
             <input type="password" name="password" className="form-input" required />
           </div>
           <button type="submit" className="btn btn-primary" style={{ marginTop: "10px" }}>
-            Sign In
+            Login / Register
           </button>
         </form>
 
-        <p style={{ marginTop: "24px", fontSize: "var(--font-helper)", color: "var(--text-muted)", textAlign: "center" }}>
-          Don't have an account?{" "}
-          <Link href="/register" style={{ color: "var(--primary)", cursor: "pointer", fontWeight: "var(--font-weight-semibold)" }}>
-            Create Account
-          </Link>
-        </p>
-        <p style={{ marginTop: "8px", fontSize: "var(--font-helper)", color: "var(--text-muted)", textAlign: "center" }}>
+        <p style={{ marginTop: "16px", fontSize: "var(--font-helper)", color: "var(--text-muted)", textAlign: "center" }}>
           <Link href="/forgot-password" style={{ color: "var(--primary)", cursor: "pointer", fontWeight: "var(--font-weight-semibold)" }}>
             Forgot Password?
           </Link>
