@@ -79,11 +79,11 @@ export default function StoresPage() {
       {/* Header */}
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", marginBottom: "32px" }}>
         <div>
-          <Link href="/" className="btn btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", padding: "8px 16px", borderRadius: "8px", marginBottom: "16px" }}>
+          <Link href="/" className="btn btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)", padding: "8px 16px", borderRadius: "8px", marginBottom: "16px" }}>
             ← Back to Marketplace
           </Link>
-          <h1 style={{ fontSize: "28px", fontWeight: "800", color: "var(--text-main)" }}>🏪 Stores Near You</h1>
-          <p style={{ fontSize: "14px", color: "var(--text-muted)", marginTop: "4px" }}>
+          <h1 style={{ fontSize: "var(--font-h2)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>🏪 Stores Near You</h1>
+          <p style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", marginTop: "4px" }}>
             Showing verified stores near <strong style={{ color: "var(--text-main)" }}>{locationFilter || "your location"}</strong>
           </p>
         </div>
@@ -124,10 +124,10 @@ export default function StoresPage() {
             className={`btn ${selectedCategory === cat ? "btn-primary" : "btn-secondary"}`}
             style={{
               padding: "8px 16px",
-              fontSize: "13px",
+              fontSize: "var(--font-helper)",
               borderRadius: "20px",
               flexShrink: 0,
-              fontWeight: "600"
+              fontWeight: "var(--font-weight-semibold)"
             }}
           >
             {cat}
@@ -177,35 +177,35 @@ export default function StoresPage() {
                       style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     />
                   )}
-                  <span style={{ position: "absolute", top: "10px", right: "10px", background: "rgba(13,14,21,0.85)", padding: "4px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "700", color: "#fbbf24", border: "1px solid rgba(255,255,255,0.05)" }}>
+                  <span style={{ position: "absolute", top: "10px", right: "10px", background: "rgba(13,14,21,0.85)", padding: "4px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "var(--font-weight-bold)", color: "#fbbf24", border: "1px solid rgba(255,255,255,0.05)" }}>
                     ⭐ {store.averageRating ? store.averageRating.toFixed(1) : store.rating.toFixed(1)}
                   </span>
                 </div>
 
                 {/* Body */}
                 <div style={{ padding: "16px", display: "flex", flexDirection: "column", flex: 1 }}>
-                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-main)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <h3 style={{ fontSize: "var(--font-body-lg)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {store.name}
                   </h3>
-                  <span style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
+                  <span style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", marginTop: "4px" }}>
                     📂 Category: <strong>{store.category}</strong>
                   </span>
 
                   {store.contact && (
-                    <span style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
+                    <span style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", marginTop: "4px" }}>
                       📞 Contact: <span style={{ color: "var(--text-main)" }}>{store.contact}</span>
                     </span>
                   )}
 
                   <div style={{ marginTop: "auto", paddingTop: "14px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "13px", color: "var(--text-main)", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    <span style={{ fontSize: "var(--font-helper)", color: "var(--text-main)", fontWeight: "var(--font-weight-semibold)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
                       📍 {store.distance !== null ? `${store.distance} km away` : store.location}
                     </span>
                     
                     {store.contact && (
                       <span
                         className="btn btn-primary"
-                        style={{ padding: "4px 8px", fontSize: "11px", borderRadius: "6px", fontWeight: "600" }}
+                        style={{ padding: "4px 8px", fontSize: "11px", borderRadius: "6px", fontWeight: "var(--font-weight-semibold)" }}
                         onClick={(e) => {
                           e.stopPropagation();
                           window.open(`https://wa.me/${store.contact.replace(/[^0-9]/g, '')}`, '_blank');
@@ -227,7 +227,7 @@ export default function StoresPage() {
                 className="btn btn-secondary"
                 disabled={loading}
                 onClick={() => setPage(prev => prev + 1)}
-                style={{ padding: "12px 32px", fontSize: "14px", borderRadius: "10px", fontWeight: "600" }}
+                style={{ padding: "12px 32px", fontSize: "var(--font-small)", borderRadius: "10px", fontWeight: "var(--font-weight-semibold)" }}
               >
                 {loading ? "Loading..." : "Load More Stores"}
               </button>

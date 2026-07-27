@@ -78,7 +78,7 @@ export default function SubcategoryPage() {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "16px", padding: "24px" }}>
         <div style={{ fontSize: "52px" }}>🔍</div>
-        <div style={{ fontSize: "20px", fontWeight: "700", color: "var(--text-main)", textAlign: "center" }}>
+        <div style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", textAlign: "center" }}>
           {!category ? "Category not found" : "Subcategory not found"}
         </div>
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
@@ -106,7 +106,7 @@ export default function SubcategoryPage() {
           href="/"
           style={{
             display: "inline-flex", alignItems: "center", gap: "6px",
-            fontSize: "13px", color: "rgba(255,255,255,0.85)",
+            fontSize: "var(--font-helper)", color: "rgba(255,255,255,0.85)",
             textDecoration: "none", marginBottom: "16px",
             background: "rgba(255,255,255,0.12)", padding: "6px 16px",
             borderRadius: "20px", border: "1px solid rgba(255,255,255,0.18)",
@@ -117,25 +117,25 @@ export default function SubcategoryPage() {
 
         {/* Breadcrumb */}
         <nav style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
-          <Link href="/" style={{ fontSize: "12px", color: "rgba(255,255,255,0.65)", textDecoration: "none" }}>Home</Link>
+          <Link href="/" style={{ fontSize: "var(--font-caption)", color: "rgba(255,255,255,0.65)", textDecoration: "none" }}>Home</Link>
           <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "11px" }}>›</span>
-          <Link href="/categories" style={{ fontSize: "12px", color: "rgba(255,255,255,0.65)", textDecoration: "none" }}>Categories</Link>
+          <Link href="/categories" style={{ fontSize: "var(--font-caption)", color: "rgba(255,255,255,0.65)", textDecoration: "none" }}>Categories</Link>
           <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "11px" }}>›</span>
-          <Link href={`/category/${categorySlug}`} style={{ fontSize: "12px", color: "rgba(255,255,255,0.65)", textDecoration: "none" }}>
+          <Link href={`/category/${categorySlug}`} style={{ fontSize: "var(--font-caption)", color: "rgba(255,255,255,0.65)", textDecoration: "none" }}>
             {category?.name || categorySlug}
           </Link>
           <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "11px" }}>›</span>
-          <span style={{ fontSize: "12px", color: "#fff", fontWeight: "600" }}>
+          <span style={{ fontSize: "var(--font-caption)", color: "#fff", fontWeight: "var(--font-weight-semibold)" }}>
             {subcategory?.name || subcategorySlug}
           </span>
         </nav>
 
         <div style={{ display: "flex", alignItems: "flex-start", gap: "16px", flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ fontSize: "clamp(20px, 5vw, 32px)", fontWeight: "800", color: "#fff", margin: "0 0 6px" }}>
+            <h1 style={{ fontSize: "clamp(20px, 5vw, 32px)", fontWeight: "var(--font-weight-bold)", color: "#fff", margin: "0 0 6px" }}>
               {subcategory?.emoji} {subcategory?.name || subcategorySlug}
             </h1>
-            <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.7)", margin: 0 }}>
+            <p style={{ fontSize: "var(--font-helper)", color: "rgba(255,255,255,0.7)", margin: 0 }}>
               in <strong style={{ color: "rgba(255,255,255,0.9)" }}>{category?.name}</strong>
               {!loading && (
                 <span> · <strong style={{ color: "rgba(255,255,255,0.9)" }}>{listings.length}{hasMore ? "+" : ""}</strong> listings</span>
@@ -160,7 +160,7 @@ export default function SubcategoryPage() {
                     padding: "5px 12px", borderRadius: "16px",
                     background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)",
                     border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.85)",
-                    fontSize: "12px", textDecoration: "none", transition: "background 0.15s",
+                    fontSize: "var(--font-caption)", textDecoration: "none", transition: "background 0.15s",
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.22)"}
                   onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.12)"}
@@ -190,10 +190,10 @@ export default function SubcategoryPage() {
             style={{
               padding: "7px 12px", borderRadius: "8px",
               border: "1px solid var(--border-glass)", background: "var(--bg-input)",
-              color: "var(--text-main)", fontSize: "13px", width: "90px", outline: "none",
+              color: "var(--text-main)", fontSize: "var(--font-helper)", width: "90px", outline: "none",
             }}
           />
-          <span style={{ color: "var(--text-dim)", fontSize: "12px" }}>—</span>
+          <span style={{ color: "var(--text-dim)", fontSize: "var(--font-caption)" }}>—</span>
           {/* Max price */}
           <input
             type="number"
@@ -203,7 +203,7 @@ export default function SubcategoryPage() {
             style={{
               padding: "7px 12px", borderRadius: "8px",
               border: "1px solid var(--border-glass)", background: "var(--bg-input)",
-              color: "var(--text-main)", fontSize: "13px", width: "90px", outline: "none",
+              color: "var(--text-main)", fontSize: "var(--font-helper)", width: "90px", outline: "none",
             }}
           />
           {(minPrice || maxPrice) && (
@@ -211,7 +211,7 @@ export default function SubcategoryPage() {
               onClick={() => { setMinPrice(""); setMaxPrice(""); }}
               style={{
                 background: "none", border: "none", color: "var(--primary)",
-                fontSize: "12px", cursor: "pointer", fontWeight: "600",
+                fontSize: "var(--font-caption)", cursor: "pointer", fontWeight: "var(--font-weight-semibold)",
               }}
             >Clear</button>
           )}
@@ -224,7 +224,7 @@ export default function SubcategoryPage() {
           style={{
             padding: "7px 14px", borderRadius: "8px",
             border: "1px solid var(--border-glass)", background: "var(--bg-input)",
-            color: "var(--text-main)", fontSize: "13px", cursor: "pointer", outline: "none",
+            color: "var(--text-main)", fontSize: "var(--font-helper)", cursor: "pointer", outline: "none",
           }}
         >
           <option value="date_desc">Newest First</option>
@@ -249,10 +249,10 @@ export default function SubcategoryPage() {
           /* Empty state */
           <div className="glass-panel" style={{ padding: "80px 24px", textAlign: "center", borderRadius: "24px" }}>
             <div style={{ fontSize: "56px", marginBottom: "16px" }}>📭</div>
-            <h2 style={{ fontSize: "22px", fontWeight: "800", color: "var(--text-main)", marginBottom: "8px" }}>
+            <h2 style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "8px" }}>
               No listings yet
             </h2>
-            <p style={{ fontSize: "14px", color: "var(--text-muted)", marginBottom: "28px" }}>
+            <p style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", marginBottom: "28px" }}>
               No products found in <strong>{subcategory?.name}</strong>
               {(minPrice || maxPrice) && " with the selected price range"}.
             </p>
@@ -276,7 +276,7 @@ export default function SubcategoryPage() {
         ) : (
           <>
             {/* Result count */}
-            <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "20px" }}>
+            <p style={{ fontSize: "var(--font-helper)", color: "var(--text-muted)", marginBottom: "20px" }}>
               Showing <strong style={{ color: "var(--text-main)" }}>{listings.length}{hasMore ? "+" : ""}</strong> listings
               {minPrice && ` from ₹${minPrice}`}
               {maxPrice && ` to ₹${maxPrice}`}
@@ -301,7 +301,7 @@ export default function SubcategoryPage() {
                   className="btn btn-secondary"
                   onClick={() => setPage((p) => p + 1)}
                   disabled={loading}
-                  style={{ padding: "12px 40px", borderRadius: "50px", fontSize: "14px", fontWeight: "600" }}
+                  style={{ padding: "12px 40px", borderRadius: "50px", fontSize: "var(--font-small)", fontWeight: "var(--font-weight-semibold)" }}
                 >
                   {loading ? "Loading..." : "Load More"}
                 </button>

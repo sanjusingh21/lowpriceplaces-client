@@ -6,16 +6,15 @@ import { api } from "@/api";
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
 
-export default function MarketplacePage() {
+export default function WholesalePage() {
   const { userCoords, locationFilter, categories } = useApp();
 
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCatId, setSelectedCatId] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
-  const [sortBy, setSortBy] = useState("date_desc"); // date_desc, price_asc, price_desc, distance_asc
+  const [sortBy, setSortBy] = useState("date_desc");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
@@ -23,7 +22,7 @@ export default function MarketplacePage() {
   useEffect(() => {
     setPage(1);
     setHasMore(true);
-  }, [selectedCatId, minPrice, maxPrice, sortBy, searchQuery]);
+  }, [minPrice, maxPrice, sortBy, searchQuery]);
 
   useEffect(() => {
     async function loadListings() {
@@ -31,15 +30,14 @@ export default function MarketplacePage() {
       try {
         const params = {
           q: searchQuery,
-          categoryId: selectedCatId === "" ? null : selectedCatId,
+          categoryId: 55, // Fixed to Wholesale Deals category
           minPrice: minPrice === "" ? null : minPrice,
           maxPrice: maxPrice === "" ? null : maxPrice,
           sortBy: sortBy,
           lat: userCoords?.lat,
           lng: userCoords?.lng,
           page: page,
-          limit: 12,
-          listingType: "SECONDHAND"
+          limit: 12
         };
 
         const data = await api.getListings(params);
@@ -58,17 +56,17 @@ export default function MarketplacePage() {
           setHasMore(false);
         }
       } catch (err) {
-        console.error("Error loading marketplace listings:", err);
+        console.error("Error loading wholesale listings:", err);
       } finally {
         setLoading(false);
       }
     }
     const delayDebounce = setTimeout(() => {
       loadListings();
-    }, 300); // 300ms debounce for typing search/prices
+    }, 300);
 
     return () => clearTimeout(delayDebounce);
-  }, [userCoords, selectedCatId, minPrice, maxPrice, sortBy, searchQuery, page]);
+  }, [userCoords, minPrice, maxPrice, sortBy, searchQuery, page]);
 
   return (
     <div className="container" style={{ maxWidth: "1200px", margin: "0 auto", padding: "40px 20px", minHeight: "100vh" }}>
@@ -78,9 +76,9 @@ export default function MarketplacePage() {
           <Link href="/" className="btn btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)", padding: "8px 16px", borderRadius: "8px", marginBottom: "16px" }}>
             ← Back to Home
           </Link>
-          <h1 style={{ fontSize: "var(--font-h2)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>🛍️ Second-Hand Marketplace</h1>
+          <h1 style={{ fontSize: "var(--font-h2)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>🏷️ Wholesale Deals</h1>
           <p style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", marginTop: "4px" }}>
-            Find the best second-hand deals in <strong style={{ color: "var(--text-main)" }}>{locationFilter || "your area"}</strong>
+            Find the best bulk and wholesale deals in <strong style={{ color: "var(--text-main)" }}>{locationFilter || "your area"}</strong>
           </p>
         </div>
       </div>
@@ -93,27 +91,11 @@ export default function MarketplacePage() {
           <input
             type="text"
             className="form-input"
-            placeholder="What are you looking for?"
+            placeholder="Search bulk products..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ width: "100%", padding: "10px 14px", borderRadius: "8px" }}
           />
-        </div>
-
-        {/* Category Filter */}
-        <div style={{ flex: "1 1 180px" }}>
-          <label style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", display: "block", marginBottom: "6px", fontWeight: "var(--font-weight-semibold)" }}>Category</label>
-          <select
-            className="form-input"
-            value={selectedCatId}
-            onChange={(e) => setSelectedCatId(e.target.value)}
-            style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", background: "var(--bg-input)", color: "var(--text-main)", border: "1px solid var(--border-glass)" }}
-          >
-            <option value="">All Categories</option>
-            {categories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
         </div>
 
         {/* Price Inputs */}
@@ -162,14 +144,35 @@ export default function MarketplacePage() {
 
       {/* Product Feed Grid */}
       {listings.length === 0 && !loading ? (
-        <div className="glass-panel" style={{ padding: "60px 24px", textAlign: "center", color: "var(--text-muted)", borderRadius: "16px" }}>
-          No products found matching your search filters.
+        <div 
+          className="glass-panel" 
+          style={{ 
+            padding: "60px 24px", 
+            textAlign: "center", 
+            color: "var(--text-muted)", 
+            borderRadius: "16px",
+            border: "1px solid var(--border-glass)",
+            background: "var(--bg-card)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "12px"
+          }}
+        >
+          <div style={{ fontSize: "48px" }}>🏷️</div>
+          <h2 style={{ fontSize: "var(--font-h3)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0 }}>
+            No Wholesale Deals Today
+          </h2>
+          <p style={{ fontSize: "var(--font-small)", color: "var(--text-muted)", margin: 0, maxWidth: "500px", lineHeight: "1.6" }}>
+            There are no wholesale deals available today. Check back later for new bulk offers and merchant deals.
+          </p>
         </div>
       ) : (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "24px", marginBottom: "40px" }}>
             {listings.map((item) => (
-              <ProductCard key={item.id} item={item} />
+              <ProductCard key={item.id} item={item} href={`/details/${item.id}`} />
             ))}
           </div>
 

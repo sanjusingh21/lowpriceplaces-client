@@ -96,7 +96,7 @@ export default function ServiceDetailPage({ params: paramsPromise }) {
   return (
     <div className="container" style={{ maxWidth: "1200px", margin: "0 auto", padding: "40px 20px", minHeight: "100vh" }}>
       {/* Back Button */}
-      <Link href="/services" className="btn btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", padding: "8px 16px", borderRadius: "8px", marginBottom: "24px" }}>
+      <Link href="/services" className="btn btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)", padding: "8px 16px", borderRadius: "8px", marginBottom: "24px" }}>
         ← Back to Services
       </Link>
 
@@ -136,18 +136,18 @@ export default function ServiceDetailPage({ params: paramsPromise }) {
             <div style={{ flex: 1, minWidth: "200px" }}>
               <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
                 <div>
-                  <h1 style={{ fontSize: "28px", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>{service.name}</h1>
-                  <span style={{ display: "inline-block", background: "rgba(236,72,153,0.15)", color: "var(--text-main)", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: "700", marginTop: "8px" }}>
+                  <h1 style={{ fontSize: "var(--font-h2)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0 }}>{service.name}</h1>
+                  <span style={{ display: "inline-block", background: "rgba(236,72,153,0.15)", color: "var(--text-main)", padding: "4px 12px", borderRadius: "20px", fontSize: "var(--font-caption)", fontWeight: "var(--font-weight-bold)", marginTop: "8px" }}>
                     📂 {service.serviceType}
                   </span>
                 </div>
                 
                 {/* Rating */}
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                  <div style={{ fontSize: "22px", fontWeight: "800", color: "#fbbf24", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <div style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "#fbbf24", display: "flex", alignItems: "center", gap: "4px" }}>
                     ⭐ {service.averageRating ? service.averageRating.toFixed(1) : service.rating.toFixed(1)}
                   </div>
-                  <span style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+                  <span style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", marginTop: "2px" }}>
                     ({service.totalReviews || 0} reviews)
                   </span>
                 </div>
@@ -161,7 +161,7 @@ export default function ServiceDetailPage({ params: paramsPromise }) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-primary"
-                    style={{ padding: "8px 16px", borderRadius: "8px", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px" }}
+                    style={{ padding: "8px 16px", borderRadius: "8px", fontWeight: "var(--font-weight-semibold)", display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "var(--font-helper)" }}
                   >
                     🗺️ Directions
                   </a>
@@ -173,14 +173,14 @@ export default function ServiceDetailPage({ params: paramsPromise }) {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-secondary"
-                      style={{ padding: "8px 16px", borderRadius: "8px", fontWeight: "600", color: "#22c55e", fontSize: "13px" }}
+                      style={{ padding: "8px 16px", borderRadius: "8px", fontWeight: "var(--font-weight-semibold)", color: "#22c55e", fontSize: "var(--font-helper)" }}
                     >
                       💬 Hire via WhatsApp
                     </a>
                     <a
                       href={`tel:${service.contact}`}
                       className="btn btn-secondary"
-                      style={{ padding: "8px 16px", borderRadius: "8px", fontWeight: "600", fontSize: "13px" }}
+                      style={{ padding: "8px 16px", borderRadius: "8px", fontWeight: "var(--font-weight-semibold)", fontSize: "var(--font-helper)" }}
                     >
                       📞 Call Professional
                     </a>
@@ -192,30 +192,30 @@ export default function ServiceDetailPage({ params: paramsPromise }) {
 
           {/* Reviews list */}
           <div className="glass-panel" style={{ padding: "24px", borderRadius: "20px", border: "1px solid var(--border-glass)", background: "var(--bg-card)" }}>
-            <h2 style={{ fontSize: "22px", fontWeight: "800", color: "var(--text-main)", marginBottom: "20px" }}>
+            <h2 style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "20px" }}>
               💬 Reviews & Client Feedback
             </h2>
 
             {/* Review Composer Form */}
             {user ? (
               <form onSubmit={handleReviewSubmit} style={{ marginBottom: "32px", paddingBottom: "24px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                <h4 style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main)", marginBottom: "12px" }}>Write a Review</h4>
+                <h4 style={{ fontSize: "var(--font-small)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "12px" }}>Write a Review</h4>
                 
                 {reviewError && (
-                  <div style={{ padding: "10px", background: "rgba(239,68,68,0.1)", color: "#ef4444", borderRadius: "6px", fontSize: "12px", marginBottom: "12px" }}>
+                  <div style={{ padding: "10px", background: "rgba(239,68,68,0.1)", color: "#ef4444", borderRadius: "6px", fontSize: "var(--font-caption)", marginBottom: "12px" }}>
                     {reviewError}
                   </div>
                 )}
 
                 <div style={{ display: "flex", gap: "8px", marginBottom: "16px", alignItems: "center" }}>
-                  <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>Your Rating:</span>
+                  <span style={{ fontSize: "var(--font-helper)", color: "var(--text-muted)" }}>Your Rating:</span>
                   <div style={{ display: "flex", gap: "4px" }}>
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         key={star}
                         type="button"
                         onClick={() => setRating(star)}
-                        style={{ background: "none", border: "none", fontSize: "22px", cursor: "pointer", color: star <= rating ? "#fbbf24" : "var(--text-muted)", padding: 0 }}
+                        style={{ background: "none", border: "none", fontSize: "var(--font-h4)", cursor: "pointer", color: star <= rating ? "#fbbf24" : "var(--text-muted)", padding: 0 }}
                       >
                         ★
                       </button>
@@ -236,17 +236,17 @@ export default function ServiceDetailPage({ params: paramsPromise }) {
                   type="submit"
                   disabled={submittingReview}
                   className="btn btn-primary"
-                  style={{ padding: "8px 24px", borderRadius: "8px", fontWeight: "600" }}
+                  style={{ padding: "8px 24px", borderRadius: "8px", fontWeight: "var(--font-weight-semibold)" }}
                 >
                   {submittingReview ? "Submitting..." : "Post Review"}
                 </button>
               </form>
             ) : (
               <div className="glass-panel" style={{ padding: "16px", borderRadius: "10px", textAlign: "center", marginBottom: "32px", background: "rgba(255,255,255,0.01)" }}>
-                <span style={{ fontSize: "13px", color: "var(--text-muted)", marginRight: "12px" }}>
+                <span style={{ fontSize: "var(--font-helper)", color: "var(--text-muted)", marginRight: "12px" }}>
                   You must be logged in to leave feedback.
                 </span>
-                <Link href="/login" className="btn btn-primary" style={{ padding: "6px 16px", fontSize: "12px", borderRadius: "6px" }}>
+                <Link href="/login" className="btn btn-primary" style={{ padding: "6px 16px", fontSize: "var(--font-caption)", borderRadius: "6px" }}>
                   Sign In
                 </Link>
               </div>
@@ -254,7 +254,7 @@ export default function ServiceDetailPage({ params: paramsPromise }) {
 
             {/* Reviews Feed */}
             {service.reviews.length === 0 ? (
-              <div style={{ padding: "20px 0", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
+              <div style={{ padding: "20px 0", textAlign: "center", color: "var(--text-muted)", fontSize: "var(--font-helper)" }}>
                 No reviews yet. Write a review to help others!
               </div>
             ) : (
@@ -270,14 +270,14 @@ export default function ServiceDetailPage({ params: paramsPromise }) {
                     }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-main)" }}>
+                      <span style={{ fontSize: "var(--font-helper)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>
                         👤 {rev.buyer?.username || "Verified Customer"}
                       </span>
-                      <div style={{ color: "#fbbf24", fontSize: "13px", fontWeight: "600" }}>
+                      <div style={{ color: "#fbbf24", fontSize: "var(--font-helper)", fontWeight: "var(--font-weight-semibold)" }}>
                         {"★".repeat(rev.rating)}{"☆".repeat(5 - rev.rating)}
                       </div>
                     </div>
-                    <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: 0, lineHeight: "1.5" }}>
+                    <p style={{ fontSize: "var(--font-helper)", color: "var(--text-muted)", margin: 0, lineHeight: "var(--line-height-normal)" }}>
                       {rev.comment}
                     </p>
                     <span style={{ display: "block", fontSize: "10px", color: "var(--text-muted)", marginTop: "8px", textAlign: "right" }}>
@@ -294,11 +294,11 @@ export default function ServiceDetailPage({ params: paramsPromise }) {
         <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column", gap: "32px" }}>
           {/* Details Overview */}
           <div className="glass-panel" style={{ padding: "20px", borderRadius: "20px", border: "1px solid var(--border-glass)", background: "var(--bg-card)" }}>
-            <h3 style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-main)", marginBottom: "16px", paddingBottom: "10px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+            <h3 style={{ fontSize: "var(--font-h5)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "16px", paddingBottom: "10px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
               📍 Location Details
             </h3>
             
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "var(--font-helper)" }}>
               <div>
                 <span style={{ color: "var(--text-muted)", display: "block" }}>City/Area</span>
                 <strong style={{ color: "var(--text-main)" }}>{service.location}</strong>
@@ -320,12 +320,12 @@ export default function ServiceDetailPage({ params: paramsPromise }) {
 
           {/* Related Listings Section */}
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <h3 style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-main)", margin: 0 }}>
+            <h3 style={{ fontSize: "var(--font-h5)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0 }}>
               Related Deals Nearby
             </h3>
             
             {relatedListings.length === 0 ? (
-              <div style={{ padding: "20px", color: "var(--text-muted)", fontSize: "13px" }}>No listings found in this city.</div>
+              <div style={{ padding: "20px", color: "var(--text-muted)", fontSize: "var(--font-helper)" }}>No listings found in this city.</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
                 {relatedListings.map(item => (

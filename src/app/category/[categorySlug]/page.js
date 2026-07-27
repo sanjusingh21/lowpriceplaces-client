@@ -67,8 +67,8 @@ export default function CategoryPage() {
   if (categories.length > 0 && !category) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "16px" }}>
-        <div style={{ fontSize: "48px" }}>🔍</div>
-        <div style={{ fontSize: "20px", fontWeight: "700", color: "var(--text-main)" }}>Category not found</div>
+        <div style={{ fontSize: "var(--font-display-lg)" }}>🔍</div>
+        <div style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>Category not found</div>
         <Link href="/categories" className="btn btn-primary" style={{ textDecoration: "none", padding: "10px 24px", borderRadius: "50px" }}>← All Categories</Link>
       </div>
     );
@@ -87,7 +87,7 @@ export default function CategoryPage() {
           href="/"
           style={{
             display: "inline-flex", alignItems: "center", gap: "6px",
-            fontSize: "13px", color: "rgba(255,255,255,0.85)",
+            fontSize: "var(--font-helper)", color: "rgba(255,255,255,0.85)",
             textDecoration: "none", marginBottom: "16px",
             background: "rgba(255,255,255,0.12)", padding: "6px 16px",
             borderRadius: "20px", border: "1px solid rgba(255,255,255,0.18)",
@@ -98,11 +98,11 @@ export default function CategoryPage() {
 
         {/* Breadcrumb */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
-          <Link href="/" style={{ fontSize: "13px", color: "rgba(255,255,255,0.7)", textDecoration: "none" }}>Home</Link>
-          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px" }}>›</span>
-          <Link href="/categories" style={{ fontSize: "13px", color: "rgba(255,255,255,0.7)", textDecoration: "none" }}>Categories</Link>
-          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px" }}>›</span>
-          <span style={{ fontSize: "13px", color: "#fff", fontWeight: "600" }}>{category?.name || categorySlug}</span>
+          <Link href="/" style={{ fontSize: "var(--font-helper)", color: "rgba(255,255,255,0.7)", textDecoration: "none" }}>Home</Link>
+          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "var(--font-caption)" }}>›</span>
+          <Link href="/categories" style={{ fontSize: "var(--font-helper)", color: "rgba(255,255,255,0.7)", textDecoration: "none" }}>Categories</Link>
+          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "var(--font-caption)" }}>›</span>
+          <span style={{ fontSize: "var(--font-helper)", color: "#fff", fontWeight: "var(--font-weight-semibold)" }}>{category?.name || categorySlug}</span>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
@@ -117,10 +117,10 @@ export default function CategoryPage() {
             </div>
           )}
           <div>
-            <h1 style={{ fontSize: "clamp(22px, 5vw, 34px)", fontWeight: "800", color: "#fff", margin: "0 0 6px" }}>
+            <h1 style={{ fontSize: "clamp(22px, 5vw, 34px)", fontWeight: "var(--font-weight-bold)", color: "#fff", margin: "0 0 6px" }}>
               {category?.emoji} {category?.name || categorySlug}
             </h1>
-            <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.7)", margin: 0 }}>
+            <p style={{ fontSize: "var(--font-small)", color: "rgba(255,255,255,0.7)", margin: 0 }}>
               {loading && listings.length === 0 ? "Loading..." : `${listings.length}${hasMore ? "+" : ""} listings`}
             </p>
           </div>
@@ -138,7 +138,7 @@ export default function CategoryPage() {
                   padding: "7px 14px", borderRadius: "20px",
                   background: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)",
                   border: "1px solid rgba(255,255,255,0.2)", color: "#fff",
-                  fontSize: "13px", fontWeight: "500", textDecoration: "none",
+                  fontSize: "var(--font-helper)", fontWeight: "var(--font-weight-medium)", textDecoration: "none",
                   transition: "background 0.15s",
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.28)"}
@@ -157,7 +157,7 @@ export default function CategoryPage() {
 
         {/* Sort bar */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
-          <span style={{ fontSize: "14px", color: "var(--text-muted)" }}>
+          <span style={{ fontSize: "var(--font-small)", color: "var(--text-muted)" }}>
             {!loading && <><strong style={{ color: "var(--text-main)" }}>{listings.length}{hasMore ? "+" : ""}</strong> listings in <strong style={{ color: "var(--text-main)" }}>{category?.name}</strong></>}
           </span>
           <select
@@ -166,7 +166,7 @@ export default function CategoryPage() {
             style={{
               padding: "8px 14px", borderRadius: "10px",
               border: "1px solid var(--border-glass)", background: "var(--bg-input)",
-              color: "var(--text-main)", fontSize: "13px", cursor: "pointer", outline: "none",
+              color: "var(--text-main)", fontSize: "var(--font-helper)", cursor: "pointer", outline: "none",
             }}
           >
             <option value="date_desc">Newest First</option>
@@ -186,8 +186,8 @@ export default function CategoryPage() {
         ) : listings.length === 0 ? (
           <div className="glass-panel" style={{ padding: "72px 24px", textAlign: "center", borderRadius: "20px" }}>
             <div style={{ fontSize: "52px", marginBottom: "14px" }}>📭</div>
-            <h2 style={{ fontSize: "20px", fontWeight: "700", color: "var(--text-main)", marginBottom: "8px" }}>No listings yet</h2>
-            <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>Be the first to post in <strong>{category?.name}</strong></p>
+            <h2 style={{ fontSize: "var(--font-h4)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "8px" }}>No listings yet</h2>
+            <p style={{ fontSize: "var(--font-small)", color: "var(--text-muted)" }}>Be the first to post in <strong>{category?.name}</strong></p>
           </div>
         ) : (
           <>
@@ -202,7 +202,7 @@ export default function CategoryPage() {
                   className="btn btn-secondary"
                   onClick={() => setPage((p) => p + 1)}
                   disabled={loading}
-                  style={{ padding: "12px 36px", borderRadius: "50px", fontSize: "14px", fontWeight: "600" }}
+                  style={{ padding: "12px 36px", borderRadius: "50px", fontSize: "var(--font-small)", fontWeight: "var(--font-weight-semibold)" }}
                 >
                   {loading ? "Loading..." : "Load More"}
                 </button>

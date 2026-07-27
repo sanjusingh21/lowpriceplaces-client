@@ -127,14 +127,6 @@ export function AppContextProvider({ children }) {
     if (typeof window !== "undefined") {
       localStorage.setItem("lowpriceplaces_user_mode", mode);
     }
-    if (user) {
-      try {
-        const updatedUser = await api.switchRole(mode);
-        setUser(updatedUser);
-      } catch (err) {
-        console.error("Failed to switch database user role:", err);
-      }
-    }
   };
 
   const fetchUserChats = async () => {
@@ -355,7 +347,21 @@ export function AppContextProvider({ children }) {
     try {
       const saved = localStorage.getItem("lowpriceplaces_saved");
       if (saved) {
-        setSavedListings(JSON.parse(saved).map(id => Number(id)));
+        const parsedIds = JSON.parse(saved).map(id => Number(id)).filter(id => !isNaN(id));
+        if (parsedIds.length === 0) {
+          setSavedListings([]);
+          return;
+        }
+        
+        try {
+          const activeItems = await api.getListings({ ids: parsedIds.join(','), status: 'ALL' });
+          const activeIds = (activeItems || []).map(item => Number(item.id));
+          setSavedListings(activeIds);
+          localStorage.setItem("lowpriceplaces_saved", JSON.stringify(activeIds));
+        } catch (apiErr) {
+          console.error("Failed to sync shortlist with backend:", apiErr);
+          setSavedListings(parsedIds);
+        }
       } else {
         setSavedListings([]);
       }
@@ -367,22 +373,19 @@ export function AppContextProvider({ children }) {
   const fetchInquiries = async () => {
     if (!user) return;
     try {
-      if (user.role === 'SELLER') {
-        const data = await api.getSellerInquiries();
-        setSellerInquiries(data);
-      } else if (user.role === 'BUYER') {
-        const data = await api.getBuyerInquiries();
-        setBuyerInquiries(data);
-      }
+      const sellerData = await api.getSellerInquiries();
+      setSellerInquiries(sellerData || []);
+      const buyerData = await api.getBuyerInquiries();
+      setBuyerInquiries(buyerData || []);
     } catch (e) {
       console.error("Fetch inquiries error:", e);
     }
   };
 
   const fetchSellerListings = async () => {
-    if (!user || user.role !== 'SELLER') return;
+    if (!user) return;
     try {
-      const data = await api.getListings({ sellerOnly: true });
+      const data = await api.getListings({ sellerId: user.id, status: 'ALL' });
       setSellerListings(data.exact || data || []);
     } catch (e) {
       console.error("Fetch seller listings error:", e);

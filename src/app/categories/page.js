@@ -50,8 +50,8 @@ function SubcategoryPanel({ subs, catSlug, isOpen }) {
               border: "1px solid var(--border-glass)",
               background: "var(--bg-input)",
               color: "var(--text-main)",
-              fontSize: "13px",
-              fontWeight: "500",
+              fontSize: "var(--font-helper)",
+              fontWeight: "var(--font-weight-medium)",
               cursor: "pointer",
               textDecoration: "none",
               transition: "all 0.18s ease",
@@ -80,7 +80,7 @@ function SubcategoryPanel({ subs, catSlug, isOpen }) {
                 onError={(e) => { e.target.style.display = "none"; }}
               />
             ) : (
-              <span style={{ fontSize: "15px" }}>{sub.emoji || "🔹"}</span>
+              <span style={{ fontSize: "var(--font-body)" }}>{sub.emoji || "🔹"}</span>
             )}
             {sub.name}
           </Link>
@@ -145,7 +145,7 @@ export default function CategoriesPage() {
           href="/"
           style={{
             display: "inline-flex", alignItems: "center", gap: "6px",
-            fontSize: "13px", color: "rgba(255,255,255,0.85)",
+            fontSize: "var(--font-helper)", color: "rgba(255,255,255,0.85)",
             textDecoration: "none", marginBottom: "24px",
             background: "rgba(255,255,255,0.12)", padding: "6px 16px",
             borderRadius: "20px", backdropFilter: "blur(8px)",
@@ -156,12 +156,12 @@ export default function CategoriesPage() {
         </Link>
 
         <h1 style={{
-          fontSize: "clamp(26px, 6vw, 42px)", fontWeight: "800",
+          fontSize: "clamp(26px, 6vw, 42px)", fontWeight: "var(--font-weight-bold)",
           color: "#fff", margin: "0 0 10px", letterSpacing: "-0.5px",
         }}>
           Browse All Categories
         </h1>
-        <p style={{ fontSize: "15px", color: "rgba(255,255,255,0.72)", margin: "0 0 32px" }}>
+        <p style={{ fontSize: "var(--font-body)", color: "rgba(255,255,255,0.72)", margin: "0 0 32px" }}>
           {categories.length} categories · Tap to expand subcategories
         </p>
 
@@ -178,7 +178,7 @@ export default function CategoriesPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
               width: "100%", padding: "15px 18px 15px 50px",
-              borderRadius: "50px", border: "none", fontSize: "15px",
+              borderRadius: "50px", border: "none", fontSize: "var(--font-body)",
               background: "rgba(255,255,255,0.97)", color: "#1a1a2e",
               boxShadow: "0 8px 40px rgba(0,0,0,0.25)", outline: "none",
               boxSizing: "border-box",
@@ -190,7 +190,7 @@ export default function CategoriesPage() {
               style={{
                 position: "absolute", right: "16px", top: "50%",
                 transform: "translateY(-50%)", background: "none", border: "none",
-                fontSize: "18px", cursor: "pointer", color: "#64748b",
+                fontSize: "var(--font-h5)", cursor: "pointer", color: "#64748b",
               }}
             >×</button>
           )}
@@ -205,11 +205,11 @@ export default function CategoriesPage() {
             padding: "64px 24px", textAlign: "center",
             color: "var(--text-muted)", borderRadius: "20px",
           }}>
-            <div style={{ fontSize: "48px", marginBottom: "12px" }}>🔍</div>
-            <div style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-main)", marginBottom: "6px" }}>
+            <div style={{ fontSize: "var(--font-display-lg)", marginBottom: "12px" }}>🔍</div>
+            <div style={{ fontSize: "var(--font-h5)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "6px" }}>
               No results for &quot;{searchQuery}&quot;
             </div>
-            <div style={{ fontSize: "14px" }}>Try a different keyword</div>
+            <div style={{ fontSize: "var(--font-small)" }}>Try a different keyword</div>
           </div>
         ) : (
           <div style={{
@@ -282,13 +282,13 @@ export default function CategoriesPage() {
                     {/* Name + count */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{
-                        fontSize: "16px", fontWeight: "700",
+                        fontSize: "var(--font-body-lg)", fontWeight: "var(--font-weight-bold)",
                         color: "var(--text-main)", marginBottom: "3px",
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       }}>
                         {cat.name}
                       </div>
-                      <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                      <div style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)" }}>
                         {subs.length > 0
                           ? `${subs.length} subcategor${subs.length !== 1 ? "ies" : "y"}`
                           : "Tap to browse listings →"}
@@ -337,14 +337,14 @@ export default function CategoriesPage() {
           background: "linear-gradient(135deg, var(--bg-card) 0%, var(--bg-input) 100%)",
           borderRadius: "20px", border: "1px solid var(--border-glass)",
         }}>
-          <p style={{ fontSize: "15px", color: "var(--text-muted)", marginBottom: "18px" }}>
+          <p style={{ fontSize: "var(--font-body)", color: "var(--text-muted)", marginBottom: "18px" }}>
             Not sure which category? Browse everything
           </p>
           <Link
             href="/"
             className="btn btn-primary"
             style={{
-              padding: "12px 36px", fontSize: "15px", fontWeight: "700",
+              padding: "12px 36px", fontSize: "var(--font-body)", fontWeight: "var(--font-weight-bold)",
               borderRadius: "50px", textDecoration: "none", display: "inline-block",
             }}
           >

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { getImageSrcSet } from "@/utils/image";
 
-export default function ProductCard({ item }) {
+export default function ProductCard({ item, href }) {
   const { savedListings, toggleBookmark } = useApp();
   const isBookmarked = savedListings?.includes(item.id) || false;
 
@@ -26,8 +26,10 @@ export default function ProductCard({ item }) {
   const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
   const srcSet = getImageSrcSet(coverImage, imageServer);
 
+  const targetHref = href || `/details/${item.id}`;
+
   return (
-    <Link href={`/details/${item.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+    <Link href={targetHref} style={{ textDecoration: "none", color: "inherit" }}>
       <div className="glass-panel product-card feed-card">
         <div className="card-image-wrapper">
           <button
@@ -76,6 +78,10 @@ export default function ProductCard({ item }) {
             <div className="card-badge">-{item.discountPercent}% OFF</div>
           )}
 
+          {item.categoryId === 55 && (
+            <div className="card-badge" style={{ background: "var(--primary)", left: hasDiscount ? "75px" : "10px" }}>Wholesale</div>
+          )}
+
           {item.averageRating > 0 && (
             <div className="rating-badge">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
@@ -108,7 +114,7 @@ export default function ProductCard({ item }) {
         <div className="card-content">
           {/* Top Metadata Row: Badge & Category */}
           <div className="card-meta">
-            <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "2px 6px", borderRadius: "4px", fontSize: "10.5px", fontWeight: "700", marginRight: "6px" }}>
+            <span className="badge-id" style={{ background: "rgba(99, 102, 241, 0.1)", color: "var(--primary)", padding: "2px 6px", borderRadius: "4px", fontSize: "10.5px", fontWeight: "var(--font-weight-bold)", marginRight: "6px" }}>
               LPP-{String(item.id).padStart(5, "0")}
             </span>
             <span className="card-category-name" style={{ fontSize: "10.5px", color: "var(--text-dim)" }}>{item.category?.name}</span>
@@ -117,48 +123,59 @@ export default function ProductCard({ item }) {
           <h3 className="card-title">{item.title}</h3>
           <p className="card-desc">{item.description}</p>
 
-          <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
-            <span>👤 Seller:</span>
-            <strong style={{ color: "var(--text-main)" }}>{item.seller?.username || "Seller"}</strong>
+          <div style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+            <span>👤 Posted by:</span>
+            <strong style={{ color: "var(--text-main)" }}>{item.seller?.username ? item.seller.username.split('@')[0] : "User"}</strong>
           </div>
 
-          <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ fontSize: "var(--font-caption)", color: "var(--text-muted)", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
             <span>📅 Posted:</span>
-            <span style={{ color: "var(--text-main)", fontWeight: "500" }}>
+            <span style={{ color: "var(--text-main)", fontWeight: "var(--font-weight-medium)" }}>
               {new Date(item.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
             </span>
           </div>
 
-          <div className="card-prices">
-            {hasDiscount ? (
-              <>
+          <div className="card-prices" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
+              {hasDiscount ? (
+                <>
+                  <span className="price-discounted">
+                    ₹{finalPriceFrom}{finalPriceTo ? ` - ₹${finalPriceTo}` : ""}
+                  </span>
+                  <span className="price-original">
+                    ₹{priceFrom}{priceTo ? ` - ₹${priceTo}` : ""}
+                  </span>
+                </>
+              ) : (
                 <span className="price-discounted">
-                  ₹{finalPriceFrom}{finalPriceTo ? ` - ₹${finalPriceTo}` : ""}
-                </span>
-                <span className="price-original">
                   ₹{priceFrom}{priceTo ? ` - ₹${priceTo}` : ""}
                 </span>
-              </>
-            ) : (
-              <span className="price-discounted">
-                ₹{priceFrom}{priceTo ? ` - ₹${priceTo}` : ""}
+              )}
+            </div>
+            {item.categoryId === 55 && (
+              <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "var(--font-weight-semibold)" }}>
+                MOQ: {(() => {
+                  if (!item.description) return "10 units";
+                  const moqMatch = item.description.match(/(?:moq|minimum\s+order\s+quantity|min\s+order|min\s+qty)[:\s\-]+(\d+[\s\w]*)/i);
+                  return moqMatch ? moqMatch[1].trim() : "10 units";
+                })()}
               </span>
             )}
           </div>
 
           <div style={{ marginTop: "auto", marginBottom: "12px" }}>
-            <div className="btn btn-primary" style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center", padding: "8px", fontSize: "13px", borderRadius: "8px", fontWeight: "600" }}>
+            <div className="btn btn-primary" style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center", padding: "8px", fontSize: "var(--font-helper)", borderRadius: "8px", fontWeight: "var(--font-weight-semibold)" }}>
               View More Details →
             </div>
           </div>
 
           {/* Bottom Row: Location only */}
           <div className="card-location-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="card-location" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+            <span className="card-location" style={{fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
               📍 {item.location}
             </span>
             {item.distance !== undefined && item.distance !== null && (
-              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--primary-indigo)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '11px', fontWeight: "var(--font-weight-semibold)", color: 'var(--primary-indigo)', whiteSpace: 'nowrap' }}>
                 {item.distance} km away
               </span>
             )}
