@@ -108,26 +108,7 @@ export function AppContextProvider({ children }) {
   const [activeChatId, setActiveChatId] = useState(null);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
 
-  // Buyer / Seller mode switch state for single login account
-  const [userMode, setUserMode] = useState("BUYER");
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedMode = localStorage.getItem("lowpriceplaces_user_mode");
-      if (savedMode) {
-        setUserMode(savedMode);
-      } else if (user?.role === "SELLER") {
-        setUserMode("SELLER");
-      }
-    }
-  }, [user]);
-
-  const switchUserMode = async (mode) => {
-    setUserMode(mode);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("lowpriceplaces_user_mode", mode);
-    }
-  };
 
   const fetchUserChats = async () => {
     if (!getAuthToken()) return;
@@ -645,8 +626,7 @@ export function AppContextProvider({ children }) {
         fetchUserChats,
         startDirectChatWithListing,
 
-        userMode,
-        switchUserMode,
+
 
         fetchCategories,
         fetchCities,

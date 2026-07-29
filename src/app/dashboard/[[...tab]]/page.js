@@ -277,17 +277,14 @@ export default function Dashboard() {
     if (!user) return;
     setSavingProfile(true);
     try {
-      const formData = new FormData();
+      const payload = {};
       Object.keys(profileForm).forEach((key) => {
         if (profileForm[key] !== null && profileForm[key] !== undefined) {
-          formData.append(key, profileForm[key]);
+          payload[key] = profileForm[key];
         }
       });
-      if (profileLogoFile) {
-        formData.append("image", profileLogoFile);
-      }
 
-      const updatedProfile = await api.updateProfile(formData);
+      const updatedProfile = await api.updateProfile(payload);
       setProfileForm((prev) => ({
         ...prev,
         ...updatedProfile,
@@ -392,27 +389,23 @@ export default function Dashboard() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("title", newTitle);
-    formData.append("description", newDesc);
-    formData.append("price", newPrice);
-    formData.append("priceMax", newPriceMax);
-    formData.append("listingType", newListingType);
-    formData.append("discountPercent", newDiscount || 0);
-    formData.append("location", newLocation);
-    formData.append("whatsappNumber", newWhatsapp);
-    formData.append("contactNumber", newPhone);
-    formData.append("categoryId", newCategory);
-    if (newSubCategory) {
-      formData.append("subCategoryId", newSubCategory);
-    }
-
-    if (newImageFiles && newImageFiles.length > 0) {
-      formData.append("imageUrls", newImageFiles.join(","));
-    }
+    const payload = {
+      title: newTitle,
+      description: newDesc,
+      price: newPrice,
+      priceMax: newPriceMax || "",
+      listingType: newListingType,
+      discountPercent: newDiscount || 0,
+      location: newLocation,
+      whatsappNumber: newWhatsapp,
+      contactNumber: newPhone,
+      categoryId: newCategory,
+      subCategoryId: newSubCategory || null,
+      imageUrls: newImageFiles && newImageFiles.length > 0 ? newImageFiles.join(",") : null,
+    };
 
     try {
-      await api.createListing(formData);
+      await api.createListing(payload);
       triggerToast(
         "Pending and It will be reviewed by lowpriceplaces team shortly.",
         "success",
@@ -520,7 +513,7 @@ export default function Dashboard() {
 
   // Helper: Get Chat Metadata (name, phone, online)
   const getChatMetadata = (inq) => {
-    const isSeller = user?.role === "SELLER";
+    const isSeller = inq.buyerId !== user?.id;
     const displayName = isSeller
       ? inq.buyer?.username?.split("@")[0] || inq.buyer?.phoneNumber || "Buyer"
       : inq.listing?.seller?.username?.split("@")[0] ||

@@ -59,8 +59,6 @@ function HomeContent() {
     subCategoryViewLoading,
     setSubCategoryViewLoading,
     user,
-    userMode,
-    switchUserMode,
     sellerListings,
     fetchSellerListings,
     sellerInquiries,
@@ -190,11 +188,11 @@ function HomeContent() {
   }, [searchParams, categories]);
 
   useEffect(() => {
-    if (userMode === "SELLER" && user) {
+    if (user) {
       fetchSellerListings();
       fetchInquiries();
     }
-  }, [userMode, user]);
+  }, [user]);
 
   const scrollToTabSection = () => {
     setTimeout(() => {
@@ -1184,115 +1182,7 @@ function HomeContent() {
         </div>
       )}
 
-      {/* 🔄 Account Mode Switcher Tab Bar */}
-      <div
-        className="glass-panel mobile-flat-panel"
-        style={{
-          padding: "16px 24px",
-          marginBottom: "24px",
-          background:
-            "linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(236, 72, 153, 0.08) 100%)",
-          border: "1.5px solid var(--border-glass)",
-          borderRadius: "20px",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "16px",
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <h2
-              style={{
-                fontSize: "clamp(15px, 4vw, 18px)",
-                fontWeight: "var(--font-weight-bold)",
-                color: "var(--text-main)",
-                margin: 0,
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              {userMode === "SELLER"
-                ? "🏪 Merchant Console"
-                : "🛒 Customer Console"}
-            </h2>
-            <p
-              style={{
-                fontSize: "var(--font-caption)",
-                color: "var(--text-muted)",
-                margin: "3px 0 0 0",
-              }}
-            >
-              {userMode === "SELLER"
-                ? "You are in publishing mode. Post ads, view inquiries & manage listings."
-                : "You are in browsing mode. Find deals, search products & contact store owners."}
-            </p>
-          </div>
 
-          <div
-            style={{
-              display: "inline-flex",
-              background: "var(--bg-input)",
-              border: "1px solid var(--border-glass)",
-              borderRadius: "40px",
-              padding: "4px",
-              gap: "4px",
-            }}
-          >
-            <button
-              onClick={() => switchUserMode("BUYER")}
-              style={{
-                padding: "8px 20px",
-                borderRadius: "32px",
-                border: "none",
-                fontSize: "13.5px",
-                fontWeight: "var(--font-weight-bold)",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                background:
-                  userMode === "BUYER"
-                    ? "linear-gradient(135deg, #4f46e5, #6366f1)"
-                    : "transparent",
-                color: userMode === "BUYER" ? "#ffffff" : "var(--text-muted)",
-                boxShadow:
-                  userMode === "BUYER"
-                    ? "0 2px 8px rgba(99, 102, 241, 0.3)"
-                    : "none",
-              }}
-            >
-              🛒 Customer Mode
-            </button>
-            <button
-              onClick={() => switchUserMode("SELLER")}
-              style={{
-                padding: "8px 20px",
-                borderRadius: "32px",
-                border: "none",
-                fontSize: "13.5px",
-                fontWeight: "var(--font-weight-bold)",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                background:
-                  userMode === "SELLER"
-                    ? "linear-gradient(135deg, #059669, #10b981)"
-                    : "transparent",
-                color: userMode === "SELLER" ? "#ffffff" : "var(--text-muted)",
-                boxShadow:
-                  userMode === "SELLER"
-                    ? "0 2px 8px rgba(16, 185, 129, 0.3)"
-                    : "none",
-              }}
-            >
-              🏪 Business Mode
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Top Categories Grid Bar */}
       <div
