@@ -67,52 +67,37 @@ export default function MultiUploadComponent({ folder, images, onImagesChange })
       ]);
 
       try {
-        // 1. Get presigned PUT URL
-        const presignedRes = await axios.post(
-          `${API_BASE}/api/media/presigned-upload`,
+        const formData = new FormData();
+        formData.append("file", file);
+        if (folder) formData.append("folder", folder);
+
+        // Upload directly to server using multipart/form-data
+        const uploadRes = await axios.post(
+          `${API_BASE}/api/media/upload`,
+          formData,
           {
-            folder,
-            fileName: file.name,
-            contentType: file.type
-          },
-          { headers }
-        );
-
-        const { uploadUrl, key } = presignedRes.data;
-
-        // 2. Upload directly to S3
-        await axios.put(uploadUrl, file, {
-          headers: {
-            "Content-Type": file.type
-          },
-          cancelToken: cancelTokenSource.token,
-          onUploadProgress: (progressEvent) => {
-            const total = progressEvent.total || file.size;
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / total);
-            setUploadingFiles((prev) =>
-              prev.map((item) =>
-                item.id === uploadId ? { ...item, progress: percentCompleted } : item
-              )
-            );
+            headers: {
+              ...headers,
+              "Content-Type": "multipart/form-data"
+            },
+            cancelToken: cancelTokenSource.token,
+            onUploadProgress: (progressEvent) => {
+              const total = progressEvent.total || file.size;
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / total);
+              setUploadingFiles((prev) =>
+                prev.map((item) =>
+                  item.id === uploadId ? { ...item, progress: percentCompleted } : item
+                )
+              );
+            }
           }
-        });
-
-        // 3. Confirm completion to backend
-        const completeRes = await axios.post(
-          `${API_BASE}/api/media/complete`,
-          {
-            key,
-            type: file.type,
-            size: file.size
-          },
-          { headers }
         );
 
-        // Success! Remove from uploading list and add S3 url to images list
+        // Success! Remove from uploading list and add url to images list
         setUploadingFiles((prev) => prev.filter((item) => item.id !== uploadId));
         
         // Add URL to images array
-        const newImages = [...images, completeRes.data.url];
+        const newImages = [...images, uploadRes.data.url];
         onImagesChange(newImages);
       } catch (err) {
         if (axios.isCancel(err)) {

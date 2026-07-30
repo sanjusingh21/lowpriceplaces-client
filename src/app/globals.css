@@ -2774,3 +2774,362 @@ h6 {
     box-sizing: border-box !important;
   }
 }
+
+/* 🌟 Welcome Hero Banner Polished Layout */
+.welcome-hero-container {
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  margin-bottom: 24px;
+  animation: fadeIn 0.6s ease-out;
+}
+
+.brand-welcome-card {
+  background: linear-gradient(135deg, #e0f2fe 0%, #ffffff 50%, #f3e8ff 100%);
+  border: 1px solid rgba(224, 231, 255, 0.5);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  transition: box-shadow 0.3s ease;
+}
+
+body.dark-theme .brand-welcome-card {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.brand-card-top {
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  padding: 24px 0 24px 32px;
+  gap: 32px;
+  align-items: stretch;
+}
+
+.brand-card-left {
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  flex: 1.2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: none;
+  border: none;
+}
+
+.welcome-header-section {
+  padding: 0;
+  margin-bottom: 20px;
+}
+
+.welcome-greeting-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  font-family: var(--font-family);
+  letter-spacing: -0.5px;
+}
+
+body.dark-theme .welcome-greeting-title {
+  color: #ffffff;
+}
+
+.welcome-location-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--primary-indigo);
+  padding: 6px 14px;
+  border-radius: 30px;
+  font-size: var(--font-caption);
+  font-weight: var(--font-weight-bold);
+}
+
+body.dark-theme .welcome-location-badge {
+  background: rgba(129, 140, 248, 0.15);
+  color: #a5b4fc;
+}
+
+/* Badge Tags styling */
+.badge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.01);
+}
+
+body.dark-theme .badge-tag {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.02);
+  color: #94a3b8;
+}
+
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.badge-dot.verified {
+  background: #10b981;
+}
+
+.badge-dot.secure {
+  background: #3b82f6;
+}
+
+.badge-dot.support {
+  background: #8b5cf6;
+}
+
+/* Compact Badge style */
+.compact-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  padding: 12px 18px;
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  align-self: flex-start;
+}
+
+body.dark-theme .compact-badge-row {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+
+.brand-logo-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #eefdf5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+body.dark-theme .brand-logo-circle {
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.brand-title-text {
+  font-size: 15px;
+  font-weight: 800;
+  color: #2b5c8f;
+  font-family: var(--font-family);
+  letter-spacing: -0.3px;
+}
+
+body.dark-theme .brand-title-text {
+  color: #60a5fa;
+}
+
+/* Right Image Section - Filled edge-to-edge */
+.brand-card-right {
+  flex: 1.1;
+  margin: -24px 0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-family-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.brand-family-image:hover {
+  transform: scale(1.02);
+}
+
+/* Redesigned Floating Pill Feature Row */
+.welcome-features-row {
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.feature-pill {
+  flex: 1;
+  min-width: 200px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: 50px;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 4px 15px rgba(15, 23, 42, 0.02);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.feature-pill:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+body.dark-theme .feature-pill {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+
+.feature-icon-wrapper {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.feature-icon-wrapper.trusted {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+body.dark-theme .feature-icon-wrapper.trusted {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+}
+
+.feature-icon-wrapper.connect {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+body.dark-theme .feature-icon-wrapper.connect {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.feature-icon-wrapper.discover {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+body.dark-theme .feature-icon-wrapper.discover {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.feature-title-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floatImage {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+/* Responsive media queries */
+@media (max-width: 768px) {
+  .brand-card-top {
+    flex-direction: row;
+    padding: 16px 0 16px 16px;
+    gap: 16px;
+    align-items: stretch;
+    justify-content: space-between;
+  }
+  .brand-card-left {
+    align-items: flex-start;
+    text-align: left;
+    flex: 1.4;
+    padding-right: 8px;
+  }
+  .welcome-greeting-title {
+    font-size: 20px;
+  }
+  .welcome-header-section {
+    margin-bottom: 12px;
+  }
+  .welcome-location-badge {
+    padding: 4px 10px;
+    margin-top: 0;
+  }
+  .compact-badge-row {
+    align-self: flex-start;
+    padding: 8px 12px;
+    border-radius: 10px;
+  }
+  .brand-card-right {
+    flex: 1.1;
+    min-height: 120px;
+    align-self: stretch;
+    margin: -16px 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .brand-family-image {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    border-radius: 0;
+    object-fit: cover;
+  }
+  .welcome-features-row {
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .feature-pill {
+    padding: 8px 16px;
+    min-width: 140px;
+    gap: 8px;
+  }
+  .feature-icon-wrapper {
+    width: 24px;
+    height: 24px;
+  }
+  .feature-title-text {
+    font-size: 11.5px;
+  }
+}
+

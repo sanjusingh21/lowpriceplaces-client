@@ -11,7 +11,7 @@ export default function StoreDetailPage({ params: paramsPromise }) {
   const { id } = resolvedParams;
 
   const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
-  const { user, userCoords } = useApp();
+  const { user, userCoords, startChatWithSeller } = useApp();
 
   const [store, setStore] = useState(null);
   const [relatedListings, setRelatedListings] = useState([]);
@@ -130,9 +130,18 @@ export default function StoreDetailPage({ params: paramsPromise }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
                 <div>
                   <h1 style={{ fontSize: "var(--font-h1)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", margin: 0 }}>{store.name}</h1>
-                  <span style={{ display: "inline-block", background: "rgba(99,102,241,0.15)", color: "var(--primary-indigo)", padding: "4px 12px", borderRadius: "20px", fontSize: "var(--font-caption)", fontWeight: "var(--font-weight-bold)", marginTop: "8px" }}>
-                    {store.category}
-                  </span>
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px", marginTop: "12px" }}>
+                    <span style={{ display: "inline-block", background: "rgba(99,102,241,0.15)", color: "var(--primary-indigo)", padding: "4px 12px", borderRadius: "20px", fontSize: "var(--font-caption)", fontWeight: "var(--font-weight-bold)" }}>
+                      {store.category}
+                    </span>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--text-muted)", fontSize: "var(--font-helper)" }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style={{ color: "var(--primary-indigo)" }}>
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                      </svg>
+                      <strong style={{ color: "var(--text-main)" }}>{store.location}</strong>
+                      {store.distance !== null && <span style={{ color: "var(--primary-indigo)", fontWeight: "var(--font-weight-semibold)" }}>({store.distance} km away)</span>}
+                    </div>
+                  </div>
                 </div>
                 
                 {/* Rating Overview */}
@@ -148,6 +157,29 @@ export default function StoreDetailPage({ params: paramsPromise }) {
 
               {/* Action Buttons */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginTop: "24px" }}>
+                {(!user || user.id !== Math.abs(store.id)) && (
+                  <button
+                    onClick={() => {
+                      startChatWithSeller({ storeId: store.id, sellerId: Math.abs(store.id) });
+                    }}
+                    className="btn btn-primary"
+                    style={{
+                      padding: "10px 20px",
+                      borderRadius: "10px",
+                      fontWeight: "var(--font-weight-semibold)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      border: "none",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span>Website Chat</span>
+                  </button>
+                )}
                 {store.latitude && store.longitude && (
                   <a
                     href={directionsUrl}
@@ -289,8 +321,11 @@ export default function StoreDetailPage({ params: paramsPromise }) {
         <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column", gap: "32px" }}>
           {/* Location & Details Overview */}
           <div className="glass-panel" style={{ padding: "20px", borderRadius: "20px", border: "1px solid var(--border-glass)", background: "var(--bg-card)" }}>
-            <h3 style={{ fontSize: "var(--font-h5)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "16px", paddingBottom: "10px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-              📍 Location Details
+            <h3 style={{ fontSize: "var(--font-h5)", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)", marginBottom: "16px", paddingBottom: "10px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: "8px" }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style={{ color: "var(--primary-indigo)" }}>
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+              <span>Location Details</span>
             </h3>
             
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "var(--font-helper)" }}>

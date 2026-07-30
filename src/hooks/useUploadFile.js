@@ -18,47 +18,32 @@ export function useUploadFile() {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
     try {
-      // 1. Get PUT presigned URL from backend
-      const presignedRes = await axios.post(
-        `${process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000"}/api/media/presigned-upload`,
-        {
-          folder,
-          fileName: file.name,
-          contentType: file.type
-        },
-        { headers }
-      );
+      const formData = new FormData();
+      formData.append("file", file);
+      if (folder) formData.append("folder", folder);
 
-      const { uploadUrl, key, publicUrl } = presignedRes.data;
-
-      // 2. Upload file directly to S3 using PUT presigned URL
       cancelSourceRef.current = axios.CancelToken.source();
 
-      await axios.put(uploadUrl, file, {
-        headers: {
-          "Content-Type": file.type
-        },
-        cancelToken: cancelSourceRef.current.token,
-        onUploadProgress: (progressEvent) => {
-          const total = progressEvent.total || file.size;
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / total);
-          setProgress(percentCompleted);
-        }
-      });
-
-      // 3. Confirm completion to backend
-      const completeRes = await axios.post(
-        `${process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000"}/api/media/complete`,
+      // Upload directly to server using multipart/form-data
+      const uploadRes = await axios.post(
+        `${process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000"}/api/media/upload`,
+        formData,
         {
-          key,
-          type: file.type,
-          size: file.size
-        },
-        { headers }
+          headers: {
+            ...headers,
+            "Content-Type": "multipart/form-data"
+          },
+          cancelToken: cancelSourceRef.current.token,
+          onUploadProgress: (progressEvent) => {
+            const total = progressEvent.total || file.size;
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / total);
+            setProgress(percentCompleted);
+          }
+        }
       );
 
       setLoading(false);
-      return completeRes.data; // Returns database Media record
+      return uploadRes.data; // Returns database Media record with local url
     } catch (err) {
       setLoading(false);
       if (axios.isCancel(err)) {

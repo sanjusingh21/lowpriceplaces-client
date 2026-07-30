@@ -251,6 +251,8 @@ export default function Dashboard() {
   const [toast, setToast] = useState(null);
   const [showAddLocDropdown, setShowAddLocDropdown] = useState(false);
   const [addLocSuggestions, setAddLocSuggestions] = useState([]);
+  const [newCityId, setNewCityId] = useState("");
+  const [newSubCityId, setNewSubCityId] = useState("");
 
   // Seller Profile Tab state
   const [profileForm, setProfileForm] = useState({
@@ -277,17 +279,14 @@ export default function Dashboard() {
     if (!user) return;
     setSavingProfile(true);
     try {
-      const formData = new FormData();
+      const payload = {};
       Object.keys(profileForm).forEach((key) => {
         if (profileForm[key] !== null && profileForm[key] !== undefined) {
-          formData.append(key, profileForm[key]);
+          payload[key] = profileForm[key];
         }
       });
-      if (profileLogoFile) {
-        formData.append("image", profileLogoFile);
-      }
 
-      const updatedProfile = await api.updateProfile(formData);
+      const updatedProfile = await api.updateProfile(payload);
       setProfileForm((prev) => ({
         ...prev,
         ...updatedProfile,
@@ -392,27 +391,32 @@ export default function Dashboard() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("title", newTitle);
-    formData.append("description", newDesc);
-    formData.append("price", newPrice);
-    formData.append("priceMax", newPriceMax);
-    formData.append("listingType", newListingType);
-    formData.append("discountPercent", newDiscount || 0);
-    formData.append("location", newLocation);
-    formData.append("whatsappNumber", newWhatsapp);
-    formData.append("contactNumber", newPhone);
-    formData.append("categoryId", newCategory);
-    if (newSubCategory) {
-      formData.append("subCategoryId", newSubCategory);
+    let resolvedLocation = "";
+    const selectedCity = citiesList.find((c) => c.id === parseInt(newCityId));
+    const selectedSub = selectedCity?.subCities?.find((s) => s.id === parseInt(newSubCityId));
+    if (selectedCity && selectedSub) {
+      resolvedLocation = `${selectedSub.name}, ${selectedCity.name}`;
     }
 
-    if (newImageFiles && newImageFiles.length > 0) {
-      formData.append("imageUrls", newImageFiles.join(","));
-    }
+    const payload = {
+      title: newTitle,
+      description: newDesc,
+      price: newPrice,
+      priceMax: newPriceMax || "",
+      listingType: newListingType,
+      discountPercent: newDiscount || 0,
+      location: resolvedLocation,
+      cityId: newCityId ? parseInt(newCityId) : null,
+      subCityId: newSubCityId ? parseInt(newSubCityId) : null,
+      whatsappNumber: newWhatsapp,
+      contactNumber: newPhone,
+      categoryId: newCategory,
+      subCategoryId: newSubCategory || null,
+      imageUrls: newImageFiles && newImageFiles.length > 0 ? newImageFiles.join(",") : null,
+    };
 
     try {
-      await api.createListing(formData);
+      await api.createListing(payload);
       triggerToast(
         "Pending and It will be reviewed by lowpriceplaces team shortly.",
         "success",
@@ -424,6 +428,8 @@ export default function Dashboard() {
       setNewListingType("SALES");
       setNewDiscount("0");
       setNewLocation("");
+      setNewCityId("");
+      setNewSubCityId("");
       setNewWhatsapp("");
       setNewPhone("");
       setNewCategory("");
@@ -520,7 +526,7 @@ export default function Dashboard() {
 
   // Helper: Get Chat Metadata (name, phone, online)
   const getChatMetadata = (inq) => {
-    const isSeller = user?.role === "SELLER";
+    const isSeller = inq.buyerId !== user?.id;
     const displayName = isSeller
       ? inq.buyer?.username?.split("@")[0] || inq.buyer?.phoneNumber || "Buyer"
       : inq.listing?.seller?.username?.split("@")[0] ||
@@ -1224,65 +1230,44 @@ export default function Dashboard() {
                   />
                 </div>
 
-                <div className="form-group" style={{ position: "relative" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: "6px",
-                    }}
-                  >
-                    <label className="form-label" style={{ margin: 0 }}>
-                      Location (Area, City, State)
-                    </label>
-                    <span
-                      onClick={autoDetectListingLocation}
-                      style={{
-                        fontSize: "var(--font-caption)",
-                        color: "var(--primary)",
-                        cursor: "pointer",
-                        fontWeight: "var(--font-weight-semibold)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "3px",
-                      }}
-                      title="Click to automatically detect your current location"
-                    >
-                      📍 Detect My Location
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Madhapur, Hyderabad, Telangana"
-                    value={newLocation}
+                <div className="form-group">
+                  <label className="form-label">City</label>
+                  <select
+                    className="form-select"
+                    value={newCityId}
                     onChange={(e) => {
-                      setNewLocation(e.target.value);
-                      setShowAddLocDropdown(true);
+                      setNewCityId(e.target.value);
+                      setNewSubCityId("");
                     }}
-                    onFocus={() => setShowAddLocDropdown(true)}
                     required
-                  />
-                  {showAddLocDropdown && addLocSuggestions.length > 0 && (
-                    <div
-                      className="location-dropdown"
-                      style={{ width: "100%", top: "calc(100% - 2px)" }}
-                    >
-                      {addLocSuggestions.map((loc, i) => (
-                        <div
-                          key={i}
-                          className="location-dropdown-item"
-                          onClick={() => {
-                            setNewLocation(loc);
-                            setShowAddLocDropdown(false);
-                          }}
-                        >
-                          {loc}
-                        </div>
+                  >
+                    <option value="">-- Choose City --</option>
+                    {citiesList.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Sub-City / Area</label>
+                  <select
+                    className="form-select"
+                    value={newSubCityId}
+                    onChange={(e) => setNewSubCityId(e.target.value)}
+                    disabled={!newCityId}
+                    required
+                  >
+                    <option value="">-- Choose Area --</option>
+                    {citiesList
+                      .find((c) => c.id === parseInt(newCityId))
+                      ?.subCities?.map((sub) => (
+                        <option key={sub.id} value={sub.id}>
+                          {sub.name}
+                        </option>
                       ))}
-                    </div>
-                  )}
+                  </select>
                 </div>
 
                 <div className="form-group">
@@ -2684,7 +2669,10 @@ export default function Dashboard() {
                           gap: "6px",
                         }}
                       >
-                        📍 Detect & Use Current Coordinates
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ color: "var(--primary)" }}>
+                          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                        <span>Detect &amp; Use Current Coordinates</span>
                       </button>
                     </div>
 
