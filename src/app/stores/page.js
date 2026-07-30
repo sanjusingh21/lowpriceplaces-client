@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 export default function StoresPage() {
   const router = useRouter();
   const imageServer = process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
-  const { userCoords, locationFilter } = useApp();
+  const { user, userCoords, locationFilter, startChatWithSeller } = useApp();
 
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -197,23 +197,40 @@ export default function StoresPage() {
                     </span>
                   )}
 
-                  <div style={{ marginTop: "auto", paddingTop: "14px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "var(--font-helper)", color: "var(--text-main)", fontWeight: "var(--font-weight-semibold)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                      📍 {store.distance !== null ? `${store.distance} km away` : store.location}
+                  <div style={{ marginTop: "auto", paddingTop: "14px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "11px", color: "var(--text-main)", fontWeight: "var(--font-weight-semibold)", display: "inline-flex", alignItems: "center", gap: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "45%" }} title={store.distance !== null ? `${store.distance} km away` : store.location}>
+                      📍 {store.distance !== null ? `${store.distance} km` : store.location}
                     </span>
                     
-                    {store.contact && (
-                      <span
-                        className="btn btn-primary"
-                        style={{ padding: "4px 8px", fontSize: "11px", borderRadius: "6px", fontWeight: "var(--font-weight-semibold)" }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.open(`https://wa.me/${store.contact.replace(/[^0-9]/g, '')}`, '_blank');
-                        }}
-                      >
-                        WhatsApp
-                      </span>
-                    )}
+                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                      {(!user || user.id !== Math.abs(store.id)) && (
+                        <span
+                          className="btn btn-primary"
+                          style={{ padding: "4px 8px", fontSize: "11px", borderRadius: "6px", fontWeight: "var(--font-weight-semibold)", display: "inline-flex", alignItems: "center", gap: "3px" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startChatWithSeller({ storeId: store.id, sellerId: Math.abs(store.id) });
+                          }}
+                        >
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                          </svg>
+                          Chat
+                        </span>
+                      )}
+                      {store.contact && (
+                        <span
+                          className="btn btn-secondary"
+                          style={{ padding: "4px 8px", fontSize: "11px", borderRadius: "6px", fontWeight: "var(--font-weight-semibold)", color: "#22c55e", border: "1px solid rgba(34, 197, 94, 0.3)" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(`https://wa.me/${store.contact.replace(/[^0-9]/g, '')}`, '_blank');
+                          }}
+                        >
+                          WhatsApp
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

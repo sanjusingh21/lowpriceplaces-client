@@ -31,6 +31,10 @@ export function AppContextProvider({ children }) {
     { name: "Jaipur", emoji: "🏯" },
     { name: "Lucknow", emoji: "🏛️" }
   ]);
+  const [citiesLoading, setCitiesLoading] = useState(true);
+  const [citiesError, setCitiesError] = useState(null);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [suggestionError, setSuggestionError] = useState(null);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -144,6 +148,64 @@ export function AppContextProvider({ children }) {
     }
   };
 
+  const startChatWithSeller = async ({ listingId, sellerId, storeId, serviceId }, initialMessage = "") => {
+    if (!getAuthToken()) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+      return false;
+    }
+    try {
+      let targetListingId = listingId;
+
+      // 1. Resolve from local listings cache
+      if (!targetListingId && sellerId) {
+        const cached = listings.find(l => l.sellerId === sellerId);
+        if (cached) {
+          targetListingId = cached.id;
+        }
+      }
+
+      // 2. Resolve from store/service details if not cached
+      if (!targetListingId) {
+        if (storeId) {
+          const storeData = await api.getStoreById(storeId);
+          if (storeData.relatedListings && storeData.relatedListings.length > 0) {
+            targetListingId = storeData.relatedListings[0].id;
+          }
+        } else if (serviceId) {
+          const serviceData = await api.getServiceById(serviceId);
+          if (serviceData.relatedListings && serviceData.relatedListings.length > 0) {
+            targetListingId = serviceData.relatedListings[0].id;
+          }
+        }
+      }
+
+      // 3. Fallback: query active listings for this sellerId
+      if (!targetListingId && sellerId) {
+        try {
+          const sellerListings = await api.getListings({ sellerId });
+          if (sellerListings && sellerListings.length > 0) {
+            targetListingId = sellerListings[0].id;
+          }
+        } catch (err) {
+          console.error("Failed to query seller listings:", err);
+        }
+      }
+
+      if (!targetListingId) {
+        alert("This seller has no active listings available to start a chat session.");
+        return false;
+      }
+
+      return await startDirectChatWithListing(targetListingId, initialMessage);
+    } catch (err) {
+      console.error("startChatWithSeller error:", err);
+      alert(err.message || "Failed to start direct chat.");
+      return false;
+    }
+  };
+
   // Load user status, categories, and listings on startup
   useEffect(() => {
     const init = async () => {
@@ -218,6 +280,8 @@ export function AppContextProvider({ children }) {
   };
 
   const fetchCities = async () => {
+    setCitiesLoading(true);
+    setCitiesError(null);
     try {
       const data = await api.getCities();
       if (data && data.length > 0) {
@@ -225,6 +289,9 @@ export function AppContextProvider({ children }) {
       }
     } catch (e) {
       console.error("Cities fetch error:", e);
+      setCitiesError("Unable to load cities. Please try again.");
+    } finally {
+      setCitiesLoading(false);
     }
   };
 
@@ -488,28 +555,28 @@ export function AppContextProvider({ children }) {
 
   // Autocomplete Suggestions logic for keyword search input
   useEffect(() => {
-    if (searchQuery.trim().length < 2) {
+    const trimmed = searchQuery.trim();
+    if (trimmed.length < 2) {
       setSuggestions([]);
       return;
     }
-    const filterTerm = searchQuery.toLowerCase();
 
-    const listSuggestions = listings
-      .filter(l => l.title.toLowerCase().includes(filterTerm))
-      .slice(0, 4)
-      .map(l => ({ id: l.id, label: l.title, type: 'Listing' }));
+    setSuggestionLoading(true);
+    setSuggestionError(null);
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const data = await api.getSuggestions(trimmed);
+        setSuggestions(data);
+      } catch (err) {
+        console.error("Suggestions fetch error:", err);
+        setSuggestionError("Unable to load suggestions.");
+      } finally {
+        setSuggestionLoading(false);
+      }
+    }, 250);
 
-    const catSuggestions = categories
-      .filter(c => c.name.toLowerCase().includes(filterTerm))
-      .map(c => ({ id: c.id, label: c.name, type: 'Category' }));
-
-    const subSuggestions = categories
-      .flatMap(c => c.subCategories || [])
-      .filter(s => s.name.toLowerCase().includes(filterTerm))
-      .map(s => ({ id: s.id, label: s.name, type: 'SubCategory' }));
-
-    setSuggestions([...listSuggestions, ...catSuggestions, ...subSuggestions].slice(0, 8));
-  }, [searchQuery, listings, categories]);
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
 
   // Click outside location search box listener
   useEffect(() => {
@@ -625,11 +692,16 @@ export function AppContextProvider({ children }) {
         unreadChatCount,
         fetchUserChats,
         startDirectChatWithListing,
+        startChatWithSeller,
 
 
 
         fetchCategories,
         fetchCities,
+        citiesLoading,
+        citiesError,
+        suggestionLoading,
+        suggestionError,
         fetchListings,
         fetchSavedListings,
         fetchInquiries,

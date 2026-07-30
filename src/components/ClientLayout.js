@@ -41,6 +41,8 @@ export default function ClientLayout({ children }) {
     photonSuggestions,
     suggestions,
     setSuggestions,
+    suggestionLoading,
+    suggestionError,
     mobileMenuOpen,
     setMobileMenuOpen,
     editingListing,
@@ -58,6 +60,47 @@ export default function ClientLayout({ children }) {
   // Unread chat/inquiry count
   const [unreadCount, setUnreadCount] = useState(0);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showKeywordDropdown, setShowKeywordDropdown] = useState(false);
+  const [focusedSuggestionIndex, setFocusedSuggestionIndex] = useState(-1);
+
+  const handleKeywordKeyDown = (e) => {
+    if (!showKeywordDropdown || suggestions.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setFocusedSuggestionIndex((prev) => 
+        prev === suggestions.length - 1 ? 0 : prev + 1
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setFocusedSuggestionIndex((prev) => 
+        prev <= 0 ? suggestions.length - 1 : prev - 1
+      );
+    } else if (e.key === "Enter") {
+      if (focusedSuggestionIndex >= 0 && focusedSuggestionIndex < suggestions.length) {
+        e.preventDefault();
+        handleSelectSuggestion(suggestions[focusedSuggestionIndex].label);
+      }
+    } else if (e.key === "Escape") {
+      setShowKeywordDropdown(false);
+    }
+  };
+
+  const handleSelectSuggestion = (text) => {
+    setSearchQuery(text);
+    setShowKeywordDropdown(false);
+    fetchListings({ search: text });
+    if (pathname !== "/") {
+      router.push("/");
+    }
+  };
+
+  const highlightMatch = (text, query) => {
+    if (!query) return text;
+    const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQuery})`, "gi");
+    return text.replace(regex, `<strong style="font-weight: 800; color: #6366f1;">$1</strong>`);
+  };
 
   useEffect(() => {
     if (!user) {
@@ -157,6 +200,12 @@ export default function ClientLayout({ children }) {
       ) {
         setShowEditLocDropdown(false);
       }
+      if (!e.target.closest(".location-search-box")) {
+        setShowLocationDropdown(false);
+      }
+      if (!e.target.closest(".keyword-search-box")) {
+        setShowKeywordDropdown(false);
+      }
       if (!e.target.closest(".user-profile-dropdown-wrapper")) {
         setShowUserDropdown(false);
       }
@@ -199,12 +248,21 @@ export default function ClientLayout({ children }) {
   const handleSaveListingDetails = async (e) => {
     e.preventDefault();
     try {
+      let resolvedLocation = editingListing.location || "";
+      const selectedCity = citiesList.find((c) => c.id === parseInt(editingListing.cityId));
+      const selectedSub = selectedCity?.subCities?.find((s) => s.id === parseInt(editingListing.subCityId));
+      if (selectedCity && selectedSub) {
+        resolvedLocation = `${selectedSub.name}, ${selectedCity.name}`;
+      }
+
       const payload = {
         title: editingListing.title,
         price: editingListing.price,
         priceMax: editingListing.priceMax || "",
         discountPercent: editingListing.discountPercent,
-        location: editingListing.location,
+        location: resolvedLocation,
+        cityId: editingListing.cityId ? parseInt(editingListing.cityId) : null,
+        subCityId: editingListing.subCityId ? parseInt(editingListing.subCityId) : null,
         description: editingListing.description,
         categoryId: editingListing.categoryId,
         subCategoryId: editingListing.subCategoryId || null,
@@ -223,11 +281,28 @@ export default function ClientLayout({ children }) {
   };
 
   const renderSearchForm = () => {
+    // Suggest active cities
+    const activeCities = citiesList.filter((c) => c.activeListingsCount > 0);
+
+    // Suggest active sub-cities
+    const activeSubCities = [];
+    activeCities.forEach((c) => {
+      c.subCities?.forEach((sub) => {
+        if (sub.activeListingsCount > 0) {
+          activeSubCities.push(`${sub.name}, ${c.name} (${sub.activeListingsCount})`);
+        }
+      });
+    });
+
+    const suggestionsList = [
+      ...activeCities.map((c) => `${c.name} (${c.activeListingsCount})`),
+      ...activeSubCities,
+    ];
+
     const displayedLocations =
       locationSearchInput.length >= 2 && photonSuggestions.length > 0
         ? photonSuggestions
-        : citiesList
-            .map((c) => c.name)
+        : suggestionsList
             .filter((loc) =>
               loc.toLowerCase().includes(locationSearchInput.toLowerCase()),
             )
@@ -266,10 +341,11 @@ export default function ClientLayout({ children }) {
                     key={i}
                     className="location-dropdown-item"
                     onClick={() => {
-                      setLocationSearchInput(loc);
-                      setLocationFilter(loc);
+                      const cleanLoc = loc.replace(/\s*\(\d+\)$/, "");
+                      setLocationSearchInput(cleanLoc);
+                      setLocationFilter(cleanLoc);
                       setShowLocationDropdown(false);
-                      fetchListings({ location: loc });
+                      fetchListings({ location: cleanLoc });
                     }}
                   >
                     {loc}
@@ -310,7 +386,16 @@ export default function ClientLayout({ children }) {
             style={{ paddingLeft: "8px" }}
             placeholder="Search products..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setShowKeywordDropdown(true);
+              setFocusedSuggestionIndex(-1);
+            }}
+            onFocus={() => {
+              setShowKeywordDropdown(true);
+              setFocusedSuggestionIndex(-1);
+            }}
+            onKeyDown={handleKeywordKeyDown}
           />
 
           {searchQuery && (
@@ -319,6 +404,8 @@ export default function ClientLayout({ children }) {
               className="search-clear-btn"
               onClick={() => {
                 setSearchQuery("");
+                setSuggestions([]);
+                setShowKeywordDropdown(false);
                 fetchListings({ search: "" });
               }}
               title="Clear Search"
@@ -343,18 +430,54 @@ export default function ClientLayout({ children }) {
             </svg>
           </button>
 
-          {suggestions.length > 0 && (
-            <div className="autocomplete-dropdown">
-              {suggestions.map((sug, i) => (
-                <div
-                  key={i}
-                  className="autocomplete-item"
-                  onClick={() => handleSuggestionClick(sug)}
-                >
-                  <span className="item-type">{sug.type}</span>
-                  <span>{sug.label}</span>
+          {showKeywordDropdown && searchQuery.trim().length >= 2 && (
+            <div className="autocomplete-dropdown" style={{ display: "block" }}>
+              {suggestionLoading ? (
+                <div style={{ padding: "10px 16px", color: "var(--text-muted)", fontSize: "var(--font-helper)" }}>
+                  Loading suggestions...
                 </div>
-              ))}
+              ) : suggestionError ? (
+                <div style={{ padding: "10px 16px", color: "var(--primary)", fontSize: "var(--font-helper)" }}>
+                  ⚠️ {suggestionError}
+                </div>
+              ) : suggestions.length > 0 ? (
+                suggestions.map((sug, i) => {
+                  const isFocused = i === focusedSuggestionIndex;
+                  return (
+                    <div
+                      key={i}
+                      className={`autocomplete-item ${isFocused ? "active" : ""}`}
+                      onClick={() => handleSelectSuggestion(sug.label)}
+                      onMouseEnter={() => setFocusedSuggestionIndex(i)}
+                      style={{
+                        background: isFocused ? "rgba(255,255,255,0.06)" : "transparent",
+                        cursor: "pointer",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "10px 16px",
+                      }}
+                    >
+                      <span dangerouslySetInnerHTML={{ __html: highlightMatch(sug.label, searchQuery) }} />
+                      <span style={{
+                        fontSize: "9px",
+                        color: "var(--text-dim)",
+                        background: "rgba(255,255,255,0.04)",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        textTransform: "uppercase",
+                        fontWeight: "var(--font-weight-bold)"
+                      }}>
+                        {sug.type}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ padding: "10px 16px", color: "var(--text-muted)", fontSize: "var(--font-helper)", textAlign: "center" }}>
+                  No results found.
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -928,102 +1051,53 @@ export default function ClientLayout({ children }) {
                 />
               </div>
 
-              <div className="form-group" style={{ position: "relative" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "6px",
-                  }}
-                >
-                  <label className="form-label" style={{ margin: 0 }}>
-                    Location (Area, City, State)
-                  </label>
-                  <span
-                    onClick={async () => {
-                      if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(
-                          async (position) => {
-                            const { latitude, longitude } = position.coords;
-                            try {
-                              const res = await fetch(
-                                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
-                              );
-                              const data = await res.json();
-                              const area =
-                                data.address.suburb ||
-                                data.address.neighbourhood ||
-                                data.address.road ||
-                                "";
-                              const city =
-                                data.address.city ||
-                                data.address.town ||
-                                data.address.village ||
-                                "";
-                              const state = data.address.state || "";
-                              const parts = [area, city, state].filter(
-                                (p) => p && p.trim() !== "",
-                              );
-                              const formatted = parts.join(", ");
-                              setEditingListing({
-                                ...editingListing,
-                                location: formatted || "Hyderabad, Telangana",
-                              });
-                            } catch (e) {
-                              console.error(e);
-                            }
-                          },
-                        );
-                      }
-                    }}
-                    style={{
-                      fontSize: "11px",
-                      color: "var(--primary)",
-                      cursor: "pointer",
-                      fontWeight: "var(--font-weight-semibold)",
-                    }}
-                  >
-                    📍 Auto-fill GPS
-                  </span>
-                </div>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Madhapur, Hyderabad, Telangana"
-                  value={editingListing.location || ""}
+
+              <div className="form-group">
+                <label className="form-label">City</label>
+                <select
+                  className="form-select"
+                  value={editingListing.cityId || ""}
                   onChange={(e) => {
                     setEditingListing({
                       ...editingListing,
-                      location: e.target.value,
+                      cityId: e.target.value ? parseInt(e.target.value) : null,
+                      subCityId: null,
                     });
-                    setShowEditLocDropdown(true);
                   }}
-                  onFocus={() => setShowEditLocDropdown(true)}
                   required
-                />
-                {showEditLocDropdown && editLocSuggestions.length > 0 && (
-                  <div
-                    className="location-dropdown"
-                    style={{ width: "100%", top: "calc(100% - 2px)" }}
-                  >
-                    {editLocSuggestions.map((loc, i) => (
-                      <div
-                        key={i}
-                        className="location-dropdown-item"
-                        onClick={() => {
-                          setEditingListing({
-                            ...editingListing,
-                            location: loc,
-                          });
-                          setShowEditLocDropdown(false);
-                        }}
-                      >
-                        {loc}
-                      </div>
+                >
+                  <option value="">-- Choose City --</option>
+                  {citiesList.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Sub-City / Area</label>
+                <select
+                  className="form-select"
+                  value={editingListing.subCityId || ""}
+                  onChange={(e) => {
+                    setEditingListing({
+                      ...editingListing,
+                      subCityId: e.target.value ? parseInt(e.target.value) : null,
+                    });
+                  }}
+                  disabled={!editingListing.cityId}
+                  required
+                >
+                  <option value="">-- Choose Area --</option>
+                  {citiesList
+                    .find((c) => c.id === parseInt(editingListing.cityId))
+                    ?.subCities?.map((sub) => (
+                      <option key={sub.id} value={sub.id}>
+                        {sub.name}
+                      </option>
                     ))}
-                  </div>
-                )}
+                </select>
               </div>
 
               <div className="form-group">

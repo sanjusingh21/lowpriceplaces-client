@@ -489,6 +489,24 @@ export default function DetailsClient({ id }) {
                       {listingDetails.seller.sellerProfile.whatsAppNumber && (
                         <div>💬 WhatsApp: <a href={`https://wa.me/${listingDetails.seller.sellerProfile.whatsAppNumber.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--primary)", textDecoration: "none" }}>{listingDetails.seller.sellerProfile.whatsAppNumber}</a></div>
                       )}
+                      {(!user || user.id !== listingDetails.sellerId) && (
+                        <div>💬 Chat: <button
+                          onClick={async () => {
+                            if (!user) {
+                              router.push("/login");
+                              return;
+                            }
+                            try {
+                              await startDirectChatWithListing(listingDetails.id);
+                            } catch (err) {
+                              console.error(err);
+                            }
+                          }}
+                          style={{ background: "none", border: "none", color: "var(--primary)", padding: 0, fontSize: "var(--font-helper)", fontWeight: "var(--font-weight-semibold)", cursor: "pointer", textDecoration: "underline" }}
+                        >
+                          Start Website Chat
+                        </button></div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -510,6 +528,29 @@ export default function DetailsClient({ id }) {
 
                   return (
                     <div className="contact-methods" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {(!user || user.id !== listingDetails.sellerId) && (
+                        <button
+                          onClick={async () => {
+                            if (!user) {
+                              router.push("/login");
+                              return;
+                            }
+                            try {
+                              await startDirectChatWithListing(listingDetails.id);
+                            } catch (err) {
+                              console.error("Direct chat error:", err);
+                            }
+                          }}
+                          className="btn btn-primary"
+                          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", fontWeight: "var(--font-weight-semibold)" }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                          </svg>
+                          <span>Website Chat</span>
+                        </button>
+                      )}
+
                       {user ? (
                         <>
                           {displayWhatsApp && (

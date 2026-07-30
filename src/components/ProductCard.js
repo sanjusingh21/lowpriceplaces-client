@@ -6,7 +6,7 @@ import { useApp } from "@/context/AppContext";
 import { getImageSrcSet } from "@/utils/image";
 
 export default function ProductCard({ item, href }) {
-  const { savedListings, toggleBookmark } = useApp();
+  const { user, savedListings, toggleBookmark, startDirectChatWithListing } = useApp();
   const isBookmarked = savedListings?.includes(item.id) || false;
 
   const hasDiscount = item.discountPercent > 0;
@@ -163,10 +163,42 @@ export default function ProductCard({ item, href }) {
             )}
           </div>
 
-          <div style={{ marginTop: "auto", marginBottom: "12px" }}>
-            <div className="btn btn-primary" style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center", padding: "8px", fontSize: "var(--font-helper)", borderRadius: "8px", fontWeight: "var(--font-weight-semibold)" }}>
+          <div style={{ display: "flex", gap: "8px", marginTop: "auto", marginBottom: "12px" }}>
+            <div className="btn btn-primary" style={{ flex: 1.6, display: "flex", justifyContent: "center", alignItems: "center", padding: "8px", fontSize: "11.5px", borderRadius: "8px", fontWeight: "var(--font-weight-semibold)" }}>
               View More Details →
             </div>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!user) {
+                  window.location.href = "/login";
+                  return;
+                }
+                startDirectChatWithListing(item.id).catch(err => console.error("Chat error:", err));
+              }}
+              className="btn btn-secondary"
+              style={{
+                flex: 1,
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                padding: "8px",
+                fontSize: "11.5px",
+                borderRadius: "8px",
+                fontWeight: "var(--font-weight-semibold)",
+                gap: "4px",
+                border: "1px solid rgba(129, 140, 248, 0.3)",
+                background: "rgba(129, 140, 248, 0.08)",
+                color: "var(--primary)"
+              }}
+              title="Chat with Seller on Website"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              <span>Chat</span>
+            </button>
           </div>
 
           {/* Bottom Row: Location only */}

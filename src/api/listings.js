@@ -36,6 +36,10 @@ export async function editListingDetails(id, updatedFields) {
   });
 }
 
+export async function getSuggestions(q) {
+  return request(`/suggestions?q=${encodeURIComponent(q)}`);
+}
+
 export const listingsApi = {
   getListings,
   getListingDetails,
@@ -43,4 +47,5 @@ export const listingsApi = {
   changeListingStatus,
   deleteListing,
   editListingDetails,
+  getSuggestions,
 };

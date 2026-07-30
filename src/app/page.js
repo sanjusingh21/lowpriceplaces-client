@@ -20,6 +20,8 @@ function HomeContent() {
     nearbyListings,
     categories,
     citiesList,
+    citiesLoading,
+    citiesError,
     loading,
     locationFilter,
     setLocationFilter,
@@ -456,15 +458,35 @@ function HomeContent() {
     }
   };
 
+  const loadStoresAndServices = async () => {
+    setDataLoading(true);
+    try {
+      const queryParams = {
+        ...(userCoords ? { lat: userCoords.lat, lng: userCoords.lng } : {}),
+        location: locationFilter || "",
+      };
+      const storesData = await api.getStores(queryParams);
+      setNearbyStores(storesData);
+
+      const servicesData = await api.getServices(queryParams);
+      setNearbyServices(servicesData);
+    } catch (err) {
+      console.error("Failed to load stores/services:", err);
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
   useEffect(() => {
     const socket = io(imageServer);
     socket.on("listings_update", (update) => {
+      loadStoresAndServices();
       fetchWholesaleDeals();
     });
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [userCoords, locationFilter]);
 
   const filteredListings = getFilteredListingsForGrid(
     listings,
@@ -481,27 +503,9 @@ function HomeContent() {
   }, [activeSegmentTab]);
 
   useEffect(() => {
-    async function loadStoresAndServices() {
-      setDataLoading(true);
-      try {
-        const storesData = await api.getStores(
-          userCoords ? { lat: userCoords.lat, lng: userCoords.lng } : {},
-        );
-        setNearbyStores(storesData);
-
-        const servicesData = await api.getServices(
-          userCoords ? { lat: userCoords.lat, lng: userCoords.lng } : {},
-        );
-        setNearbyServices(servicesData);
-      } catch (err) {
-        console.error("Failed to load stores/services:", err);
-      } finally {
-        setDataLoading(false);
-      }
-    }
     loadStoresAndServices();
     fetchWholesaleDeals();
-  }, [userCoords]);
+  }, [userCoords, locationFilter]);
 
   const handleSecondHandClick = (catName) => {
     let matchedCat = null;
@@ -1169,18 +1173,108 @@ function HomeContent() {
       )}
 
       {/* ========== HOMEPAGE (hidden behind subcategory view) ========== */}
-      {user && (
-        <div
-          style={{
-            marginBottom: "20px",
-            fontSize: "var(--font-h4)",
-            fontWeight: "var(--font-weight-bold)",
-            color: "var(--text-main)",
-          }}
-        >
-          Hello, {user.fullName || user.username?.split("@")[0] || "User"} 👋
+      {/* ========== HOMEPAGE WELCOME HERO BANNER (Redesigned & Premium) ========== */}
+      <div className="welcome-hero-container">
+        {/* Brand Welcome Card */}
+        <div className="brand-welcome-card">
+          <div className="brand-card-top">
+            {/* Left Content (Greeting & Compact Badge) */}
+            <div className="brand-card-left">
+              {/* Greeting Section */}
+              <div className="welcome-header-section">
+                <h1 className="welcome-greeting-title">
+                  Hello, {user ? (user.fullName || user.username?.split("@")[0]) : "Guest"} 👋
+                </h1>
+                
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", marginTop: "4px" }}>
+                  {/* User Active Location Badge */}
+                  <div className="welcome-location-badge">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                    </svg>
+                    <span>{locationFilter || "India"}</span>
+                  </div>
+
+                  {/* Info Badges */}
+                  <span className="badge-tag">
+                    <span className="badge-dot verified"></span> Verified
+                  </span>
+                  <span className="badge-tag">
+                    <span className="badge-dot secure"></span> Secure
+                  </span>
+                </div>
+              </div>
+
+              {/* Compact Badge (Logo | Title | Subtitle) */}
+              <div className="compact-badge-row">
+                <div className="brand-logo-circle">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M16 9V7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7V9H5C3.89543 9 3 9.89543 3 11V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V11C21 9.89543 20.1046 9 19 9H16ZM10 7C10 5.89543 10.8954 5 12 5C13.1046 5 14 5.89543 14 7V9H10V7ZM12 13C12.8284 13 13.5 12.3284 13.5 11.5H15C15 13.1569 13.6569 14.5 12 14.5C10.3431 14.5 9 13.1569 9 11.5H10.5C10.5 12.3284 11.1716 13 12 13Z" fill="#38a169"/>
+                  </svg>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <span className="brand-title-text" style={{ fontSize: "14.5px" }}>
+                    <span style={{ color: "var(--primary)" }}>Low</span>
+                    <span style={{ color: "#16a34a" }}>price</span>
+                    <span style={{ color: "var(--text-muted)" }}>places.com</span>
+                  </span>
+                  <span style={{ fontSize: "9px", color: "var(--text-muted)", fontWeight: 500, marginTop: "1px", lineHeight: 1.2 }}>
+                    India's simple marketplace to connect &amp; discover great deals.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Image Section */}
+            <div className="brand-card-right">
+              <img
+                src="/family_on_couch.jpg"
+                alt="Cartoon Family on Couch"
+                className="brand-family-image"
+              />
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Floating Pill Feature Section */}
+        <div className="welcome-features-row">
+          {/* Feature Pill 1 */}
+          <div className="feature-pill">
+            <div className="feature-icon-wrapper trusted">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="m9 11 2 2 4-4"/>
+              </svg>
+            </div>
+            <span className="feature-title-text">Trusted Platform</span>
+          </div>
+
+          {/* Feature Pill 2 */}
+          <div className="feature-pill">
+            <div className="feature-icon-wrapper connect">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3"/>
+                <circle cx="6" cy="12" r="3"/>
+                <circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+            </div>
+            <span className="feature-title-text">Connect with People</span>
+          </div>
+
+          {/* Feature Pill 3 */}
+          <div className="feature-pill">
+            <div className="feature-icon-wrapper discover">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v12M15 9H11.5a2.5 2.5 0 0 0 0 5H13a2.5 2.5 0 0 1 0 5H9.5"/>
+              </svg>
+            </div>
+            <span className="feature-title-text">Best Deals</span>
+          </div>
+        </div>
+      </div>
 
 
 
@@ -1540,9 +1634,11 @@ function HomeContent() {
               </span>
             </div>
 
-            {citiesList.map((c) => {
-              const isSelected =
-                locationFilter?.toLowerCase() === c.name.toLowerCase();
+            {citiesList
+              .filter((c) => c.activeListingsCount > 0)
+              .map((c) => {
+                const isSelected =
+                  locationFilter?.toLowerCase() === c.name.toLowerCase();
               return (
                 <div
                   key={c.id || c.name}
@@ -1599,7 +1695,7 @@ function HomeContent() {
                     className="category-bar-label"
                     style={{ fontSize: "var(--font-caption)" }}
                   >
-                    {c.name}
+                    {c.name} ({c.activeListingsCount})
                   </span>
                 </div>
               );
@@ -3207,15 +3303,74 @@ function HomeContent() {
                   </span>
                 </div>
 
-                {citiesList
-                  .filter((c) =>
-                    c.name
-                      .toLowerCase()
-                      .includes(citySearchQuery.toLowerCase()),
-                  )
-                  .map((c) => {
-                    const isSelected =
-                      locationFilter?.toLowerCase() === c.name.toLowerCase();
+                {(() => {
+                  if (citiesError) {
+                    return (
+                      <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "32px 16px", color: "var(--primary)" }}>
+                        ⚠️ {citiesError}
+                      </div>
+                    );
+                  }
+
+                  if (citiesLoading) {
+                    return (
+                      <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "32px 16px", color: "var(--text-muted)" }}>
+                        <div className="spinner" style={{ border: "2px solid rgba(255,255,255,0.1)", borderTop: "2px solid var(--primary)", borderRadius: "50%", width: "24px", height: "24px", animation: "spin 1s linear infinite", margin: "0 auto 8px" }}></div>
+                        Loading cities...
+                      </div>
+                    );
+                  }
+
+                  const query = citySearchQuery.toLowerCase().trim();
+                  
+                  // 1. All cities in DB matching search query
+                  const dbMatches = citiesList.filter(c => 
+                    c.name.toLowerCase().includes(query)
+                  );
+                  
+                  // 2. Active matching cities (with count > 0)
+                  const activeMatches = dbMatches.filter(c => c.activeListingsCount > 0);
+
+                  if (query && dbMatches.length === 0) {
+                    return (
+                      <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "32px 16px", color: "var(--text-muted)" }}>
+                        <span style={{ fontSize: "var(--font-h3)", display: "block", marginBottom: "8px" }}>🚧</span>
+                        <div style={{ fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>
+                          Coming Soon
+                        </div>
+                        <div style={{ fontSize: "var(--font-helper)", marginTop: "4px" }}>
+                          Be the first to post in this city!
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (query && activeMatches.length === 0) {
+                    return (
+                      <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "32px 16px", color: "var(--text-muted)" }}>
+                        <span style={{ fontSize: "var(--font-h3)", display: "block", marginBottom: "8px" }}>📍</span>
+                        <div style={{ fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>
+                          No listings available for this city yet.
+                        </div>
+                        <div style={{ fontSize: "var(--font-helper)", marginTop: "4px" }}>
+                          Be the first to post a deal in {dbMatches[0].name}!
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const listToRender = query ? activeMatches : citiesList.filter(c => c.activeListingsCount > 0);
+                  
+                  if (listToRender.length === 0) {
+                    return (
+                      <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "32px 16px", color: "var(--text-muted)" }}>
+                        No cities found with active listings.
+                      </div>
+                    );
+                  }
+
+                  return listToRender.map((c) => {
+                    const isSelected = locationFilter?.toLowerCase() === c.name.toLowerCase();
                     return (
                       <div
                         key={c.id || c.name}
@@ -3226,9 +3381,7 @@ function HomeContent() {
                           setShowAllCitiesModal(false);
                         }}
                         style={{
-                          background: isSelected
-                            ? "var(--primary)"
-                            : "rgba(255,255,255,0.03)",
+                          background: isSelected ? "var(--primary)" : "rgba(255,255,255,0.03)",
                           border: "1px solid var(--border-glass)",
                           borderRadius: "14px",
                           padding: "16px 8px",
@@ -3272,11 +3425,12 @@ function HomeContent() {
                             wordBreak: "break-word",
                           }}
                         >
-                          {c.name}
+                          {c.name} ({c.activeListingsCount})
                         </span>
                       </div>
                     );
-                  })}
+                  });
+                })()}
               </div>
             </div>
           </div>
