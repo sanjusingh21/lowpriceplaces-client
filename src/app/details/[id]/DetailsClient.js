@@ -7,6 +7,7 @@ import { useApp } from "@/context/AppContext";
 import { api } from "@/api";
 import { getImageSrcSet } from "@/utils/image";
 import { io } from "socket.io-client";
+import ListingMap from "@/components/ListingMap";
 
 export default function DetailsClient({ id }) {
   const router = useRouter();
@@ -419,6 +420,13 @@ export default function DetailsClient({ id }) {
                 <h3 style={{ marginBottom: "12px", fontSize: "17px", fontWeight: "var(--font-weight-bold)", color: "var(--text-main)" }}>Description</h3>
                 <p className="detail-desc">{listingDetails.description}</p>
               </div>
+
+              <ListingMap
+                location={listingDetails.location}
+                latitude={listingDetails.latitude}
+                longitude={listingDetails.longitude}
+                title={listingDetails.title}
+              />
 
               {/* Seller Information Card */}
               {listingDetails.seller?.sellerProfile && (

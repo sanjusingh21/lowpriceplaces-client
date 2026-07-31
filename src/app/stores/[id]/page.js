@@ -5,6 +5,7 @@ import { useApp } from "@/context/AppContext";
 import { api } from "@/api";
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
+import ListingMap from "@/components/ListingMap";
 
 export default function StoreDetailPage({ params: paramsPromise }) {
   const resolvedParams = use(paramsPromise);
@@ -214,6 +215,13 @@ export default function StoreDetailPage({ params: paramsPromise }) {
               </div>
             </div>
           </div>
+
+          <ListingMap
+            location={store.location}
+            latitude={store.latitude}
+            longitude={store.longitude}
+            title={store.name}
+          />
 
           {/* Reviews Section */}
           <div className="glass-panel" style={{ padding: "24px", borderRadius: "20px", border: "1px solid var(--border-glass)", background: "var(--bg-card)" }}>

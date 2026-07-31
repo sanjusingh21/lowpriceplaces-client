@@ -32,6 +32,7 @@ export function AppContextProvider({ children }) {
     { name: "Lucknow", emoji: "🏛️" }
   ]);
   const [citiesLoading, setCitiesLoading] = useState(true);
+  const [detectingLoc, setDetectingLoc] = useState(false);
   const [citiesError, setCitiesError] = useState(null);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const [suggestionError, setSuggestionError] = useState(null);
@@ -475,37 +476,232 @@ export function AppContextProvider({ children }) {
     (locationFilter !== '' && locationFilter.toLowerCase() !== 'india') ||
     selectedDateFilter !== '';
 
-  const detectUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        const { latitude, longitude } = position.coords;
-        setUserCoords({ lat: latitude, lng: longitude });
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-          const data = await res.json();
-          const city = data.address.city || data.address.town || data.address.village || data.address.state || '';
-          const suburb = data.address.suburb || data.address.neighbourhood || data.address.road || '';
-          const detected = suburb && city ? `${suburb}, ${city}` : (city || 'Hyderabad');
+  const reverseGeocode = async (lat, lng) => {
+    const BLOCKED_POI_KEYWORDS = [
+      "station", "stop", "bus", "metro", "railway",
+      "mall", "shopping", "center", "centre", "plaza", "bazaar",
+      "hospital", "clinic", "diagnostic", "health", "medical",
+      "school", "college", "university", "academy", "institute",
+      "temple", "mosque", "masjid", "church", "gurudwara", "ashram", "shrine",
+      "building", "apartment", "residency", "tower", "villa", "house", "complex", "society",
+      "road", "street", "lane", "highway", "bypass", "flyover", "chowk", "gali"
+    ];
 
-          setLocationFilter(detected);
-          setShowLocationDropdown(false);
-          fetchListings({ location: detected, lat: latitude, lng: longitude });
-        } catch (e) {
-          console.error(e);
-          setLocationFilter("Madhapur, Hyderabad");
-          setShowLocationDropdown(false);
-          fetchListings({ location: "Hyderabad" });
+    const isBlocked = (name) => {
+      if (!name) return true;
+      const lower = name.toLowerCase();
+      return BLOCKED_POI_KEYWORDS.some(word => {
+        const regex = new RegExp(`\\b${word}\\b`, 'i');
+        return regex.test(lower);
+      });
+    };
+
+    try {
+      const res = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.features && data.features.length > 0) {
+          const props = data.features[0].properties;
+          const state = props.state || "";
+          const city = props.city || props.county || props.district || "";
+          let locality = props.district || props.suburb || props.locality || props.neighbourhood || props.name || "";
+
+          if (props.name && props.name !== locality && props.name !== city) {
+            const isPlaceType = props.osm_key === "place" || props.osm_key === "boundary";
+            if (isPlaceType && !isBlocked(props.name)) {
+              locality = props.name;
+            }
+          }
+
+          const cleanLocality = isBlocked(locality) ? "" : locality;
+          const cleanCity = isBlocked(city) ? "" : city;
+          const cleanState = isBlocked(state) ? "" : state;
+
+          if (cleanCity || cleanState) {
+            const parts = [cleanLocality, cleanCity, cleanState].filter(p => p && p.trim() !== "");
+            if (parts.length > 0) {
+              return parts.join(", ");
+            }
+          }
         }
-      }, (err) => {
-        console.error(err);
-        setLocationFilter("Dilsukh Nagar, Hyderabad");
+      }
+    } catch (err) {
+      console.error("Photon geocoding failed, trying Nominatim...", err);
+    }
+
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.address) {
+          const addr = data.address;
+          const state = addr.state || "";
+          const city = addr.city || addr.town || addr.village || "";
+          const locality = addr.suburb || addr.neighbourhood || addr.quarter || addr.city_district || "";
+
+          const cleanLocality = isBlocked(locality) ? "" : locality;
+          const cleanCity = isBlocked(city) ? "" : city;
+          const cleanState = isBlocked(state) ? "" : state;
+
+          const parts = [cleanLocality, cleanCity, cleanState].filter(p => p && p.trim() !== "");
+          if (parts.length > 0) {
+            return parts.join(", ");
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Nominatim geocoding failed...", err);
+    }
+
+    return null;
+  };
+
+  const handleDetectLocation = async (onDetected) => {
+    if (typeof window !== "undefined" && !navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    // Check cache
+    const cached = localStorage.getItem("lowpriceplaces_cached_listing_location");
+    if (cached) {
+      try {
+        const cachedData = JSON.parse(cached);
+        if (Date.now() - cachedData.timestamp < 15 * 60 * 1000) {
+          if (onDetected) onDetected({ location: cachedData.location, lat: cachedData.lat, lng: cachedData.lng });
+          alert("Location retrieved from cache.");
+          return;
+        }
+      } catch (cacheErr) {
+        console.error("Cache read error:", cacheErr);
+      }
+    }
+
+    setDetectingLoc(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const locationName = await reverseGeocode(latitude, longitude);
+          const fullLoc = locationName || "Hyderabad, Telangana";
+          if (onDetected) onDetected({ location: fullLoc, lat: latitude, lng: longitude });
+          
+          localStorage.setItem("lowpriceplaces_cached_listing_location", JSON.stringify({
+            location: fullLoc,
+            lat: latitude,
+            lng: longitude,
+            timestamp: Date.now()
+          }));
+          
+          if (locationName) {
+            alert("Location detected successfully.");
+          } else {
+            alert("Unable to determine exact address. Defaulting to Hyderabad, Telangana.");
+          }
+        } catch (err) {
+          console.error(err);
+          if (onDetected) onDetected({ location: "Hyderabad, Telangana" });
+          alert("Unable to detect location. Defaulting to Hyderabad, Telangana.");
+        } finally {
+          setDetectingLoc(false);
+        }
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        if (onDetected) onDetected({ location: "Hyderabad, Telangana" });
+        alert("Location permission denied or unavailable. Defaulting to Hyderabad, Telangana.");
+        setDetectingLoc(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+
+  const detectUserLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationFilter("Hyderabad, Telangana");
+      setShowLocationDropdown(false);
+      return;
+    }
+
+    // Check Cache
+    const cached = localStorage.getItem("lowpriceplaces_cached_user_location");
+    if (cached) {
+      try {
+        const cachedData = JSON.parse(cached);
+        if (Date.now() - cachedData.timestamp < 15 * 60 * 1000) {
+          setLocationFilter(cachedData.location);
+          setUserCoords({ lat: cachedData.lat, lng: cachedData.lng });
+          setShowLocationDropdown(false);
+          fetchListings({ location: cachedData.location, lat: cachedData.lat, lng: cachedData.lng });
+          return;
+        }
+      } catch (cacheErr) {
+        console.error("Cache read error:", cacheErr);
+      }
+    }
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const { latitude, longitude } = position.coords;
+      setUserCoords({ lat: latitude, lng: longitude });
+      try {
+        // Blocked POI keywords
+        const BLOCKED_POI_KEYWORDS = [
+          "station", "stop", "bus", "metro", "railway",
+          "mall", "shopping", "center", "centre", "plaza", "bazaar",
+          "hospital", "clinic", "diagnostic", "health", "medical",
+          "school", "college", "university", "academy", "institute",
+          "temple", "mosque", "masjid", "church", "gurudwara", "ashram", "shrine",
+          "building", "apartment", "residency", "tower", "villa", "house", "complex", "society",
+          "road", "street", "lane", "highway", "bypass", "flyover", "chowk", "gali"
+        ];
+
+        const isBlocked = (name) => {
+          if (!name) return true;
+          const lower = name.toLowerCase();
+          return BLOCKED_POI_KEYWORDS.some(word => {
+            const regex = new RegExp(`\\b${word}\\b`, 'i');
+            return regex.test(lower);
+          });
+        };
+
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+        const data = await res.json();
+        
+        const state = data.address.state || "";
+        const city = data.address.city || data.address.town || data.address.village || "";
+        const locality = data.address.suburb || data.address.neighbourhood || data.address.quarter || data.address.city_district || "";
+
+        const cleanLocality = isBlocked(locality) ? "" : locality;
+        const cleanCity = isBlocked(city) ? "" : city;
+        const cleanState = isBlocked(state) ? "" : state;
+
+        const parts = [cleanLocality, cleanCity, cleanState].filter((p) => p && p.trim() !== "");
+        const detected = parts.join(", ") || "Hyderabad, Telangana";
+
+        setLocationFilter(detected);
+        setShowLocationDropdown(false);
+        
+        // Cache the location
+        localStorage.setItem("lowpriceplaces_cached_user_location", JSON.stringify({
+          lat: latitude,
+          lng: longitude,
+          location: detected,
+          timestamp: Date.now()
+        }));
+
+        fetchListings({ location: detected, lat: latitude, lng: longitude });
+      } catch (e) {
+        console.error(e);
+        setLocationFilter("Hyderabad, Telangana");
         setShowLocationDropdown(false);
         fetchListings({ location: "Hyderabad" });
-      });
-    } else {
-      setLocationFilter("Dilsukh Nagar, Hyderabad");
+      }
+    }, (err) => {
+      console.error(err);
+      setLocationFilter("Hyderabad, Telangana");
       setShowLocationDropdown(false);
-    }
+      fetchListings({ location: "Hyderabad" });
+    });
   };
 
   const toggleBookmark = (id) => {
@@ -707,6 +903,9 @@ export function AppContextProvider({ children }) {
         fetchInquiries,
         fetchSellerListings,
         detectUserLocation,
+        detectingLoc,
+        handleDetectLocation,
+        reverseGeocode,
         extractParentCity,
         handleClearAllFilters,
         isAnyFilterApplied,

@@ -16,7 +16,91 @@ export default function ClientLayout({ children }) {
   const imageServer =
     process.env.NEXT_PUBLIC_IMAGE_SERVER || "http://localhost:5000";
 
+  async function reverseGeocode(lat, lng) {
+    const BLOCKED_POI_KEYWORDS = [
+      "station", "stop", "bus", "metro", "railway",
+      "mall", "shopping", "center", "centre", "plaza", "bazaar",
+      "hospital", "clinic", "diagnostic", "health", "medical",
+      "school", "college", "university", "academy", "institute",
+      "temple", "mosque", "masjid", "church", "gurudwara", "ashram", "shrine",
+      "building", "apartment", "residency", "tower", "villa", "house", "complex", "society",
+      "road", "street", "lane", "highway", "bypass", "flyover", "chowk", "gali"
+    ];
+
+    const isBlocked = (name) => {
+      if (!name) return true;
+      const lower = name.toLowerCase();
+      return BLOCKED_POI_KEYWORDS.some(word => {
+        const regex = new RegExp(`\\b${word}\\b`, 'i');
+        return regex.test(lower);
+      });
+    };
+
+    try {
+      const res = await fetch(`https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.features && data.features.length > 0) {
+          const props = data.features[0].properties;
+          const state = props.state || "";
+          const city = props.city || props.town || props.village || props.district || "";
+          
+          let locality = props.suburb || "";
+          if (!locality && props.name) {
+            const isPlaceType = props.osm_key === "place" || props.osm_key === "boundary";
+            if (isPlaceType && !isBlocked(props.name)) {
+              locality = props.name;
+            }
+          }
+
+          const cleanLocality = isBlocked(locality) ? "" : locality;
+          const cleanCity = isBlocked(city) ? "" : city;
+          const cleanState = isBlocked(state) ? "" : state;
+
+          if (cleanCity || cleanState) {
+            const parts = [cleanLocality, cleanCity, cleanState].filter(p => p && p.trim() !== "");
+            if (parts.length > 0) {
+              return parts.join(", ");
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Photon geocoding failed, trying Nominatim...", err);
+    }
+
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.address) {
+          const addr = data.address;
+          const state = addr.state || "";
+          const city = addr.city || addr.town || addr.village || "";
+          const locality = addr.suburb || addr.neighbourhood || addr.quarter || addr.city_district || "";
+
+          const cleanLocality = isBlocked(locality) ? "" : locality;
+          const cleanCity = isBlocked(city) ? "" : city;
+          const cleanState = isBlocked(state) ? "" : state;
+
+          const parts = [cleanLocality, cleanCity, cleanState].filter(p => p && p.trim() !== "");
+          if (parts.length > 0) {
+            return parts.join(", ");
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Nominatim geocoding failed...", err);
+    }
+
+    return null;
+  }
+
+
+
   const {
+    detectingLoc,
+    handleDetectLocation,
     user,
     setUser,
     authLoading,
@@ -217,42 +301,50 @@ export default function ClientLayout({ children }) {
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     setShowLocationDropdown(false);
+    setShowKeywordDropdown(false);
     setSuggestions([]);
-    fetchListings();
-    if (pathname !== "/") {
-      router.push("/");
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      router.push("/search");
     }
   };
 
   const handleSuggestionClick = (sug) => {
-    setSearchQuery(sug.label);
+    const text = typeof sug === "string" ? sug : (sug.label || sug.title || sug.name || "");
+    if (!text) return;
+    setSearchQuery(text);
     setSuggestions([]);
-    if (sug.type === "Listing") {
-      router.push(`/details/${sug.id}`);
-    } else if (sug.type === "Category") {
-      const cat = categories.find((c) => c.id === sug.id);
-      setSelectedCatFilter(cat);
-      setSelectedSubCatFilter(null);
-      router.push("/");
-    } else if (sug.type === "SubCategory") {
-      const cat = categories.find((c) =>
-        c.subCategories?.some((s) => s.id === sug.id),
-      );
-      const sub = cat?.subCategories?.find((s) => s.id === sug.id);
-      setSelectedCatFilter(cat || null);
-      setSelectedSubCatFilter(sub || null);
-      router.push("/");
-    }
+    setShowKeywordDropdown(false);
+    router.push(`/search?q=${encodeURIComponent(text.trim())}`);
   };
 
   const handleSaveListingDetails = async (e) => {
     e.preventDefault();
     try {
-      let resolvedLocation = editingListing.location || "";
-      const selectedCity = citiesList.find((c) => c.id === parseInt(editingListing.cityId));
-      const selectedSub = selectedCity?.subCities?.find((s) => s.id === parseInt(editingListing.subCityId));
-      if (selectedCity && selectedSub) {
-        resolvedLocation = `${selectedSub.name}, ${selectedCity.name}`;
+      let resolvedCityId = null;
+      let resolvedSubCityId = null;
+
+      if (editingListing.location) {
+        const locParts = editingListing.location.split(",").map(p => p.trim());
+        if (locParts.length >= 2) {
+          const subName = locParts[0];
+          const cityName = locParts[1];
+          const matchedCity = citiesList.find(c => c.name.toLowerCase() === cityName.toLowerCase());
+          if (matchedCity) {
+            resolvedCityId = matchedCity.id;
+            const matchedSub = matchedCity.subCities?.find(sub => sub.name.toLowerCase() === subName.toLowerCase());
+            if (matchedSub) {
+              resolvedSubCityId = matchedSub.id;
+            }
+          }
+        } else if (locParts.length === 1 && locParts[0]) {
+          const cityName = locParts[0];
+          const matchedCity = citiesList.find(c => c.name.toLowerCase() === cityName.toLowerCase());
+          if (matchedCity) {
+            resolvedCityId = matchedCity.id;
+          }
+        }
       }
 
       const payload = {
@@ -260,9 +352,11 @@ export default function ClientLayout({ children }) {
         price: editingListing.price,
         priceMax: editingListing.priceMax || "",
         discountPercent: editingListing.discountPercent,
-        location: resolvedLocation,
-        cityId: editingListing.cityId ? parseInt(editingListing.cityId) : null,
-        subCityId: editingListing.subCityId ? parseInt(editingListing.subCityId) : null,
+        location: editingListing.location || "",
+        latitude: editingListing.latitude || null,
+        longitude: editingListing.longitude || null,
+        cityId: resolvedCityId,
+        subCityId: resolvedSubCityId,
         description: editingListing.description,
         categoryId: editingListing.categoryId,
         subCategoryId: editingListing.subCategoryId || null,
@@ -1052,52 +1146,49 @@ export default function ClientLayout({ children }) {
               </div>
 
 
-              <div className="form-group">
-                <label className="form-label">City</label>
-                <select
-                  className="form-select"
-                  value={editingListing.cityId || ""}
-                  onChange={(e) => {
+              <div className="form-group" style={{ gridColumn: "span 2" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <label className="form-label" style={{ marginBottom: 0 }}>Location</label>
+                  <button
+                    type="button"
+                    onClick={() => handleDetectLocation(({ location, lat, lng }) => {
+                      setEditingListing({
+                        ...editingListing,
+                        location,
+                        latitude: lat || editingListing.latitude,
+                        longitude: lng || editingListing.longitude
+                      });
+                    })}
+                    disabled={detectingLoc}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "var(--primary)",
+                      fontSize: "var(--font-helper)",
+                      cursor: "pointer",
+                      fontWeight: "var(--font-weight-semibold)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}
+                  >
+                    {detectingLoc ? "⏳ Detecting..." : "🎯 Detect Location"}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Madhapur, Hyderabad, Telangana"
+                  value={editingListing.location || ""}
+                  onChange={(e) =>
                     setEditingListing({
                       ...editingListing,
-                      cityId: e.target.value ? parseInt(e.target.value) : null,
-                      subCityId: null,
-                    });
-                  }}
+                      location: e.target.value
+                    })
+                  }
                   required
-                >
-                  <option value="">-- Choose City --</option>
-                  {citiesList.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Sub-City / Area</label>
-                <select
-                  className="form-select"
-                  value={editingListing.subCityId || ""}
-                  onChange={(e) => {
-                    setEditingListing({
-                      ...editingListing,
-                      subCityId: e.target.value ? parseInt(e.target.value) : null,
-                    });
-                  }}
-                  disabled={!editingListing.cityId}
-                  required
-                >
-                  <option value="">-- Choose Area --</option>
-                  {citiesList
-                    .find((c) => c.id === parseInt(editingListing.cityId))
-                    ?.subCities?.map((sub) => (
-                      <option key={sub.id} value={sub.id}>
-                        {sub.name}
-                      </option>
-                    ))}
-                </select>
+                  style={{ width: "100%", boxSizing: "border-box" }}
+                />
               </div>
 
               <div className="form-group">
