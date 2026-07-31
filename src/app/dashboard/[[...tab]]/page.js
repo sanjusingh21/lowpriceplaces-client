@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/api";
 import ProductCard from "@/components/ProductCard";
+import LocationPickerMap from "@/components/LocationPickerMap";
 import MultiUploadComponent from "@/components/MultiUploadComponent";
 import UploadComponent from "@/components/UploadComponent";
 import { io } from "socket.io-client";
@@ -41,6 +42,8 @@ export default function Dashboard() {
     fetchInquiries,
     fetchSellerListings,
     detectUserLocation,
+    detectingLoc,
+    handleDetectLocation,
   } = useApp();
 
   const [shortlistedProducts, setShortlistedProducts] = useState([]);
@@ -242,6 +245,8 @@ export default function Dashboard() {
   const [newPriceMax, setNewPriceMax] = useState("");
   const [newDiscount, setNewDiscount] = useState("0");
   const [newLocation, setNewLocation] = useState("");
+  const [newLat, setNewLat] = useState("");
+  const [newLng, setNewLng] = useState("");
   const [newWhatsapp, setNewWhatsapp] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newCategory, setNewCategory] = useState("");
@@ -251,8 +256,6 @@ export default function Dashboard() {
   const [toast, setToast] = useState(null);
   const [showAddLocDropdown, setShowAddLocDropdown] = useState(false);
   const [addLocSuggestions, setAddLocSuggestions] = useState([]);
-  const [newCityId, setNewCityId] = useState("");
-  const [newSubCityId, setNewSubCityId] = useState("");
 
   // Seller Profile Tab state
   const [profileForm, setProfileForm] = useState({
@@ -391,11 +394,29 @@ export default function Dashboard() {
       return;
     }
 
-    let resolvedLocation = "";
-    const selectedCity = citiesList.find((c) => c.id === parseInt(newCityId));
-    const selectedSub = selectedCity?.subCities?.find((s) => s.id === parseInt(newSubCityId));
-    if (selectedCity && selectedSub) {
-      resolvedLocation = `${selectedSub.name}, ${selectedCity.name}`;
+    let resolvedCityId = null;
+    let resolvedSubCityId = null;
+
+    if (newLocation) {
+      const locParts = newLocation.split(",").map(p => p.trim());
+      if (locParts.length >= 2) {
+        const subName = locParts[0];
+        const cityName = locParts[1];
+        const matchedCity = citiesList.find((c) => c.name.toLowerCase() === cityName.toLowerCase());
+        if (matchedCity) {
+          resolvedCityId = matchedCity.id;
+          const matchedSub = matchedCity.subCities?.find((s) => s.name.toLowerCase() === subName.toLowerCase());
+          if (matchedSub) {
+            resolvedSubCityId = matchedSub.id;
+          }
+        }
+      } else if (locParts.length === 1 && locParts[0]) {
+        const cityName = locParts[0];
+        const matchedCity = citiesList.find((c) => c.name.toLowerCase() === cityName.toLowerCase());
+        if (matchedCity) {
+          resolvedCityId = matchedCity.id;
+        }
+      }
     }
 
     const payload = {
@@ -405,9 +426,11 @@ export default function Dashboard() {
       priceMax: newPriceMax || "",
       listingType: newListingType,
       discountPercent: newDiscount || 0,
-      location: resolvedLocation,
-      cityId: newCityId ? parseInt(newCityId) : null,
-      subCityId: newSubCityId ? parseInt(newSubCityId) : null,
+      location: newLocation,
+      latitude: newLat || null,
+      longitude: newLng || null,
+      cityId: resolvedCityId,
+      subCityId: resolvedSubCityId,
       whatsappNumber: newWhatsapp,
       contactNumber: newPhone,
       categoryId: newCategory,
@@ -428,8 +451,6 @@ export default function Dashboard() {
       setNewListingType("SALES");
       setNewDiscount("0");
       setNewLocation("");
-      setNewCityId("");
-      setNewSubCityId("");
       setNewWhatsapp("");
       setNewPhone("");
       setNewCategory("");
@@ -1230,44 +1251,51 @@ export default function Dashboard() {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">City</label>
-                  <select
-                    className="form-select"
-                    value={newCityId}
-                    onChange={(e) => {
-                      setNewCityId(e.target.value);
-                      setNewSubCityId("");
+                <div className="form-group" style={{ gridColumn: "span 2" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <label className="form-label" style={{ marginBottom: 0 }}>Location</label>
+                    <button
+                      type="button"
+                      onClick={() => handleDetectLocation(({ location, lat, lng }) => {
+                        setNewLocation(location);
+                        if (lat) setNewLat(String(lat));
+                        if (lng) setNewLng(String(lng));
+                      })}
+                      disabled={detectingLoc}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "var(--primary)",
+                        fontSize: "var(--font-helper)",
+                        cursor: "pointer",
+                        fontWeight: "var(--font-weight-semibold)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px"
+                      }}
+                    >
+                      {detectingLoc ? "⏳ Detecting..." : "🎯 Detect Location"}
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Madhapur, Hyderabad, Telangana"
+                    value={newLocation}
+                    onChange={(e) => setNewLocation(e.target.value)}
+                    required
+                    style={{ width: "100%", boxSizing: "border-box" }}
+                  />
+                  <LocationPickerMap
+                    location={newLocation}
+                    latitude={newLat}
+                    longitude={newLng}
+                    onLocationChange={({ location, lat, lng }) => {
+                      setNewLocation(location);
+                      if (lat) setNewLat(String(lat));
+                      if (lng) setNewLng(String(lng));
                     }}
-                    required
-                  >
-                    <option value="">-- Choose City --</option>
-                    {citiesList.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Sub-City / Area</label>
-                  <select
-                    className="form-select"
-                    value={newSubCityId}
-                    onChange={(e) => setNewSubCityId(e.target.value)}
-                    disabled={!newCityId}
-                    required
-                  >
-                    <option value="">-- Choose Area --</option>
-                    {citiesList
-                      .find((c) => c.id === parseInt(newCityId))
-                      ?.subCities?.map((sub) => (
-                        <option key={sub.id} value={sub.id}>
-                          {sub.name}
-                        </option>
-                      ))}
-                  </select>
+                  />
                 </div>
 
                 <div className="form-group">

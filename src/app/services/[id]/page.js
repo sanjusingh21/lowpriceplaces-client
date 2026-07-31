@@ -5,6 +5,7 @@ import { useApp } from "@/context/AppContext";
 import { api } from "@/api";
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
+import ListingMap from "@/components/ListingMap";
 
 export default function ServiceDetailPage({ params: paramsPromise }) {
   const resolvedParams = use(paramsPromise);
