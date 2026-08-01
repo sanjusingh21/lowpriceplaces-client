@@ -80,6 +80,7 @@ export async function request(endpoint, options = {}, isRetry = false) {
 
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, {
+      cache: "no-store",
       ...options,
       headers,
     });

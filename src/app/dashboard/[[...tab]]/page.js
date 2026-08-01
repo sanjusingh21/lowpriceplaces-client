@@ -1164,6 +1164,9 @@ export default function Dashboard() {
                     <option value="SECONDHAND">
                       ♻️ Second-Hand (Used items)
                     </option>
+                    <option value="SMALL_SCALE">
+                      🏪 Small Scale Business
+                    </option>
                   </select>
                 </div>
 

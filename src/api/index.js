@@ -37,6 +37,12 @@ export {
 };
 
 export const api = {
+  request,
+  buildQueryString,
+  getAuthToken,
+  setAuthToken,
+  getCurrentUser,
+  setCurrentUser,
   ...authApi,
   ...categoriesApi,
   ...listingsApi,

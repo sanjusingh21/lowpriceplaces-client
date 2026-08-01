@@ -51,7 +51,7 @@ export default function SubcategoryPage() {
         if (maxPrice) queryParams.maxPrice = maxPrice;
         if (rating) queryParams.rating = rating;
 
-        const data = await api.request(`/listings?${api.buildQueryString(queryParams)}`);
+        const data = await api.getListings(queryParams);
         if (data) {
           if (page === 1) {
             setListings(data);
