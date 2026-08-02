@@ -7,7 +7,7 @@ import { api } from "@/api";
 import { io } from "socket.io-client";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { getImageSrcSet } from "@/utils/image";
+import { getImageSrcSet, getImageUrl } from "@/utils/image";
 import { Splide, SplideSlide } from "@splidejs/react-splide";
 import "@splidejs/react-splide/css";
 
@@ -71,6 +71,8 @@ function HomeContent() {
 
   const [nearbyStores, setNearbyStores] = useState([]);
   const [nearbyServices, setNearbyServices] = useState([]);
+  const [nearbySmallScale, setNearbySmallScale] = useState([]);
+  const [smallScaleLoading, setSmallScaleLoading] = useState(true);
   const [wholesaleDeals, setWholesaleDeals] = useState([]);
   const [wholesaleLoading, setWholesaleLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
@@ -86,6 +88,7 @@ function HomeContent() {
   const subcategoryScrollRef = useRef(null);
   const cityScrollRef = useRef(null);
   const storesScrollRef = useRef(null);
+  const smallScaleScrollRef = useRef(null);
   const wholesaleScrollRef = useRef(null);
   const dealsScrollRef = useRef(null);
   const secondHandScrollRef = useRef(null);
@@ -102,6 +105,9 @@ function HomeContent() {
 
   const [showLeftStores, setShowLeftStores] = useState(false);
   const [showRightStores, setShowRightStores] = useState(true);
+
+  const [showLeftSmallScale, setShowLeftSmallScale] = useState(false);
+  const [showRightSmallScale, setShowRightSmallScale] = useState(true);
 
   const [showLeftWholesale, setShowLeftWholesale] = useState(false);
   const [showRightWholesale, setShowRightWholesale] = useState(true);
@@ -150,6 +156,11 @@ function HomeContent() {
         storesScrollRef,
         setShowLeftStores,
         setShowRightStores,
+      );
+      updateArrowVisibility(
+        smallScaleScrollRef,
+        setShowLeftSmallScale,
+        setShowRightSmallScale,
       );
       updateArrowVisibility(
         dealsScrollRef,
@@ -458,6 +469,90 @@ function HomeContent() {
     }
   };
 
+  const fetchSmallScaleBusinesses = async () => {
+    setSmallScaleLoading(true);
+    try {
+      const loc = locationFilter || "";
+      let data = await api.getListings({
+        listingType: "SMALLSCALE",
+        status: "ACTIVE",
+        location: loc,
+        limit: 12,
+      });
+
+      let list = Array.isArray(data) ? data : data?.data || [];
+      if (list.length === 0) {
+        const cat43 = (categories || []).find(
+          (c) =>
+            c.id === 43 ||
+            c.id === 57 ||
+            c.slug === "small-scale-business" ||
+            (c.name && c.name.toLowerCase().includes("small scale"))
+        );
+        const catId = cat43 ? cat43.id : 43;
+        const fallback = await api.getListings({
+          categoryId: catId,
+          status: "ACTIVE",
+          location: loc,
+          limit: 12,
+        });
+        list = Array.isArray(fallback) ? fallback : fallback?.data || [];
+        if (list.length === 0) {
+          const textFallback = await api.getListings({
+            q: "small scale",
+            status: "ACTIVE",
+            location: loc,
+            limit: 12,
+          });
+          list = Array.isArray(textFallback) ? textFallback : textFallback?.data || [];
+        }
+      }
+
+      const processed = list.map((item) => {
+        let dist = null;
+        if (
+          userCoords &&
+          userCoords.lat &&
+          userCoords.lng &&
+          item.latitude &&
+          item.longitude
+        ) {
+          const radlat1 = (Math.PI * userCoords.lat) / 180;
+          const radlat2 = (Math.PI * item.latitude) / 180;
+          const theta = userCoords.lng - item.longitude;
+          const radtheta = (Math.PI * theta) / 180;
+          let distCalc =
+            Math.sin(radlat1) * Math.sin(radlat2) +
+            Math.cos(radlat1) * Math.cos(radlat2) * Math.cos(radtheta);
+          if (distCalc > 1) distCalc = 1;
+          distCalc = Math.acos(distCalc);
+          distCalc = (distCalc * 180) / Math.PI;
+          distCalc = distCalc * 60 * 1.1515 * 1.609344;
+          dist = Number(distCalc.toFixed(1));
+        }
+
+        const avgRating =
+          item.reviews && item.reviews.length > 0
+            ? item.reviews.reduce((acc, curr) => acc + curr.rating, 0) /
+              item.reviews.length
+            : 4.8;
+
+        return {
+          ...item,
+          distance: dist,
+          rating: avgRating,
+        };
+      });
+
+      setNearbySmallScale(processed);
+    } catch (err) {
+      console.error("Small Scale Businesses fetch error:", err);
+      setNearbySmallScale([]);
+    } finally {
+      setSmallScaleLoading(false);
+    }
+  };
+
   const loadStoresAndServices = async () => {
     setDataLoading(true);
     try {
@@ -482,6 +577,7 @@ function HomeContent() {
     socket.on("listings_update", (update) => {
       loadStoresAndServices();
       fetchWholesaleDeals();
+      fetchSmallScaleBusinesses();
     });
     return () => {
       socket.disconnect();
@@ -505,7 +601,8 @@ function HomeContent() {
   useEffect(() => {
     loadStoresAndServices();
     fetchWholesaleDeals();
-  }, [userCoords, locationFilter]);
+    fetchSmallScaleBusinesses();
+  }, [userCoords, locationFilter, categories]);
 
   const handleSecondHandClick = (catName) => {
     let matchedCat = null;
@@ -1004,7 +1101,7 @@ function HomeContent() {
               >
                 {subCategoryView.subcategory?.imagePath ? (
                   <img
-                    src={`${imageServer}${subCategoryView.subcategory.imagePath}`}
+                    src={getImageUrl(subCategoryView.subcategory.imagePath, imageServer)}
                     alt={subCategoryView.subcategory.name}
                     style={{
                       width: "18px",
@@ -1046,7 +1143,7 @@ function HomeContent() {
             >
               {subCategoryView.subcategory?.imagePath ? (
                 <img
-                  src={`${imageServer}${subCategoryView.subcategory.imagePath}`}
+                  src={getImageUrl(subCategoryView.subcategory.imagePath, imageServer)}
                   alt={subCategoryView.subcategory.name}
                   style={{
                     width: "32px",
@@ -1400,7 +1497,7 @@ function HomeContent() {
                   >
                     {cat.imagePath ? (
                       <img
-                        src={`${imageServer}${cat.imagePath}`}
+                        src={getImageUrl(cat.imagePath, imageServer)}
                         srcSet={
                           getImageSrcSet(cat.imagePath, imageServer) ||
                           undefined
@@ -1499,7 +1596,7 @@ function HomeContent() {
                       >
                         {sub.imagePath ? (
                           <img
-                            src={`${imageServer}${sub.imagePath}`}
+                            src={getImageUrl(sub.imagePath, imageServer)}
                             alt={sub.name}
                             style={{
                               width: "16px",
@@ -1659,7 +1756,7 @@ function HomeContent() {
                   >
                     {c.imagePath ? (
                       <img
-                        src={`${imageServer}${c.imagePath}`}
+                        src={getImageUrl(c.imagePath, imageServer)}
                         srcSet={
                           getImageSrcSet(c.imagePath, imageServer) || undefined
                         }
@@ -1947,6 +2044,274 @@ function HomeContent() {
                   <button
                     className="scroll-arrow-btn right"
                     onClick={() => scrollRight(storesScrollRef)}
+                  >
+                    ▶
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Nearby Small Scale Businesses Section */}
+          <div
+            className="homepage-section-wrapper"
+            style={{ marginBottom: "32px" }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+                gap: "12px",
+                flexWrap: "nowrap",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: "clamp(15px, 4.5vw, 20px)",
+                  fontWeight: "var(--font-weight-bold)",
+                  color: "var(--text-main)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  margin: 0,
+                  whiteSpace: "nowrap",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                🏪 Nearby Small Scale Businesses
+              </h2>
+              <Link
+                href="/small-scale"
+                className="btn btn-secondary"
+                style={{
+                  padding: "6px 12px",
+                  fontSize: "var(--font-caption)",
+                  borderRadius: "6px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  textDecoration: "none",
+                }}
+              >
+                View All →
+              </Link>
+            </div>
+
+            {nearbySmallScale.length === 0 ? (
+              <div
+                className="glass-panel"
+                style={{
+                  padding: "24px 20px",
+                  borderRadius: "12px",
+                  color: "var(--text-muted)",
+                  fontSize: "var(--font-helper)",
+                  textAlign: "center",
+                  border: "1px solid var(--border-glass)",
+                }}
+              >
+                <span style={{ fontSize: "1.8rem", display: "block", marginBottom: "6px" }}>🏪</span>
+                <strong style={{ color: "var(--text-main)", display: "block", marginBottom: "4px" }}>
+                  No Small Scale Businesses found nearby.
+                </strong>
+                <span>Be the first to add a Small Scale Business in your area!</span>
+              </div>
+            ) : (
+              <div className="scroll-arrow-wrapper">
+                {showLeftSmallScale && (
+                  <button
+                    className="scroll-arrow-btn left"
+                    onClick={() => scrollLeft(smallScaleScrollRef)}
+                  >
+                    ◀
+                  </button>
+                )}
+                <div
+                  ref={smallScaleScrollRef}
+                  className="grab-scroll-container"
+                  onMouseDown={handleDragScroll}
+                  onMouseLeave={handleDragScrollLeaveOrUp}
+                  onMouseUp={handleDragScrollLeaveOrUp}
+                  onMouseMove={handleDragScrollMove}
+                  onScroll={() =>
+                    updateArrowVisibility(
+                      smallScaleScrollRef,
+                      setShowLeftSmallScale,
+                      setShowRightSmallScale,
+                    )
+                  }
+                  style={{
+                    display: "flex",
+                    gap: "16px",
+                    overflowX: "auto",
+                    paddingBottom: "12px",
+                    scrollBehavior: "smooth",
+                  }}
+                >
+                  {nearbySmallScale.map((biz) => {
+                    const imageList = biz.imagePath ? biz.imagePath.split(",") : [];
+                    const coverImg = imageList[0] || "";
+                    return (
+                      <Link
+                        key={biz.id}
+                        href={`/details/${biz.id}`}
+                        className="glass-panel"
+                        style={{
+                          width: "180px",
+                          flexShrink: 0,
+                          borderRadius: "12px",
+                          overflow: "hidden",
+                          border: "1px solid var(--border-glass)",
+                          background: "var(--bg-card)",
+                          display: "flex",
+                          flexDirection: "column",
+                          transition: "transform 0.2s ease",
+                          cursor: "pointer",
+                          textDecoration: "none",
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: "100px",
+                            width: "100%",
+                            position: "relative",
+                            background: "rgba(255,255,255,0.02)",
+                          }}
+                        >
+                          {coverImg ? (
+                            <img
+                              src={getImageUrl(coverImg, imageServer)}
+                              srcSet={
+                                getImageSrcSet(coverImg, imageServer) ||
+                                undefined
+                              }
+                              sizes="200px"
+                              alt={biz.title}
+                              loading="lazy"
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                              onError={(e) => {
+                                e.target.src =
+                                  "https://placehold.co/400x300?text=Small+Scale";
+                                e.target.srcSet = "";
+                              }}
+                            />
+                          ) : (
+                            <img
+                              src="https://placehold.co/400x300?text=Small+Scale"
+                              alt={biz.title}
+                              loading="lazy"
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          )}
+                          {biz.isFeatured && (
+                            <span
+                              style={{
+                                position: "absolute",
+                                top: "8px",
+                                left: "8px",
+                                background: "linear-gradient(135deg, #6366f1, #a855f7)",
+                                color: "#ffffff",
+                                fontSize: "9px",
+                                fontWeight: "bold",
+                                padding: "2px 6px",
+                                borderRadius: "4px",
+                              }}
+                            >
+                              VERIFIED
+                            </span>
+                          )}
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: "8px",
+                              right: "8px",
+                              background: "rgba(13,14,21,0.85)",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              fontSize: "10px",
+                              fontWeight: "var(--font-weight-semibold)",
+                              color: "#fbbf24",
+                              border: "1px solid rgba(255,255,255,0.05)",
+                            }}
+                          >
+                            ⭐ {biz.rating.toFixed(1)}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            padding: "10px",
+                            display: "flex",
+                            flexDirection: "column",
+                            flex: 1,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "var(--font-helper)",
+                              fontWeight: "var(--font-weight-semibold)",
+                              color: "var(--text-main)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {biz.title}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              color: "var(--text-muted)",
+                              marginTop: "2px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {biz.category?.name || "Small Scale Business"}
+                          </span>
+                          <div
+                            style={{
+                              marginTop: "auto",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              paddingTop: "8px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                color: "var(--text-main)",
+                                fontWeight: "var(--font-weight-medium)",
+                              }}
+                            >
+                              📍{" "}
+                              {biz.distance !== null
+                                ? `${biz.distance} km`
+                                : biz.location || "Nearby"}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+                {showRightSmallScale && (
+                  <button
+                    className="scroll-arrow-btn right"
+                    onClick={() => scrollRight(smallScaleScrollRef)}
                   >
                     ▶
                   </button>
@@ -3396,7 +3761,7 @@ function HomeContent() {
                       >
                         {c.imagePath ? (
                           <img
-                            src={`${imageServer}${c.imagePath}`}
+                            src={getImageUrl(c.imagePath, imageServer)}
                             alt={c.name}
                             style={{
                               width: "36px",

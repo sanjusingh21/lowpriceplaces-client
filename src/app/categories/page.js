@@ -1,4 +1,5 @@
 "use client";
+import { getImageUrl } from "@/utils/image";
 
 import React, { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
@@ -74,7 +75,7 @@ function SubcategoryPanel({ subs, catSlug, isOpen }) {
           >
             {sub.imagePath ? (
               <img
-                src={`${IMAGE_SERVER}${sub.imagePath}`}
+                src={getImageUrl(sub.imagePath, IMAGE_SERVER)}
                 alt={sub.name}
                 style={{ width: "18px", height: "18px", objectFit: "cover", borderRadius: "3px" }}
                 onError={(e) => { e.target.style.display = "none"; }}
@@ -264,7 +265,7 @@ export default function CategoriesPage() {
                       {cat.imagePath ? (
                         <>
                           <img
-                            src={`${IMAGE_SERVER}${cat.imagePath}`}
+                            src={getImageUrl(cat.imagePath, IMAGE_SERVER)}
                             alt={cat.name}
                             style={{ width: "100%", height: "100%", objectFit: "cover" }}
                             onError={(e) => {

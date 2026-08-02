@@ -1,4 +1,5 @@
 "use client";
+import { getImageUrl } from "@/utils/image";
 
 import React, { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
@@ -112,7 +113,7 @@ export default function CategoryPage() {
               width: "72px", height: "72px", borderRadius: "16px", overflow: "hidden",
               border: "3px solid rgba(255,255,255,0.25)", flexShrink: 0,
             }}>
-              <img src={`${IMAGE_SERVER}${category.imagePath}`} alt={category.name}
+              <img src={getImageUrl(category.imagePath, IMAGE_SERVER)} alt={category.name}
                 style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
           )}
